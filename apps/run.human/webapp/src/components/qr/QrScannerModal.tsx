@@ -48,9 +48,15 @@ const FLASH_MS = 1200;
 
 const ATTENDANCE_KEY = 'socialqr.attendance';
 const SOUND_KEY = 'socialqr.attendance.sound';
+// A QR sitting in frame keeps decoding at ~8fps — re-announce "already
+// scanned" at most this often per token so feedback pulses instead of strobing.
+const REFEEDBACK_MS = 2500;
 
-/** Short confirmation beep (WebAudio — no asset). Best-effort on iOS. */
-function playBeep(ctxRef: { current: AudioContext | null }, dup: boolean) {
+/**
+ * Feedback sounds (WebAudio — no asset). Best-effort on iOS.
+ * 'ok' = bright single beep; 'no' = two short low buzzes ("I see it, and no").
+ */
+function playBeep(ctxRef: { current: AudioContext | null }, kind: 'ok' | 'no') {
   try {
     const Ctor =
       window.AudioContext ??
@@ -59,16 +65,25 @@ function playBeep(ctxRef: { current: AudioContext | null }, dup: boolean) {
     ctxRef.current ??= new Ctor();
     const ctx = ctxRef.current;
     if (ctx.state === 'suspended') void ctx.resume();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = dup ? 392 : 880; // low tone for "already paired"
-    gain.gain.setValueAtTime(0.001, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.16);
+    const note = (freq: number, at: number, dur: number, type: OscillatorType) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type;
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.001, at);
+      gain.gain.exponentialRampToValueAtTime(0.22, at + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, at + dur);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(at);
+      osc.stop(at + dur + 0.01);
+    };
+    const t = ctx.currentTime;
+    if (kind === 'ok') {
+      note(880, t, 0.15, 'sine');
+    } else {
+      note(294, t, 0.09, 'square');
+      note(220, t + 0.11, 0.11, 'square');
+    }
   } catch {
     // Sound is decoration — never let it break scanning.
   }
@@ -84,6 +99,9 @@ export default function QrScannerModal({
   const [soundOn, setSoundOn] = useState(true);
   const [tally, setTally] = useState({ ok: 0, dup: 0 });
   const [flash, setFlash] = useState<{ kind: FlashKind; msg: string } | null>(null);
+  // Bumped on every flash so the bracket pulse animation restarts even when
+  // two same-kind flashes land back to back.
+  const [flashTick, setFlashTick] = useState(0);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -98,6 +116,8 @@ export default function QrScannerModal({
   // Attendance-mode dedup: tokens already POSTed this session (pending or
   // settled). Network failures are removed so the runner can be re-scanned.
   const seenRef = useRef<Set<string>>(new Set());
+  // Last time each already-seen token got its "and no" pulse (REFEEDBACK_MS).
+  const noFeedbackAtRef = useRef<Map<string, number>>(new Map());
   // Live mirrors for the decode callback (avoids stale-closure re-wiring).
   const attendanceRef = useRef(false);
   const soundRef = useRef(true);
@@ -117,6 +137,7 @@ export default function QrScannerModal({
 
   const flashNow = useCallback((kind: FlashKind, msg: string) => {
     setFlash({ kind, msg });
+    setFlashTick((t) => t + 1);
     if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
     flashTimerRef.current = setTimeout(() => setFlash(null), FLASH_MS);
   }, []);
@@ -124,7 +145,18 @@ export default function QrScannerModal({
   /** Attendance mode: fire the pairing in the background and keep scanning. */
   const autoPair = useCallback(async (qr: RunnerQr) => {
     const key = `${qr.kind}:${qr.value}`;
-    if (seenRef.current.has(key)) return;
+    if (seenRef.current.has(key)) {
+      // "I see it, and no" — pulse red + buzz, throttled so a QR sitting in
+      // frame gets a heartbeat of feedback instead of a strobe.
+      const last = noFeedbackAtRef.current.get(key) ?? 0;
+      const now = Date.now();
+      if (now - last > REFEEDBACK_MS) {
+        noFeedbackAtRef.current.set(key, now);
+        if (soundRef.current) playBeep(audioCtxRef, 'no');
+        flashNow('dup', 'Already scanned');
+      }
+      return;
+    }
     seenRef.current.add(key);
     try {
       const res = await fetch(apiUrl('/api/social-scan'), {
@@ -135,15 +167,17 @@ export default function QrScannerModal({
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setTally((t) => ({ ...t, ok: t.ok + 1 }));
-        if (soundRef.current) playBeep(audioCtxRef, false);
+        if (soundRef.current) playBeep(audioCtxRef, 'ok');
         flashNow('ok', `PAIRED · ${data.ownerName ?? 'runner'}`);
       } else if (data.code === 'already_today') {
         setTally((t) => ({ ...t, dup: t.dup + 1 }));
-        if (soundRef.current) playBeep(audioCtxRef, true);
+        if (soundRef.current) playBeep(audioCtxRef, 'no');
         flashNow('dup', 'Already paired today');
       } else if (data.code === 'self') {
+        if (soundRef.current) playBeep(audioCtxRef, 'no');
         flashNow('dup', "That's your own QR");
       } else {
+        if (soundRef.current) playBeep(audioCtxRef, 'no');
         flashNow('err', data.message ?? 'Pairing failed');
       }
     } catch {
@@ -289,6 +323,7 @@ export default function QrScannerModal({
     }
     setTally({ ok: 0, dup: 0 });
     seenRef.current = new Set();
+    noFeedbackAtRef.current = new Map();
     startCamera();
     const onHide = () => {
       if (document.visibilityState === 'hidden') {
@@ -333,7 +368,7 @@ export default function QrScannerModal({
     try { localStorage.setItem(ATTENDANCE_KEY, on ? '1' : '0'); } catch {}
     // The toggle press is a user gesture — warm up the AudioContext now so
     // later background beeps aren't blocked by autoplay policy.
-    if (on && soundRef.current) playBeep(audioCtxRef, false);
+    if (on && soundRef.current) playBeep(audioCtxRef, 'ok');
     // Flipping it on from the found card resumes scanning.
     if (on && phase === 'found') startCamera();
   };
@@ -342,7 +377,7 @@ export default function QrScannerModal({
     setSoundOn(on);
     soundRef.current = on;
     try { localStorage.setItem(SOUND_KEY, on ? '1' : '0'); } catch {}
-    if (on) playBeep(audioCtxRef, false);
+    if (on) playBeep(audioCtxRef, 'ok');
   };
 
   // window.open must run inside the tap gesture or popup blockers eat it —
@@ -352,7 +387,13 @@ export default function QrScannerModal({
     onClose();
   };
 
-  const bracket = 'absolute w-8 h-8 border-primary';
+  const bracket = 'absolute w-12 h-12 border-current';
+  const bracketTone =
+    flash?.kind === 'ok'
+      ? 'text-success qrs-pulse'
+      : flash && (flash.kind === 'dup' || flash.kind === 'err')
+        ? 'text-danger qrs-pulse'
+        : 'text-primary';
   const glow =
     flash?.kind === 'ok'
       ? 'ring-4 ring-success shadow-[0_0_28px_rgba(51,255,153,0.85)]'
@@ -414,13 +455,26 @@ export default function QrScannerModal({
                   autoPlay
                   className="absolute inset-0 h-full w-full object-cover"
                 />
-                {/* Corner-bracket scan region, same magenta vocabulary as the flair */}
+                {/* Corner-bracket scan region: magenta idle, pulses green on a
+                    pair and red on "I see it, and no". Soft glow = fuzz. */}
+                <style>{`
+                  .qrs-brackets { filter: drop-shadow(0 0 5px currentColor); }
+                  .qrs-brackets.qrs-pulse { animation: qrs-pulse 0.7s ease-out; }
+                  @keyframes qrs-pulse {
+                    0%   { transform: scale(1);    filter: drop-shadow(0 0 5px currentColor); }
+                    35%  { transform: scale(1.08); filter: drop-shadow(0 0 22px currentColor); }
+                    100% { transform: scale(1);    filter: drop-shadow(0 0 5px currentColor); }
+                  }
+                `}</style>
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                  <div className="relative h-3/5 w-4/5 max-w-[280px]">
-                    <span className={`${bracket} left-0 top-0 border-l-[3px] border-t-[3px] rounded-tl-md`} />
-                    <span className={`${bracket} right-0 top-0 border-r-[3px] border-t-[3px] rounded-tr-md`} />
-                    <span className={`${bracket} left-0 bottom-0 border-l-[3px] border-b-[3px] rounded-bl-md`} />
-                    <span className={`${bracket} right-0 bottom-0 border-r-[3px] border-b-[3px] rounded-br-md`} />
+                  <div
+                    key={flashTick}
+                    className={`qrs-brackets relative h-3/5 w-4/5 max-w-[280px] ${bracketTone}`}
+                  >
+                    <span className={`${bracket} left-0 top-0 border-l-4 border-t-4 rounded-tl-lg`} />
+                    <span className={`${bracket} right-0 top-0 border-r-4 border-t-4 rounded-tr-lg`} />
+                    <span className={`${bracket} left-0 bottom-0 border-l-4 border-b-4 rounded-bl-lg`} />
+                    <span className={`${bracket} right-0 bottom-0 border-r-4 border-b-4 rounded-br-lg`} />
                   </div>
                 </div>
                 {attendanceOn && attendanceAvailable && (tally.ok > 0 || tally.dup > 0) && (
