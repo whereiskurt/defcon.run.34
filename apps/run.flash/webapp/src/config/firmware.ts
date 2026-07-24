@@ -36,7 +36,7 @@ export const FIRMWARE_BASE_PATH = process.env.NEXT_PUBLIC_ASSET_PREFIX
  */
 export function getFactoryFilename(
   device: DeviceHardware,
-  version: string = FIRMWARE_VERSION
+  version: string = DEFAULT_FIRMWARE_VERSION
 ): string {
   return `firmware-${device.platformioTarget}-${version}.factory.bin`;
 }
@@ -68,7 +68,7 @@ function uint8ToBinaryString(data: Uint8Array): string {
  */
 export async function loadFirmware(
   device: DeviceHardware,
-  version: string = FIRMWARE_VERSION
+  version: string = DEFAULT_FIRMWARE_VERSION
 ): Promise<{ data: string; size: number; filename: string }> {
   const filename = getFactoryFilename(device, version);
   const url = `${FIRMWARE_BASE_PATH}/${filename}`;
@@ -94,7 +94,7 @@ export async function loadFirmware(
  */
 export function getUf2Filename(
   device: DeviceHardware,
-  version: string = FIRMWARE_VERSION
+  version: string = DEFAULT_FIRMWARE_VERSION
 ): string {
   return `firmware-${device.platformioTarget}-${version}.uf2`;
 }
@@ -113,7 +113,7 @@ export function getUf2Filename(
  */
 export async function loadUf2(
   device: DeviceHardware,
-  version: string = FIRMWARE_VERSION
+  version: string = DEFAULT_FIRMWARE_VERSION
 ): Promise<{ data: Uint8Array; size: number; filename: string }> {
   const filename = getUf2Filename(device, version);
   const url = `${FIRMWARE_BASE_PATH}/${filename}`;

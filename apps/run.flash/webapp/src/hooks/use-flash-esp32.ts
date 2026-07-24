@@ -23,11 +23,13 @@ export interface UseFlashEsp32Return {
    * @param espLoader - Connected ESPLoader from useSerial
    * @param device - Selected device (determines firmware file)
    * @param appendLog - Console log function from useSerial
+   * @param version - Firmware version to flash (defaults to the manifest default)
    */
   flash: (
     espLoader: ESPLoader,
     device: DeviceHardware,
-    appendLog: (text: string) => void
+    appendLog: (text: string) => void,
+    version?: string
   ) => Promise<void>;
   /** Reset flash state to idle (for retry) */
   reset: () => void;
@@ -54,7 +56,8 @@ export function useFlashEsp32(): UseFlashEsp32Return {
     async (
       espLoader: ESPLoader,
       device: DeviceHardware,
-      appendLog: (text: string) => void
+      appendLog: (text: string) => void,
+      version?: string
     ) => {
       if (isFlashingRef.current) return;
       isFlashingRef.current = true;
@@ -62,7 +65,7 @@ export function useFlashEsp32(): UseFlashEsp32Return {
       try {
         // Load firmware binary from static files
         appendLog(`Loading firmware for ${device.displayName}...\n`);
-        const firmware = await loadFirmware(device);
+        const firmware = await loadFirmware(device, version);
         appendLog(
           `Firmware loaded: ${firmware.filename} (${formatBytes(firmware.size)})\n\n`
         );

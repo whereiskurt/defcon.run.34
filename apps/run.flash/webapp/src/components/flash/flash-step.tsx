@@ -49,7 +49,8 @@ interface FlashStepProps {
     flash: (
       transport: ESPLoader | DfuDevice,
       device: DeviceHardware,
-      appendLog: (text: string) => void
+      appendLog: (text: string) => void,
+      version?: string
     ) => Promise<void>;
     reset: () => void;
   };

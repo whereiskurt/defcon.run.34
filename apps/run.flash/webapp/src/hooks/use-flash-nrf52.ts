@@ -24,11 +24,13 @@ export interface UseFlashNrf52Return {
    * @param dfuDevice - Claimed DFU transport from useDfu
    * @param device - Selected device (determines .uf2 file to load)
    * @param appendLog - Console log function
+   * @param version - Firmware version to flash (defaults to the manifest default)
    */
   flash: (
     dfuDevice: DfuDevice,
     device: DeviceHardware,
-    appendLog: (text: string) => void
+    appendLog: (text: string) => void,
+    version?: string
   ) => Promise<void>;
   /** Reset flash state to idle (for retry) */
   reset: () => void;
@@ -67,14 +69,15 @@ export function useFlashNrf52(): UseFlashNrf52Return {
     async (
       dfuDevice: DfuDevice,
       device: DeviceHardware,
-      appendLog: (text: string) => void
+      appendLog: (text: string) => void,
+      version?: string
     ) => {
       if (isFlashingRef.current) return;
       isFlashingRef.current = true;
 
       try {
         appendLog(`Loading firmware for ${device.displayName}...\n`);
-        const firmware = await loadUf2(device);
+        const firmware = await loadUf2(device, version);
         appendLog(
           `Firmware loaded: ${firmware.filename} (${formatBytes(firmware.size)})\n\n`
         );
