@@ -6,7 +6,7 @@ import { updateRunUserActivityCounts } from "./run-user";
  * Accomplishment ElectroDB Entity (Phase 49, LDBR-01)
  *
  * The leaderboard's source of truth for the runs THIS board scores: check-ins +
- * GPX (Strava reserved). A DC33 port of `db/accomplishment.ts` adapted to the
+ * GPX + Strava. A DC33 port of `db/accomplishment.ts` adapted to the
  * DC34 shared `run-human-electro` table and identity model:
  *   - service "run" (matches RunUser/CheckIn, shared table)
  *   - keyed by `userId` (the Auth.js adapter uuid = session.user.id =
@@ -267,11 +267,9 @@ function externalIdFor(
  * `RunUser.activityScore` / `activityCounts.<source>` via
  * updateRunUserActivityCounts (the sole rollup writer, increment:true).
  *
- * NOTE: the rollup mutator owns `checkin`/`gpx` only. `strava` is reserved in
- * this milestone (no Strava write path is wired yet) and has no activityCounts
- * slot, so a strava accomplishment persists its row but does not yet contribute
- * to activityScore. This keeps the create-bumps-once invariant type-safe; wiring
- * Strava into the rollup is a later-phase concern.
+ * All three sources (checkin/gpx/strava) bump `RunUser.activityScore` /
+ * `activityCounts.<source>` via updateRunUserActivityCounts (the sole rollup
+ * writer, increment:true).
  *
  * SERVER-ONLY — do not import into a client component.
  */
