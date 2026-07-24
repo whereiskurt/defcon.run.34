@@ -32,6 +32,7 @@ const mockGetAccomplishmentsByUser = vi.fn();
 const mockSolvesQuery = vi.fn();
 const mockEventsQuery = vi.fn();
 const mockListCtf = vi.fn();
+const mockGetCheckInsByUser = vi.fn();
 
 vi.mock("@/config/auth", () => ({
   auth: (...a: unknown[]) => mockAuth(...a),
@@ -50,6 +51,9 @@ vi.mock("@/entities/ctf", () => ({
 }));
 vi.mock("@/lib/qr-admin", () => ({
   listCtf: (...a: unknown[]) => mockListCtf(...a),
+}));
+vi.mock("@/entities/checkin", () => ({
+  getCheckInsByUser: (...a: unknown[]) => mockGetCheckInsByUser(...a),
 }));
 
 import { GET } from "../route";
@@ -139,6 +143,8 @@ beforeEach(() => {
     { challenge: "rainbow-bridge" },
     { challenge: "chained-otp" },
   ]);
+  mockGetCheckInsByUser.mockReset();
+  mockGetCheckInsByUser.mockResolvedValue({ data: [], cursor: null });
 });
 
 describe("GET /api/leaderboard/[userId]/accomplishments", () => {
@@ -235,6 +241,46 @@ describe("GET /api/leaderboard/[userId]/accomplishments", () => {
     expect(mockSolvesQuery).toHaveBeenCalledTimes(1);
     expect(mockEventsQuery).toHaveBeenCalledTimes(1);
     expect(mockListCtf).toHaveBeenCalledTimes(1);
+  });
+
+  it("injects a single-point polyline for a PUBLIC check-in, never a private one", async () => {
+    mockGoAdmin();
+    mockGetAccomplishmentsByUser.mockResolvedValue([
+      {
+        ...ACCOMPLISHMENT_ROW,
+        accomplishmentId: "checkin#ci-pub",
+        source: "checkin",
+        name: "Check-in: Web GPS",
+        metadata: { points: 1, checkInId: "ci-pub" },
+      },
+      {
+        ...ACCOMPLISHMENT_ROW,
+        accomplishmentId: "checkin#ci-priv",
+        source: "checkin",
+        name: "Check-in: Web GPS",
+        metadata: { points: 1, checkInId: "ci-priv" },
+      },
+    ]);
+    mockGetCheckInsByUser.mockResolvedValue({
+      data: [
+        { checkInId: "ci-pub", latitude: 36.135, longitude: -115.158, isPrivate: false },
+        { checkInId: "ci-priv", latitude: 36.1, longitude: -115.1, isPrivate: true },
+      ],
+      cursor: null,
+    });
+
+    const res = await GET(new Request("http://x"), ctx("runner-9"));
+    const body = await res.json();
+
+    expect(mockGetCheckInsByUser).toHaveBeenCalledWith("runner-9", 200);
+    const pub = body.accomplishments.find(
+      (a: { metadata?: { checkInId?: string } }) => a.metadata?.checkInId === "ci-pub"
+    );
+    const priv = body.accomplishments.find(
+      (a: { metadata?: { checkInId?: string } }) => a.metadata?.checkInId === "ci-priv"
+    );
+    expect(pub.metadata.polyline).toEqual([{ lat: 36.135, lng: -115.158 }]);
+    expect(priv.metadata.polyline).toBeUndefined();
   });
 
   it("sets a private, 60s Cache-Control header", async () => {

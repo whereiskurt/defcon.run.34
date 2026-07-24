@@ -68,7 +68,7 @@ export default function PolylineRenderer({
 
     const renderPolylineOnly = () => {
       try {
-        if (pairs.length < 2) {
+        if (pairs.length < 1) {
           // Draw "No route data" text (DC33 empty-state).
           ctx.fillStyle = isDarkMode ? '#666' : '#999';
           ctx.font = '10px Arial';
@@ -77,8 +77,17 @@ export default function PolylineRenderer({
           return;
         }
 
-        // Bounds come from the pure geometry seam (guarded above: length >= 2).
-        const bounds = computeBounds(points);
+        // Single point (a check-in pin): synthesize ~±200m bounds around it so
+        // the tile zoom math works, then draw one marker instead of a route.
+        const singlePoint = pairs.length === 1;
+        const bounds = singlePoint
+          ? {
+              minLat: pairs[0][0] - 0.002,
+              maxLat: pairs[0][0] + 0.002,
+              minLng: pairs[0][1] - 0.002,
+              maxLng: pairs[0][1] + 0.002,
+            }
+          : computeBounds(points);
         if (!bounds) {
           return;
         }
@@ -103,6 +112,22 @@ export default function PolylineRenderer({
             const y = height - ((lat - minLat) * scale + offsetY); // Flip Y axis
             return [x, y];
           };
+
+          // Check-in pin: a single white-ringed green dot at the point, no
+          // route stroke, no end marker.
+          if (singlePoint) {
+            const [px, py] = toCanvas(pairs[0][0], pairs[0][1]);
+            const r = showMapTile ? 7 : 5;
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(px, py, r + 2, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.fillStyle = '#10B981';
+            ctx.beginPath();
+            ctx.arc(px, py, r, 0, 2 * Math.PI);
+            ctx.fill();
+            return;
+          }
 
           ctx.lineCap = 'round';
           ctx.lineJoin = 'round';

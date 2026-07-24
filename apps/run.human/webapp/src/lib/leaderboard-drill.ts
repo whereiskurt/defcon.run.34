@@ -129,3 +129,68 @@ export function maskCtfLines(
     l.channel === "covert" ? { ...l, name: "Covert flag" } : l
   );
 }
+
+/** The narrow CheckIn-row shape `injectCheckinLocations` reads. */
+export type CheckinLocationRow = {
+  checkInId?: string;
+  latitude?: number;
+  longitude?: number;
+  isPrivate?: boolean;
+};
+
+/** The narrow accomplishment-row shape `injectCheckinLocations` transforms.
+ *  `polyline` items are loose (`lat?/lng?`) to match ElectroDB's inferred
+ *  metadata type — this function only length-checks existing polylines. */
+type LocatableRow = {
+  source: string;
+  metadata?: {
+    checkInId?: string;
+    polyline?: { lat?: number; lng?: number }[];
+    [k: string]: unknown;
+  };
+};
+
+/**
+ * Give PUBLIC check-in accomplishments a single-point "polyline" (their
+ * averaged coordinates) so the drill can render a pin-map thumbnail.
+ *
+ * Rules (all misses pass the row through untouched — never dropped):
+ *  - only `source:"checkin"` rows are considered;
+ *  - a row that already carries a polyline keeps it;
+ *  - the joined CheckIn must exist, have finite lat/lng, and be NOT private —
+ *    `isPrivate:true` check-ins never expose their location, for any viewer
+ *    (viewer-independent by design: the result is cacheable in the shared
+ *    per-user drill cache).
+ * Non-mutating.
+ */
+export function injectCheckinLocations<T extends LocatableRow>(
+  rows: T[],
+  checkins: CheckinLocationRow[]
+): T[] {
+  const byId = new Map(
+    checkins
+      .filter((c): c is CheckinLocationRow & { checkInId: string } => !!c.checkInId)
+      .map((c) => [c.checkInId, c])
+  );
+  return rows.map((row) => {
+    if (row.source !== "checkin") return row;
+    if (row.metadata?.polyline?.length) return row;
+    const id = row.metadata?.checkInId;
+    const c = id ? byId.get(id) : undefined;
+    if (
+      !c ||
+      c.isPrivate === true ||
+      !Number.isFinite(c.latitude) ||
+      !Number.isFinite(c.longitude)
+    ) {
+      return row;
+    }
+    return {
+      ...row,
+      metadata: {
+        ...row.metadata,
+        polyline: [{ lat: c.latitude as number, lng: c.longitude as number }],
+      },
+    };
+  });
+}

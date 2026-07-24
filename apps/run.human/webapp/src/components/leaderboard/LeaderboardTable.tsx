@@ -547,7 +547,9 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
                             .sort((a, b) => b.completedAt - a.completedAt)
                             .map((run, idx) => {
                               const polyline = run.metadata?.polyline;
-                              const hasPolyline = Array.isArray(polyline) && polyline.length > 1;
+                              // >= 1: a single point is a public check-in pin
+                              // (PolylineRenderer draws a dot-on-tile for it).
+                              const hasPolyline = Array.isArray(polyline) && polyline.length >= 1;
                               const info = (
                                 <div className="space-y-1">
                                   <div className="flex items-center gap-2">
