@@ -118,34 +118,15 @@ function SectionHeading({ label, chip }: { label: string; chip?: React.ReactNode
   );
 }
 
-/** ISO date/datetime → compact day-group label ("JUL 24"). */
-function dayLabel(isoDay: string): string {
-  const d = new Date(`${isoDay.slice(0, 10)}T12:00:00`);
-  if (Number.isNaN(d.getTime())) return 'UNDATED';
-  return d
-    .toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    .toUpperCase();
-}
+/** Icon-square tints per card tone. */
+const TONE_BG: Record<'warning' | 'secondary' | 'success', string> = {
+  warning: 'bg-warning-400/15',
+  secondary: 'bg-secondary-400/15',
+  success: 'bg-success-400/15',
+};
 
-/** ISO datetime → local HH:MM (day context comes from the group header). */
-function timeOnly(iso: string): string {
-  const t = Date.parse(iso);
-  if (Number.isNaN(t)) return '';
-  const d = new Date(t);
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${p(d.getHours())}:${p(d.getMinutes())}`;
-}
-
-/** Tiny uppercase day sub-header used inside the Social/CTF sections. */
-function DayHeader({ label }: { label: string }) {
-  return (
-    <div className="text-[10px] font-bold tracking-[0.2em] text-default-500 uppercase pt-1 pl-1">
-      {label}
-    </div>
-  );
-}
-
-/** One token card: type icon square, name + meta, points pill right. */
+/** One token card: type icon square, name (+badges), date/time meta under it,
+ *  points pill right; optional full-width thumb (run map) below the header. */
 function TokenCard({
   icon,
   tone,
@@ -153,37 +134,43 @@ function TokenCard({
   meta,
   points,
   covert,
+  badge,
+  thumb,
 }: {
   icon: string;
-  tone: 'warning' | 'secondary';
+  tone: 'warning' | 'secondary' | 'success';
   name: string;
   meta?: string;
   points: number;
   covert?: boolean;
+  badge?: React.ReactNode;
+  thumb?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-lg bg-default-100/60 border border-default-200/60 px-3 py-2">
-      <div
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[15px] ${
-          tone === 'warning' ? 'bg-warning-400/15' : 'bg-secondary-400/15'
-        }`}
-      >
-        {icon}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <span className="truncate">{name}</span>
-          {covert && (
-            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border border-warning-500/60 text-warning-600 dark:text-warning-400">
-              covert
-            </span>
-          )}
+    <div className="rounded-lg bg-default-100/60 border border-default-200/60 px-3 py-2">
+      <div className="flex items-center gap-3">
+        <div
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[15px] ${TONE_BG[tone]}`}
+        >
+          {icon}
         </div>
-        {meta && <div className="text-xs text-default-500">{meta}</div>}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <span className="truncate">{name}</span>
+            {badge}
+            {covert && (
+              <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border border-warning-500/60 text-warning-600 dark:text-warning-400">
+                covert
+              </span>
+            )}
+          </div>
+          {meta && <div className="text-xs text-default-500">{meta}</div>}
+        </div>
+        <Chip color={tone} variant="flat" size="sm" className="shrink-0">
+          +{points} 🥕
+        </Chip>
       </div>
-      <Chip color={tone} variant="flat" size="sm" className="shrink-0">
-        +{points} 🥕
-      </Chip>
+      {thumb && <div className="mt-2 pl-11">{thumb}</div>}
     </div>
   );
 }
@@ -458,19 +445,16 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
             const hasSocial = social.days.length > 0 || !!social.egg;
             const hasCtf = ctf.length > 0;
 
-            // Section totals + CTF day grouping (order preserved: lines arrive
-            // sorted desc by `at`, so consecutive same-day lines share a group).
+            // Section totals (each entry carries its own full date+time).
             const ctfTotal = ctf.reduce((s, c) => s + c.points, 0);
-            const ctfDays: { day: string; lines: CtfLine[] }[] = [];
-            for (const c of ctf) {
-              const day = c.at ? dayLabel(c.at) : 'UNDATED';
-              const last = ctfDays[ctfDays.length - 1];
-              if (last && last.day === day) last.lines.push(c);
-              else ctfDays.push({ day, lines: [c] });
-            }
             const socialPts =
               social.days.reduce((s, d) => s + d.points, 0) + (social.egg?.points ?? 0);
             const socialScans = social.days.reduce((s, d) => s + d.count, 0);
+            const runsPts = (runs ?? []).reduce(
+              (s, r) =>
+                s + (typeof r.metadata?.points === 'number' ? r.metadata.points : 1),
+              0
+            );
 
             return (
               <AccordionItem
@@ -534,12 +518,12 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
                   ) : drill ? (
                     <>
                       {hasRuns && (
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                           <SectionHeading
                             label="Runs"
                             chip={
                               <Chip color="success" variant="flat" size="sm" className="shrink-0">
-                                +{runs!.length} 🥕 · {runs!.length === 1 ? '1 run' : `${runs!.length} runs`}
+                                +{runsPts} 🥕 · {runs!.length === 1 ? '1 run' : `${runs!.length} runs`}
                               </Chip>
                             }
                           />
@@ -550,46 +534,39 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
                               // >= 1: a single point is a public check-in pin
                               // (PolylineRenderer draws a dot-on-tile for it).
                               const hasPolyline = Array.isArray(polyline) && polyline.length >= 1;
-                              const info = (
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-2">
-                                    <h4 className="font-semibold text-sm">{run.name}</h4>
+                              return (
+                                <TokenCard
+                                  key={idx}
+                                  icon={run.source === 'checkin' ? '📍' : '🏃'}
+                                  tone="success"
+                                  name={run.name}
+                                  meta={formatDate(run.completedAt)}
+                                  points={
+                                    typeof run.metadata?.points === 'number'
+                                      ? run.metadata.points
+                                      : 1
+                                  }
+                                  badge={
                                     <span
-                                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium ${
+                                      className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium ${
                                         SOURCE_STYLE[run.source] ?? 'bg-default-100 text-default-600'
                                       }`}
                                     >
                                       {run.source === 'strava' && <Activity className="h-3 w-3" />}
                                       {run.source.toUpperCase()}
                                     </span>
-                                  </div>
-                                  <span className="text-sm text-default-500">
-                                    {formatDate(run.completedAt)}
-                                  </span>
-                                  {run.description && (
-                                    <p className="text-sm text-default-600">{run.description}</p>
-                                  )}
-                                </div>
-                              );
-
-                              return (
-                                <div key={idx} className="border-l-2 border-l-default-400 pl-3 py-1">
-                                  {hasPolyline ? (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                      {info}
-                                      <div className="flex justify-start items-center">
-                                        <PolylineRenderer
-                                          points={polyline!}
-                                          theme={theme}
-                                          width={200}
-                                          height={120}
-                                        />
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    info
-                                  )}
-                                </div>
+                                  }
+                                  thumb={
+                                    hasPolyline ? (
+                                      <PolylineRenderer
+                                        points={polyline!}
+                                        theme={theme}
+                                        width={200}
+                                        height={120}
+                                      />
+                                    ) : undefined
+                                  }
+                                />
                               );
                             })}
                         </div>
@@ -606,29 +583,27 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
                             }
                           />
                           {social.days.map((d) => (
-                            <div key={d.day} className="space-y-1.5">
-                              <DayHeader label={dayLabel(d.day)} />
-                              <TokenCard
-                                icon="📇"
-                                tone="secondary"
-                                name={`Social scans ×${d.count}`}
-                                points={d.points}
-                              />
-                            </div>
+                            <TokenCard
+                              key={d.day}
+                              icon="📇"
+                              tone="secondary"
+                              name={`Social scans ×${d.count}`}
+                              meta={d.day}
+                              points={d.points}
+                            />
                           ))}
                           {social.egg && (
-                            <div className="space-y-1.5">
-                              <DayHeader
-                                label={social.egg.at ? dayLabel(social.egg.at) : 'BONUS'}
-                              />
-                              <TokenCard
-                                icon="🔌"
-                                tone="secondary"
-                                name="DC Jack egg"
-                                meta={social.egg.at ? timeOnly(social.egg.at) : undefined}
-                                points={social.egg.points}
-                              />
-                            </div>
+                            <TokenCard
+                              icon="🔌"
+                              tone="secondary"
+                              name="DC Jack egg"
+                              meta={
+                                social.egg.at
+                                  ? formatDate(Date.parse(social.egg.at))
+                                  : undefined
+                              }
+                              points={social.egg.points}
+                            />
                           )}
                         </div>
                       )}
@@ -643,21 +618,16 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
                               </Chip>
                             }
                           />
-                          {ctfDays.map((g, gi) => (
-                            <div key={`${g.day}-${gi}`} className="space-y-1.5">
-                              <DayHeader label={g.day} />
-                              {g.lines.map((c, idx) => (
-                                <TokenCard
-                                  key={`${c.challenge}-${idx}`}
-                                  icon="🚩"
-                                  tone="warning"
-                                  name={c.name}
-                                  meta={c.at ? timeOnly(c.at) : undefined}
-                                  points={c.points}
-                                  covert={c.channel === 'covert'}
-                                />
-                              ))}
-                            </div>
+                          {ctf.map((c, idx) => (
+                            <TokenCard
+                              key={`${c.challenge}-${idx}`}
+                              icon="🚩"
+                              tone="warning"
+                              name={c.name}
+                              meta={c.at ? formatDate(Date.parse(c.at)) : undefined}
+                              points={c.points}
+                              covert={c.channel === 'covert'}
+                            />
                           ))}
                         </div>
                       )}
