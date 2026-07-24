@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useWizard, STEPS, type WizardStep } from "@/hooks/use-wizard";
 import { useSerial } from "@/hooks/use-serial";
@@ -8,6 +8,7 @@ import { useDfu } from "@/hooks/use-dfu";
 import { useFlash } from "@/hooks/use-flash";
 import { useConfigure } from "@/hooks/use-configure";
 import { validateChipMatch } from "@/lib/esptool";
+import { DEFAULT_FIRMWARE_VERSION } from "@/config/firmware";
 import { getDeviceFamily } from "@/types/device";
 import { WizardStepper } from "@/components/wizard/wizard-stepper";
 import { DeviceGrid } from "@/components/device-picker/device-grid";
@@ -42,6 +43,12 @@ export function WizardContainer() {
   const dfu = useDfu();
   const flashState = useFlash();
   const configureState = useConfigure();
+
+  // Selected firmware version — sticky across "Flash Another Device" so a
+  // booth operator's choice survives multi-board provisioning runs.
+  const [firmwareVersion, setFirmwareVersion] = useState(
+    DEFAULT_FIRMWARE_VERSION
+  );
 
   // Derive the device family once here (CONTEXT Decision 2 — never re-derived
   // in leaf components). Null before a device is picked; getDeviceFamily
@@ -137,13 +144,20 @@ export function WizardContainer() {
             //   bootloader exposes a mass-storage volume, not DFU/serial).
             // - ESP32: esptool pipeline, gated on `serial.chipInfo`.
             family === "nrf52" ? (
-              <Nrf52FlashStep device={selectedDevice} onContinue={advance} />
+              <Nrf52FlashStep
+                device={selectedDevice}
+                firmwareVersion={firmwareVersion}
+                onFirmwareVersionChange={setFirmwareVersion}
+                onContinue={advance}
+              />
             ) : (
               serial.chipInfo && (
                 <FlashStep
                   device={selectedDevice}
                   chipInfo={serial.chipInfo}
                   flashState={flashState}
+                  firmwareVersion={firmwareVersion}
+                  onFirmwareVersionChange={setFirmwareVersion}
                   transport={flashTransport}
                   consoleLogs={serial.consoleLogs}
                   appendLog={serial.appendLog}
@@ -186,6 +200,7 @@ export function WizardContainer() {
           {currentStep === "done" && (
             <DoneStep
               device={selectedDevice}
+              firmwareVersion={firmwareVersion}
               configPayload={configureState.configPayload}
               registrationStatus={configureState.registrationStatus}
               onRetryRegistration={configureState.retryRegistration}

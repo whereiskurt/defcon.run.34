@@ -13,7 +13,8 @@ import { Chip } from "@heroui/react";
 import type { DeviceHardware } from "@/types/device";
 import { getDeviceImagePath, getArchLabel } from "@/config/devices";
 import type { ChipInfo, ConsoleEntry, FlashProgress } from "@/types/serial";
-import { FIRMWARE_VERSION, getFactoryFilename } from "@/config/firmware";
+import { getFactoryFilename } from "@/config/firmware";
+import { FirmwareVersionSelect } from "@/components/flash/firmware-version-select";
 import { FlashPipeline } from "@/components/flash/flash-pipeline";
 import { FlashConsole } from "@/components/flash/flash-console";
 import type { ESPLoader } from "esptool-js";
@@ -55,6 +56,9 @@ interface FlashStepProps {
     reset: () => void;
   };
   transport: FlashTransport;
+  /** Selected firmware version (full meshtastic version string). */
+  firmwareVersion: string;
+  onFirmwareVersionChange: (version: string) => void;
   consoleLogs: ConsoleEntry[];
   appendLog: (text: string) => void;
   onContinue: () => void;
@@ -94,6 +98,8 @@ export function FlashStep({
   chipInfo,
   flashState,
   transport,
+  firmwareVersion,
+  onFirmwareVersionChange,
   consoleLogs,
   appendLog,
   onContinue,
@@ -110,11 +116,11 @@ export function FlashStep({
     if (transport.family === "esp32") {
       const loader = transport.espLoaderRef.current;
       if (!loader) return;
-      flashState.flash(loader, device, appendLog);
+      flashState.flash(loader, device, appendLog, firmwareVersion);
     } else {
       const dfuDevice = transport.dfuDeviceRef.current;
       if (!dfuDevice) return;
-      flashState.flash(dfuDevice, device, appendLog);
+      flashState.flash(dfuDevice, device, appendLog, firmwareVersion);
     }
   };
 
@@ -186,22 +192,18 @@ export function FlashStep({
               </span>
             </div>
             <div className="border-t border-default-200/10" />
-            <div className="flex items-start justify-between text-sm">
+            <div className="flex items-center justify-between gap-4 text-sm">
               <span className="text-default-500">{t("flash.flash.firmwareLabel")}</span>
-              <div className="flex flex-col items-end text-right">
-                <span className="font-mono text-foreground">
-                  {t("flash.flash.firmwareName")}
-                </span>
-                <span className="font-mono text-default-500 text-xs">
-                  Meshtastic {FIRMWARE_VERSION}
-                </span>
-              </div>
+              <FirmwareVersionSelect
+                value={firmwareVersion}
+                onChange={onFirmwareVersionChange}
+              />
             </div>
             <div className="border-t border-default-200/10" />
             <div className="flex items-center justify-between text-sm">
               <span className="text-default-500">{t("flash.flash.fileLabel")}</span>
               <span className="font-mono text-foreground text-xs">
-                {getFactoryFilename(device)}
+                {getFactoryFilename(device, firmwareVersion)}
               </span>
             </div>
             <div className="border-t border-default-200/10" />

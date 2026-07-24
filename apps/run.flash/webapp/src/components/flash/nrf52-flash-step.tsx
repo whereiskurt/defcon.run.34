@@ -4,15 +4,15 @@ import { Button, Chip } from "@heroui/react";
 import { Download, ArrowRight, Usb, HardDriveDownload } from "lucide-react";
 import type { DeviceHardware } from "@/types/device";
 import { getDeviceImagePath, getArchLabel } from "@/config/devices";
-import {
-  FIRMWARE_VERSION,
-  FIRMWARE_BASE_PATH,
-  getUf2Filename,
-} from "@/config/firmware";
+import { FIRMWARE_BASE_PATH, getUf2Filename } from "@/config/firmware";
+import { FirmwareVersionSelect } from "@/components/flash/firmware-version-select";
 import { useCopy } from "@/components/CopyProvider";
 
 interface Nrf52FlashStepProps {
   device: DeviceHardware;
+  /** Selected firmware version (full meshtastic version string). */
+  firmwareVersion: string;
+  onFirmwareVersionChange: (version: string) => void;
   /** advance() from useWizard — proceeds to the Configure step. */
   onContinue: () => void;
 }
@@ -34,9 +34,14 @@ const T1000E_SLUG = "TRACKER_T1000_E";
  * This replaces the earlier Web USB DFU attempt, which could not work for this
  * device class (the Adafruit bootloader has no DFU 1.1 interface).
  */
-export function Nrf52FlashStep({ device, onContinue }: Nrf52FlashStepProps) {
+export function Nrf52FlashStep({
+  device,
+  firmwareVersion,
+  onFirmwareVersionChange,
+  onContinue,
+}: Nrf52FlashStepProps) {
   const { t } = useCopy();
-  const downloadName = getUf2Filename(device);
+  const downloadName = getUf2Filename(device, firmwareVersion);
   const firmwareUrl = `${FIRMWARE_BASE_PATH}/${downloadName}`;
   const isT1000e = device.hwModelSlug === T1000E_SLUG;
   const isRp2040 = device.architecture === "rp2040";
@@ -60,6 +65,11 @@ export function Nrf52FlashStep({ device, onContinue }: Nrf52FlashStepProps) {
               </div>
             </div>
 
+            <FirmwareVersionSelect
+              value={firmwareVersion}
+              onChange={onFirmwareVersionChange}
+            />
+
             <Button
               as="a"
               href={firmwareUrl}
@@ -76,7 +86,7 @@ export function Nrf52FlashStep({ device, onContinue }: Nrf52FlashStepProps) {
               {downloadName}
               <span className="text-default-400">
                 {" "}
-                &middot; Meshtastic {FIRMWARE_VERSION}
+                &middot; Meshtastic {firmwareVersion}
               </span>
             </p>
           </div>

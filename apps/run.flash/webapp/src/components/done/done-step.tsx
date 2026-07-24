@@ -27,6 +27,8 @@ const ARCH_COLORS: Record<string, "primary" | "secondary" | "warning" | "success
 interface DoneStepProps {
   /** Selected device for image display */
   device: DeviceHardware | null;
+  /** Firmware version that was flashed */
+  firmwareVersion: string;
   /** Config payload from useConfigure for summary display */
   configPayload: DeviceConfigPayload | null;
   /** Radio auto-registration result */
@@ -50,7 +52,7 @@ interface DoneStepProps {
  * - Next steps: register radio, download app, disconnect USB
  * - "Flash Another Device" resets wizard for provisioning multiple boards
  */
-export function DoneStep({ device, configPayload, registrationStatus, onRetryRegistration, onSyncKeys, onFlashAnother }: DoneStepProps) {
+export function DoneStep({ device, firmwareVersion, configPayload, registrationStatus, onRetryRegistration, onSyncKeys, onFlashAnother }: DoneStepProps) {
   const { t } = useCopy();
   const archColor = device ? (ARCH_COLORS[device.architecture] || "primary") : "primary";
   const isSyncing = registrationStatus.state === "pending";
@@ -157,6 +159,14 @@ export function DoneStep({ device, configPayload, registrationStatus, onRetryReg
             <span className="text-default-500">{t("flash.done.radio")}</span>
             <span className="font-mono text-foreground">
               {configPayload.radio.region} / {configPayload.radio.modemPreset}
+            </span>
+          </div>
+          <div className="border-t border-default-200/10" />
+
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-default-500">Firmware</span>
+            <span className="font-mono text-foreground">
+              Meshtastic {firmwareVersion}
             </span>
           </div>
         </div>
