@@ -1,7 +1,26 @@
 import type { DeviceHardware } from "@/types/device";
+import firmwareManifest from "@/../public/data/firmware-manifest.json";
 
 // Injected at build time from Dockerfile.webapp builder ARG (production) or scripts/download-firmware.sh -> .env.local (local dev).
 export const FIRMWARE_VERSION = process.env.NEXT_PUBLIC_FIRMWARE_VERSION ?? "";
+
+/** One selectable firmware version from public/data/firmware-manifest.json
+ *  (tracked snapshot, overwritten by Dockerfile Stage 1 at build time). */
+export interface FirmwareVersionEntry {
+  slot: string;
+  version: string;
+  label: string;
+  default: boolean;
+  experimental: boolean;
+}
+
+export const FIRMWARE_VERSIONS: FirmwareVersionEntry[] =
+  firmwareManifest.versions as FirmwareVersionEntry[];
+
+/** The preselected version — falls back to the build-time env single-version
+ *  value so a malformed manifest can never blank the flasher. */
+export const DEFAULT_FIRMWARE_VERSION: string =
+  FIRMWARE_VERSIONS.find((v) => v.default)?.version ?? FIRMWARE_VERSION;
 
 /** Base path for firmware binaries.
  * In production, firmware is served from S3 via CloudFront using the asset prefix.
