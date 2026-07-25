@@ -112,8 +112,8 @@ function SectionHeading({ label, chip }: { label: string; chip?: React.ReactNode
       <h5 className="text-xs font-semibold uppercase tracking-widest text-default-600">
         {label}
       </h5>
-      <div className="h-px flex-1 bg-default-300" aria-hidden="true" />
       {chip}
+      <div className="h-px flex-1 bg-default-300" aria-hidden="true" />
     </div>
   );
 }
@@ -147,7 +147,7 @@ function TokenCard({
   thumb?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg bg-default-100/60 border border-default-200/60 px-3 py-2">
+    <div className="rounded-lg bg-default-100 border border-default-200 px-3 py-2">
       <div className="flex items-center gap-3">
         <div
           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[15px] ${TONE_BG[tone]}`}
@@ -460,10 +460,12 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
               <AccordionItem
                 key={row.userId}
                 className={
-                  // Full-bleed own-row with a complete green perimeter: the
-                  // border hugs the group edge (rows are flush, group px-0) and
-                  // the group's rounded overflow clips the corners cleanly.
-                  isCurrentUser ? 'border border-green-500/50' : ''
+                  // Full-bleed own-row with a complete green perimeter; every
+                  // other row gets an explicit bottom hairline so runners stay
+                  // visibly separated in BOTH themes (UAT: "no separators").
+                  isCurrentUser
+                    ? 'border border-green-500/50'
+                    : 'border-b border-default-200 last:border-b-0'
                 }
                 classNames={
                   // Own-row highlight tints the HEADER ROW ONLY - the expanded
@@ -477,28 +479,28 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
                 }
                 textValue={`${displayName} accomplishments`}
                 title={
-                  <div className="flex items-center justify-between w-full py-0.5 px-1 gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-lg font-bold text-default-500 shrink-0">
-                        #{row.globalRank}
-                      </span>
-                      {row.globalScore > 0 && (
-                        <Chip
-                          className="bg-foreground text-background border-foreground shrink-0"
-                          variant="bordered"
-                          size="sm"
-                        >
-                          {row.globalScore} 🥕
-                        </Chip>
-                      )}
-                      <span
-                        className={`${
-                          isCurrentUser ? 'text-green-800 dark:text-green-200 font-medium' : ''
-                        } break-all text-base`}
+                  <div className="flex items-center flex-wrap w-full py-0.5 px-1 gap-2">
+                    <span className="text-lg font-bold text-default-500 shrink-0">
+                      #{row.globalRank}
+                    </span>
+                    {row.globalScore > 0 && (
+                      <Chip
+                        className="bg-foreground text-background border-foreground shrink-0"
+                        variant="bordered"
+                        size="sm"
                       >
-                        {displayName}
-                      </span>
-                    </div>
+                        {row.globalScore} 🥕
+                      </Chip>
+                    )}
+                    <span
+                      className={`${
+                        isCurrentUser ? 'text-green-800 dark:text-green-200 font-medium' : ''
+                      } break-all text-base min-w-0`}
+                    >
+                      {displayName}
+                    </span>
+                    {/* Count chips sit WITH the name, not pushed to the far
+                        edge (UAT: dead gap on desktop). */}
                     <div className="flex items-center gap-1 shrink-0">
                       {chips.map((chip) => (
                         <Chip key={chip.key} color={chip.color} variant="flat" size="sm">
