@@ -94,6 +94,13 @@ export const MeshRadio = new Entity(
         type: "number",
         default: 0,
       },
+      // Epoch ms when meshtk last PKI-DM'd the current verification code to the
+      // device (written by the Go poller via a guarded UpdateItem). Cleared by
+      // the resend route so the UI flips back to "waiting" until the new code
+      // lands. Absent = not yet delivered.
+      codeSentAt: {
+        type: "number",
+      },
       impersonate: {
         type: "boolean",
         default: false,
@@ -224,6 +231,14 @@ export interface PatchMeshRadioInput {
 export async function patchMeshRadio(nodeId: string, fields: PatchMeshRadioInput) {
   await MeshRadio.patch({ nodeId }).set(fields).go();
   return getMeshRadio(nodeId);
+}
+
+/**
+ * Resend rotates the code; drop the stale delivery stamp so the UI shows
+ * "waiting" until meshtk re-sends the new code (SERVER-ONLY).
+ */
+export async function clearCodeSentAt(nodeId: string) {
+  await MeshRadio.patch({ nodeId }).remove(["codeSentAt"]).go();
 }
 
 /**
