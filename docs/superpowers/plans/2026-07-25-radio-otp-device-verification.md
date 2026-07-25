@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - meshtk code changes go to `~/working/meshtk` (github.com/whereiskurt/meshtk, branch off `main`, PR there) — NEVER edit `apps/run.mqtt/meshtk` directly; that path must be a symlink to `~/working/meshtk` at build time (this worktree currently holds a STALE COPY — Task 7 fixes it).
-- Cross-language DDB keys are byte-locked contracts: queue pk `"$run#queue_otp"`, queue sk `"$meshotppending_1#nodeid_<nodeId>"`, MeshRadio pk `"$run#nodeid_<nodeId>"`, sk `"$meshradio_1"`. Parity tests on BOTH sides use fixture nodeId `!433d1cec` (nodeNum 1128455404).
+- Cross-language DDB keys are byte-locked contracts: queue pk `"$run#queue_otp"`, queue sk `"$meshotppending_1#nodeid_<nodeId>"`, MeshRadio pk `"$run#nodeid_<nodeId>"`, sk `"$meshradio_1"`. Parity tests on BOTH sides use fixture nodeId `!433d1cec` (nodeNum 1128078572).
 - PKI DMs MUST publish on the SENDER's gateway topic (`msh/US/2/e/PKI/!<sender>`), never the recipient's — recipients ignore their own gateway topic as self-echo (Phase 66 field bug).
 - run.human vitest needs Node ≥22.12 (`nvm use 22.12.0`).
 - Deploy ONLY via `deploy.yml` GitHub Actions; local tooling builds+pushes only. ECR tags immutable — release must bump VERSION (release-all `--pr` does this).
@@ -336,7 +336,7 @@ func TestQueueKeyParity(t *testing.T) {
 }
 
 func TestMeshRadioKeyParity(t *testing.T) {
-    k := meshRadioKey(1128455404) // 0x433d1cec
+    k := meshRadioKey(1128078572) // 0x433d1cec
     if k.PK != "$run#nodeid_!433d1cec" || k.SK != "$meshradio_1" {
         t.Fatalf("MeshRadio key drifted: %+v", k)
     }
