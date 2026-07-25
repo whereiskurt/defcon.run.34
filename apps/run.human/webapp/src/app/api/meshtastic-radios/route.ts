@@ -16,6 +16,7 @@ import {
   nodeNumFromNodeId,
   publicKeyBase64ToHex,
 } from '@/lib/mesh-radio-canonical';
+import { enqueueOtp } from '@/entities/mesh-otp-pending';
 import { checkQuota, consumeQuota, restoreQuota } from '@/lib/quota-client';
 import { getUserTier } from '@/lib/quota-middleware';
 import crypto from 'crypto';
@@ -205,6 +206,20 @@ export async function POST(req: NextRequest) {
       resendAttempts: 0,
       source: 'manual',
     });
+
+    // Queue delivery: meshtk's poller PKI-DMs this code to the device.
+    // Best-effort — a queue write failure must not roll back the add.
+    try {
+      await enqueueOtp({
+        nodeId: canonicalNodeId,
+        nodeNum: canonicalNodeNum,
+        code: verificationCode,
+        ...(publicKeyHex ? { publicKey: publicKeyHex } : {}),
+        userId: session.user.id,
+      });
+    } catch (e) {
+      console.error('[Meshtastic] OTP enqueue failed (code stays resendable):', e);
+    }
 
     // Return radio without verification code for security
     const safeRadio = toClientRadio(created as MeshRadioItem);

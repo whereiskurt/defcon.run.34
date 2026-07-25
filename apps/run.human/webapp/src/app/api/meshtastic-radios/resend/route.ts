@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@auth';
-import { getMeshRadio, patchMeshRadio } from '@/entities/mesh-radio';
+import { getMeshRadio, patchMeshRadio, clearCodeSentAt } from '@/entities/mesh-radio';
+import { enqueueOtp } from '@/entities/mesh-otp-pending';
 import { normalizeNodeId } from '@/lib/mesh-radio-canonical';
 import { assertNotLockedLive } from '@/lib/live-lockout';
 
@@ -60,6 +61,22 @@ export async function POST(req: NextRequest) {
       verificationCode: newVerificationCode,
       resendAttempts: nextResendAttempts,
     });
+
+    // New code in flight: drop the stale delivery stamp and re-queue delivery.
+    // The queue upsert overwrites any in-flight item, so only the current code
+    // is ever DM'd. Best-effort — enqueue failure must not fail the resend.
+    await clearCodeSentAt(canonicalNodeId);
+    try {
+      await enqueueOtp({
+        nodeId: canonicalNodeId,
+        nodeNum: radio.nodeNum,
+        code: newVerificationCode,
+        ...(radio.publicKey ? { publicKey: radio.publicKey } : {}),
+        userId: session.user.id,
+      });
+    } catch (e) {
+      console.error('[Meshtastic] OTP re-enqueue failed:', e);
+    }
 
     // Return success with resend count (don't expose the new code)
     return NextResponse.json({

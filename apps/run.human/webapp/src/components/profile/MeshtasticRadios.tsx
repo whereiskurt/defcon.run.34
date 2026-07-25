@@ -43,6 +43,7 @@ interface MeshtasticRadio {
   verifiedAt?: number;
   verificationAttempts?: number;
   resendAttempts?: number;
+  codeSentAt?: number;
 }
 
 interface QuotaInfo {
@@ -264,7 +265,7 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
       // Update resend attempts in local state
       setRadios(prev => prev.map(r =>
         r.nodeId === nodeId
-          ? { ...r, resendAttempts: 3 - (data.resendsRemaining || 0) }
+          ? { ...r, resendAttempts: 3 - (data.resendsRemaining || 0), codeSentAt: undefined }
           : r
       ));
     } catch (err) {
@@ -718,7 +719,11 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
                     {!radio.verified && (
                       <div className="space-y-3 pt-3 border-t border-default-100">
                         <p className="text-xs text-center text-default-500">
-                          A verification code was sent to your radio. Enter it below.
+                          {radio.codeSentAt ? (
+                            <>Code sent {new Date(radio.codeSentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} — check your radio, then enter it below.</>
+                          ) : (
+                            <>Waiting to reach your radio on the mesh — make sure it&apos;s powered on and connected. The code arrives as a direct message from &quot;DEF CON 34 MeshMap&quot;.</>
+                          )}
                           {(radio.verificationAttempts || 0) > 0 && (
                             <span className="text-warning-600 ml-1">
                               ({5 - (radio.verificationAttempts || 0)} attempts remaining)
