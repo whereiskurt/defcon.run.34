@@ -43,7 +43,9 @@ partition:
   conventions), `sk = <canonical nodeId>`.
 - **Attributes:** `nodeId`, `nodeNum` (uint32), `code` (6-digit string),
   `publicKey` (0x-hex, optional — user-supplied at add time), `userId`,
-  `createdAt`, `attempts` (meshtk-incremented), and a DynamoDB **TTL of 24 h**.
+  `createdAt`, `attempts` (meshtk-incremented). Expiry: the live table has DDB
+  TTL **disabled**, so the meshtk poller reaps items whose `createdAt` is older
+  than 24 h (no infra change).
 - **Writers:** run.human `POST` (add) and `POST /resend` upsert the item with the
   current code. Resend also clears `codeSentAt` on the MeshRadio row.
 - **Reader/deleter:** meshtk. Item is deleted on successful send; ages out via
