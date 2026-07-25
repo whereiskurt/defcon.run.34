@@ -37,6 +37,10 @@ import * as qr from "qrcode";
 import { parseOtpauth } from "@/lib/ctf-otp-core";
 import type { AdjacentCodes, OtpConfig } from "@/lib/ctf-otp-core";
 import { adjacentCodesAsync, isSupportedAlgorithm } from "@/lib/ctf-otp-client";
+import { dailyClaimHref } from "@/lib/ctf-otp-enroll";
+
+const isDev = process.env.NODE_ENV !== "production";
+const region = process.env.NEXT_PUBLIC_REGION_SHORT || "use1";
 
 /**
  * Scoped bespoke-dark palette (57-UI-SPEC "Surface B palette"). Hardcoded hex is
@@ -332,6 +336,36 @@ export default function CtfOtpEnroll({ otpauth, nextFlag, flagName }: Props) {
           </span>
         </p>
       )}
+
+      {/* One-tap daily claim: submits the CURRENT rolling code to the chained
+          flag through the standard claim route — same thing typing the code
+          would do, so unlockAfter + the 24h interval still gate it. The href
+          re-renders with each code roll, so it is always the live code. This
+          doubles as the how-to: come back tomorrow, read the code from your
+          authenticator, submit it again. */}
+      {(() => {
+        const claimNow = dailyClaimHref(nextFlag, codes?.current, { isDev, region });
+        if (!claimNow) return null;
+        return (
+          <div className="flex flex-col items-center gap-1.5 w-full">
+            <a
+              href={claimNow}
+              className="inline-flex items-center justify-center w-full h-9 rounded-lg font-mono text-[12.5px] font-semibold"
+              style={{
+                border: `1px solid ${B.cyan}`,
+                background: "rgba(56, 189, 248, 0.14)",
+                color: B.cyan,
+              }}
+            >
+              🎰 Claim your daily +100 now
+            </a>
+            <p className="text-[11.5px]" style={{ color: B.faint, lineHeight: 1.5 }}>
+              Submits the current code for you. Come back every day and enter the
+              code from your authenticator for another +100.
+            </p>
+          </div>
+        );
+      })()}
     </div>
   );
 }

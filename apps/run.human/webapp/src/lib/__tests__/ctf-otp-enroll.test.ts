@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { asOtpEnrollEffect } from "../ctf-otp-enroll";
+import { asOtpEnrollEffect, dailyClaimHref } from "../ctf-otp-enroll";
 
 /**
  * A well-formed otpauth:// enrollment URL (parseOtpauth accepts it): totp type,
@@ -90,5 +90,31 @@ describe("asOtpEnrollEffect", () => {
     expect(asOtpEnrollEffect(42)).toBeNull();
     expect(asOtpEnrollEffect(true)).toBeNull();
     expect(asOtpEnrollEffect([])).toBeNull();
+  });
+});
+
+describe("dailyClaimHref", () => {
+  it("builds the region-prefixed claim URL submitting the current code", () => {
+    expect(dailyClaimHref("goldstein-otp", "123456", { isDev: false, region: "use1" })).toBe(
+      "/use1/ctf/claim?c=goldstein-otp&v=123456",
+    );
+  });
+
+  it("drops the region prefix in dev", () => {
+    expect(dailyClaimHref("goldstein-otp", "123456", { isDev: true, region: "use1" })).toBe(
+      "/ctf/claim?c=goldstein-otp&v=123456",
+    );
+  });
+
+  it("returns null when the flag or code is missing (affordance hidden)", () => {
+    expect(dailyClaimHref(undefined, "123456", { isDev: false, region: "use1" })).toBeNull();
+    expect(dailyClaimHref("goldstein-otp", undefined, { isDev: false, region: "use1" })).toBeNull();
+    expect(dailyClaimHref("goldstein-otp", "", { isDev: false, region: "use1" })).toBeNull();
+  });
+
+  it("URL-encodes the challenge name", () => {
+    expect(dailyClaimHref("grace hopper-otp", "000000", { isDev: false, region: "use1" })).toBe(
+      "/use1/ctf/claim?c=grace%20hopper-otp&v=000000",
+    );
   });
 });
