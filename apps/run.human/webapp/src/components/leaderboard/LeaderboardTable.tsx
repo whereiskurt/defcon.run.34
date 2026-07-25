@@ -527,6 +527,9 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
                               </Chip>
                             }
                           />
+                          {/* Fill wide screens: cards flow into columns; single
+                              column on mobile (UAT: don't waste horizontal space). */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 items-start">
                           {[...runs!]
                             .sort((a, b) => b.completedAt - a.completedAt)
                             .map((run, idx) => {
@@ -569,6 +572,7 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
                                 />
                               );
                             })}
+                          </div>
                         </div>
                       )}
 
@@ -582,6 +586,7 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
                               </Chip>
                             }
                           />
+                          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-1.5 items-start">
                           {social.days.map((d) => (
                             <TokenCard
                               key={d.day}
@@ -605,6 +610,7 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
                               points={social.egg.points}
                             />
                           )}
+                          </div>
                         </div>
                       )}
 
@@ -618,6 +624,7 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
                               </Chip>
                             }
                           />
+                          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-1.5 items-start">
                           {ctf.map((c, idx) => (
                             <TokenCard
                               key={`${c.challenge}-${idx}`}
@@ -629,6 +636,7 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
                               covert={c.channel === 'covert'}
                             />
                           ))}
+                          </div>
                         </div>
                       )}
 
