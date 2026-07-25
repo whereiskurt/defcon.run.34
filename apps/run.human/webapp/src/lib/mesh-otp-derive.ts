@@ -78,15 +78,33 @@ export function deriveFlagCode(
 }
 
 /**
- * Committed otpauth URL → { derived otpauth, derived secret, committed secret }.
- * Only the `secret=` query param changes — label/issuer/digits/period/algorithm
- * pass through so authenticator enrollments keep their display identity (same
- * contract as Go's DeriveOtpUrl). Throws on a malformed URL or missing secret.
+ * The CHAIN seed for a ghost's `<persona>-otp` CTF flag — deliberately a
+ * DIFFERENT derivation (distinct HKDF info label) from the bot's unlock seed
+ * (`deriveTotpSecret`), so the CTF reward enrollment never discloses the
+ * credential that unlocks the ghost's DM chat. Node-only: the Go fleet never
+ * derives or validates this seed. Same shape as the unlock seed (20 bytes →
+ * 32-char unpadded uppercase base32).
  */
-export function deriveOtpauthUrl(
+export function deriveChainTotpSecret(
   serverSecret: string,
   fleetId: string,
+  committedSecret: string,
+): string {
+  const info = `meshtk-chain-seed:${fleetId}:${committedSecret}`;
+  const key = hkdfSync(
+    "sha256",
+    Buffer.from(serverSecret),
+    Buffer.alloc(0),
+    Buffer.from(info),
+    20,
+  );
+  return base32Encode(new Uint8Array(key));
+}
+
+/** Shared otpauth-URL secret swap for the two derivations below. */
+function swapOtpauthSecret(
   committedOtpauth: string,
+  derive: (committedSecret: string) => string,
 ): { otpauth: string; secret: string; committedSecret: string } {
   const u = new URL(committedOtpauth);
   if (u.protocol !== "otpauth:") {
@@ -94,7 +112,35 @@ export function deriveOtpauthUrl(
   }
   const committedSecret = u.searchParams.get("secret");
   if (!committedSecret) throw new Error("otp url has no secret param");
-  const secret = deriveTotpSecret(serverSecret, fleetId, committedSecret);
+  const secret = derive(committedSecret);
   u.searchParams.set("secret", secret);
   return { otpauth: u.toString(), secret, committedSecret };
+}
+
+/**
+ * Committed otpauth URL → { derived otpauth, derived secret, committed secret }
+ * for the bot's UNLOCK seed. Only the `secret=` query param changes —
+ * label/issuer/digits/period/algorithm pass through so authenticator
+ * enrollments keep their display identity (same contract as Go's DeriveOtpUrl).
+ * Throws on a malformed URL or missing secret.
+ */
+export function deriveOtpauthUrl(
+  serverSecret: string,
+  fleetId: string,
+  committedOtpauth: string,
+): { otpauth: string; secret: string; committedSecret: string } {
+  return swapOtpauthSecret(committedOtpauth, (committed) =>
+    deriveTotpSecret(serverSecret, fleetId, committed),
+  );
+}
+
+/** Chain-seed twin of `deriveOtpauthUrl` (see `deriveChainTotpSecret`). */
+export function deriveChainOtpauthUrl(
+  serverSecret: string,
+  fleetId: string,
+  committedOtpauth: string,
+): { otpauth: string; secret: string; committedSecret: string } {
+  return swapOtpauthSecret(committedOtpauth, (committed) =>
+    deriveChainTotpSecret(serverSecret, fleetId, committed),
+  );
 }

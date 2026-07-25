@@ -64,3 +64,21 @@ export function asOtpEnrollEffect(effect: unknown): OtpEnrollEffect | null {
   }
   return narrowed;
 }
+
+/**
+ * The one-tap "claim your daily points" URL: submits the CURRENT rolling code
+ * to the chained flag via the standard claim route (signed-in branch A judges
+ * it like any typed answer — unlockAfter and the 24h interval still apply).
+ * Pure so it's unit-testable; the component passes the code it already
+ * computes in-browser. Returns null when either piece is missing so the
+ * affordance simply doesn't render.
+ */
+export function dailyClaimHref(
+  nextFlag: string | undefined,
+  code: string | undefined,
+  opts: { isDev: boolean; region: string },
+): string | null {
+  if (!nextFlag || !code) return null;
+  const base = opts.isDev ? "/ctf/claim" : `/${opts.region}/ctf/claim`;
+  return `${base}?c=${encodeURIComponent(nextFlag)}&v=${encodeURIComponent(code)}`;
+}

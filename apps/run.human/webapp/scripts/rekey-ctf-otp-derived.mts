@@ -1,19 +1,20 @@
 /**
- * rekey-ctf-otp-derived.mts (Phase 67) — re-point the five DC33 CTF OTP CHAINS
- * at the SERVER-DERIVED ghost seeds so they match what the redeployed meshtk
- * fleet now validates (whereiskurt/meshtk#10).
+ * rekey-ctf-otp-derived.mts (Phase 67, updated for the seed SPLIT) — point the
+ * five DC33 CTF OTP CHAINS at the server-derived CHAIN seeds.
  *
- * WHY: the committed OtpUrl secrets in meshtk.dc34.yaml became decoys once the
- * fleet runs derivation. The DC33 CTF chains (ctf-seed-rows.ts) were seeded with
- * those committed secrets, so a player who enrolls the CTF reward QR now gets
- * codes the bot rejects. This script rewrites, per persona:
- *   - static row `<name>`      : effect.otpauth  → DERIVED otpauth (secret swapped)
- *   - chained  `<name>-otp`    : otp.secret      → DERIVED base32 secret
- * so both the bot AND run.human's judge accept the same enrolled codes.
+ * WHY (split): the CTF reward enrollment must NOT disclose the ghost's DM
+ * unlock seed (a gifted claim-link would hand out bot access). So the chains
+ * use a SECOND derivation (`meshtk-chain-seed:` HKDF label, deriveChainOtpauthUrl)
+ * distinct from the bot's unlock seed (`meshtk-otp-seed:`). This script
+ * rewrites, per persona:
+ *   - static row `<name>`      : effect.otpauth  → CHAIN otpauth (secret swapped)
+ *   - chained  `<name>-otp`    : otp.secret      → CHAIN base32 secret
+ * so the reward QR and the -otp judge agree on a seed the BOT NEVER ACCEPTS.
+ * The bot's unlock seed stays only on the /admin/ghosts QR sheets + in meshtk.
  *
  * NO reimplementation: committed values come from the pure `buildSeedRows()`;
- * the derivation is the SAME tested `deriveOtpauthUrl()` the /admin/ghosts page
- * and (bit-for-bit, shared vectors) the Go fleet use. Only `effect.otpauth` and
+ * the derivation is the tested `deriveChainOtpauthUrl()` (Node-only — the Go
+ * fleet neither derives nor validates chain seeds). Only `effect.otpauth` and
  * `otp.secret` change — answerHash / scoring / unlockAfter / solveCount /
  * createdAt / enabled are all read from the LIVE row and preserved. No salt is
  * touched (no answer hashing here).
@@ -49,7 +50,11 @@ import { DynamoDB } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocument } from "@aws-sdk/lib-dynamodb";
 
 import { buildSeedRows } from "../src/lib/ctf-seed-rows";
-import { deriveOtpauthUrl, deriveFlagCode } from "../src/lib/mesh-otp-derive";
+import {
+  deriveChainOtpauthUrl,
+  deriveOtpauthUrl,
+  deriveFlagCode,
+} from "../src/lib/mesh-otp-derive";
 import { loadMeshGhosts } from "../src/lib/mesh-ghosts";
 import { hashAnswer } from "../src/lib/ctf-hash";
 
@@ -127,11 +132,20 @@ async function getRow(challenge: string): Promise<Row | null> {
   }
 }
 
-/** Compute the derived {otpauth, secret} for one persona from its committed enroll URL. */
+/**
+ * Compute the CHAIN-derived {otpauth, secret} for one persona from its
+ * committed enroll URL — what the CTF rows get. Also returns the bot's UNLOCK
+ * secret so the log can prove the two differ (the whole point of the split).
+ */
 function derivedFor(name: string, committedOtpauth: string) {
   const fleetId = PERSONA_FLEET[name];
   if (!fleetId) throw new Error(`no fleet mapping for persona ${name}`);
-  return deriveOtpauthUrl(SERVER_SECRET!, fleetId, committedOtpauth);
+  const chain = deriveChainOtpauthUrl(SERVER_SECRET!, fleetId, committedOtpauth);
+  const unlockSecret = deriveOtpauthUrl(SERVER_SECRET!, fleetId, committedOtpauth).secret;
+  if (chain.secret === unlockSecret) {
+    throw new Error(`chain seed equals unlock seed for ${name} — derivation labels collided`);
+  }
+  return { ...chain, unlockSecret };
 }
 
 /** The 10 chain rows: each persona's static flag + its chained `-otp` flag. */
@@ -270,11 +284,11 @@ async function main() {
     const name = seed.challenge;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const committedOtpauth = (seed as any).effect.otpauth as string;
-    const { otpauth: derivedOtpauth, secret: derivedSecret, committedSecret } =
+    const { otpauth: derivedOtpauth, secret: derivedSecret, committedSecret, unlockSecret } =
       derivedFor(name, committedOtpauth);
     const fleetId = PERSONA_FLEET[name];
 
-    console.log(`● ${name}  (${fleetId})  committed ${committedSecret} → derived ${derivedSecret}`);
+    console.log(`● ${name}  (${fleetId})  committed ${committedSecret} → CHAIN ${derivedSecret}  (unlock ${unlockSecret} stays bot/sheets-only)`);
 
     // 1) static row: effect.otpauth → derived
     const staticLive = await getRow(name);

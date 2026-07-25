@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   base32Encode,
+  deriveChainOtpauthUrl,
+  deriveChainTotpSecret,
   deriveFlagCode,
   deriveOtpauthUrl,
   deriveTotpSecret,
@@ -54,6 +56,42 @@ describe("deriveTotpSecret", () => {
   it("emits 32 unpadded uppercase base32 chars (20 bytes)", () => {
     const s = deriveTotpSecret("s", "ghost.a", "SEED");
     expect(s).toMatch(/^[A-Z2-7]{32}$/);
+  });
+});
+
+describe("deriveChainTotpSecret (unlock/chain seed split)", () => {
+  it("NEVER equals the unlock seed for the same inputs — the reward must not disclose bot access", () => {
+    for (const v of VECTORS) {
+      const chain = deriveChainTotpSecret(v.serverSecret, v.fleetId, v.committed);
+      expect(chain).not.toBe(deriveTotpSecret(v.serverSecret, v.fleetId, v.committed));
+      expect(chain).toMatch(/^[A-Z2-7]{32}$/);
+    }
+  });
+
+  it("is deterministic and domain-separated like the unlock seed", () => {
+    const a = deriveChainTotpSecret("s", "ghost.a", "SEED");
+    expect(deriveChainTotpSecret("s", "ghost.a", "SEED")).toBe(a);
+    expect(deriveChainTotpSecret("s", "ghost.b", "SEED")).not.toBe(a);
+    expect(deriveChainTotpSecret("s2", "ghost.a", "SEED")).not.toBe(a);
+    expect(deriveChainTotpSecret("s", "ghost.a", "SEED2")).not.toBe(a);
+  });
+});
+
+describe("deriveChainOtpauthUrl", () => {
+  it("swaps only the secret, and to the CHAIN seed (not the unlock seed)", () => {
+    const committed =
+      "otpauth://totp/DEFCON%20run:goldstein?secret=GZRGQNKGKN4DINQ&issuer=DEFCON%20run&digits=6&period=30";
+    const chain = deriveChainOtpauthUrl("test-server-secret", "ghost.goldstein", committed);
+    const unlock = deriveOtpauthUrl("test-server-secret", "ghost.goldstein", committed);
+    expect(chain.secret).toBe(
+      deriveChainTotpSecret("test-server-secret", "ghost.goldstein", "GZRGQNKGKN4DINQ"),
+    );
+    expect(chain.secret).not.toBe(unlock.secret);
+    const u = new URL(chain.otpauth);
+    expect(u.searchParams.get("secret")).toBe(chain.secret);
+    expect(u.searchParams.get("digits")).toBe("6");
+    expect(u.searchParams.get("period")).toBe("30");
+    expect(u.searchParams.get("issuer")).toBe("DEFCON run");
   });
 });
 
