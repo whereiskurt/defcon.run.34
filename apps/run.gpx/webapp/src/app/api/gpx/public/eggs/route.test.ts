@@ -18,6 +18,7 @@ const EXPECTED_IDS = [
   "lvcc-doubledown",
   "lvcc-lvsign",
   "dc34-spot",
+  "dc34-deuce",
   "dc34-coffee",
 ];
 
@@ -53,6 +54,9 @@ describe("GET /api/gpx/public/eggs", () => {
     }
     const coffee = body.eggs.find((e) => e.id === "dc34-coffee")!;
     expect(coffee.links?.[0]?.url).toContain("tripadvisor");
+    const deuce = body.eggs.find((e) => e.id === "dc34-deuce")!;
+    expect(deuce.accent).toBe("#0067B1");
+    expect((deuce as { titleUrl?: string }).titleUrl).toContain("rtcsnv.com");
   });
 
   it("CMS overrides only the editable fields; defaults win elsewhere", async () => {

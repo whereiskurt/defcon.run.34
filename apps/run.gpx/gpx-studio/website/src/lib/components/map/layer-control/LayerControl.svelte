@@ -17,6 +17,9 @@
     import { CoffeeCup } from '$lib/components/map/coffee-cup';
     import { TheSpot } from '$lib/components/map/the-spot';
     import { fireCoffeeEgg } from '$lib/components/map/coffee-egg';
+    import { DeuceLayer } from '$lib/components/map/deuce-layer';
+    import { fireDeuceEgg } from '$lib/components/map/deuce-egg';
+    import { deuceShown } from '$lib/stores/deuce';
     import { ghostMode } from '$lib/stores/ghost';
     import { rainbowUnlocked, forcedArchIds } from '$lib/stores/rainbow';
     import { coffeeUnlocked } from '$lib/stores/coffee';
@@ -54,6 +57,7 @@
     let rainbowArch: RainbowArch | undefined;
     let coffeeCup: CoffeeCup | undefined;
     let theSpot: TheSpot | undefined;
+    let deuceLayer: DeuceLayer | undefined;
 
     // Task 8 (popup -> day-assign bridge): the file whose con-day assign
     // dialog is open, opened from a run-track popup's "Add as accomplishment"
@@ -295,6 +299,15 @@
         coffeeUnlocked.subscribe((on) => {
             void coffeeCup?.setUnlocked(on);
             if (on) fireCoffeeEgg();
+        });
+        // The Deuce: hidden Strip bus layer (search "deuce" / press 2-2-2).
+        // Each reveal fires the covert deuce-egg (fire-once per load guard in
+        // deuce-egg.ts). Same single-subscription safety as ghostMode above.
+        if (deuceLayer) deuceLayer.remove();
+        deuceLayer = new DeuceLayer(_map);
+        deuceShown.subscribe((on) => {
+            void deuceLayer?.setVisible(on);
+            if (on) fireDeuceEgg();
         });
         let first = true;
         _map.on('style.import.load', () => {

@@ -198,6 +198,11 @@
 .dc34-rabbit-grid dt { color: #8a8aa0; }
 .dc34-rabbit-grid dd { margin: 0; color: #e4e4ef; font-variant-numeric: tabular-nums; }
 
+/* Deuce stop popup content — rides the dc34-route-popup dark card; RTC livery. */
+.dc34-deuce-stop { display: flex; flex-direction: column; gap: 3px; }
+.dc34-deuce-stop strong { color: #ffd200; font-size: 13px; }
+.dc34-deuce-stop span { color: #a9c6de; font-size: 10px; }
+
 /* Ghost-mode "dossier" popup — dark card, violet accent, decrypt reveal. The
    ghost each pin echoes is a hacker-culture figure (see ghost-identities.ts). */
 .dc34-ghost-popup.mapboxgl-popup .mapboxgl-popup-content {
