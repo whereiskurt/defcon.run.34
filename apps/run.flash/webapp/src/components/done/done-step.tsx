@@ -73,6 +73,9 @@ export function DoneStep({ device, firmwareVersion, configPayload, registrationS
               <p className="text-sm text-default-400 mt-1">
                 {t("flash.done.subtitle")}
               </p>
+              <p className="text-xs text-primary-400 mt-1">
+                {t("flash.done.welcomeHint")}
+              </p>
             </div>
           </div>
 

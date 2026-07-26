@@ -12,6 +12,7 @@ import {
   nodeNumFromNodeId,
   publicKeyBase64ToHex,
 } from "@/lib/mesh-radio-canonical";
+import { enqueueWelcome } from "@/entities/mesh-welcome-pending";
 import { consumeQuota } from "@/lib/quota-client";
 import { getUserTier } from "@/lib/quota-middleware";
 import { config } from "@/config";
@@ -117,6 +118,23 @@ export async function POST(req: NextRequest) {
       return rest;
     };
 
+    // Post-flash welcome DM: every successful registration (create AND
+    // re-flash) queues one — the meshtk poller PKI-DMs it from the map node.
+    // Best-effort: a queue write failure must never fail the registration.
+    const queueWelcome = async () => {
+      const who = (user as { displayName?: string }).displayName || "runner";
+      try {
+        await enqueueWelcome({
+          nodeId: canonicalNodeId,
+          nodeNum: canonicalNodeNum,
+          message: `Welcome to defcon.run, ${who}! Your radio is configured and on the mesh. Reply hi to any rabbit 🐇 or visit run.defcon.run`,
+          userId: adapterUserId,
+        });
+      } catch (e) {
+        console.error("[run.human] welcome enqueue failed (registration unaffected):", e);
+      }
+    };
+
     // Check for an existing authoritative MeshRadio row with this nodeId.
     const existing = await getMeshRadio(canonicalNodeId);
 
@@ -130,6 +148,7 @@ export async function POST(req: NextRequest) {
       });
 
       console.log(`[run.human] Updated radio ${canonicalNodeId} for user ${adapterUserId}`);
+      await queueWelcome();
 
       return NextResponse.json(
         { radio: updated ? safeRadio(updated) : undefined, updated: true },
@@ -163,6 +182,7 @@ export async function POST(req: NextRequest) {
     });
 
     console.log(`[run.human] Registered new radio ${canonicalNodeId} for user ${adapterUserId}`);
+    await queueWelcome();
 
     return NextResponse.json(
       { radio: safeRadio(created as MeshRadioItem), updated: false },

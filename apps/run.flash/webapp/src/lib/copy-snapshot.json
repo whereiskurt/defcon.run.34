@@ -175,6 +175,7 @@
     "flash.downloadConfig.sh": "meshtastic CLI script (.sh)",
     "flash.downloadConfig.notProvisioned": "Your account isn't MQTT-provisioned yet — open run.defcon.run first, then come back.",
     "flash.downloadConfig.error": "Couldn't load your config. Refresh and try again.",
+    "flash.done.welcomeHint": "Watch your radio — a welcome message from DEF CON 34 MeshMap is on its way.",
 
     "common.nav.maps": "Maps",
     "common.nav.meshtastic": "Meshtastic",
