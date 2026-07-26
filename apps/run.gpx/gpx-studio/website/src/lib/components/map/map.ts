@@ -101,9 +101,9 @@ export class MapboxGLMap {
                     // and desktop, unlike a typed keyword. Searching still
                     // geocodes normally below.
                     if (/publicus|coffee/i.test(query)) coffeeUnlocked.set(true);
-                    // The Deuce: searching "deuce" toggles the Strip bus layer
-                    // (mobile-friendly twin of the 2-2-2 key gesture).
-                    if (/\bdeuce\b/i.test(query)) toggleDeuce();
+                    // Strip transit: searching "deuce" or "monorail" toggles the
+                    // bus+monorail layer (mobile-friendly twin of the 2-2-2 gesture).
+                    if (/\b(deuce|monorail)\b/i.test(query)) toggleDeuce();
                     // Per-arch shortcuts: searching a keyword *toggles* that
                     // arch on/off (weed→NuWu, dd→Double Down, vegas→LV sign).
                     for (const [word, archId] of Object.entries(ARCH_SEARCH_WORDS)) {

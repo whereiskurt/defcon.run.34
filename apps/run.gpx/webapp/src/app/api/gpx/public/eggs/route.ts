@@ -119,6 +119,20 @@ const DEFAULT_EGGS: EggModal[] = [
     links: [mapLink(36.1473, -115.1553)],
   },
   {
+    id: "dc34-monorail",
+    eyebrow: "Strip Transit",
+    title: "🚝 Las Vegas Monorail",
+    titleUrl: "https://www.lvmonorail.com/",
+    descriptionHtml:
+      "<p>The <strong>Las Vegas Monorail</strong> glides the elevated guideway " +
+      "behind the east-Strip casinos — SAHARA to MGM Grand in about 13 minutes, " +
+      "every few minutes from 7am. The Convention Center station drops you at " +
+      "the LVCC doorstep; hackers have been racing it on foot since forever.</p>",
+    address: "SAHARA ↔ MGM Grand, east of the Strip",
+    accent: "#22D3EE",
+    links: [mapLink(36.13117, -115.15464)],
+  },
+  {
     id: "dc34-coffee",
     eyebrow: "Rabbit Fuel Stop",
     title: "☕ PublicUs",
