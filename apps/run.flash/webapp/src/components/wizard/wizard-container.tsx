@@ -12,6 +12,7 @@ import { DEFAULT_FIRMWARE_VERSION } from "@/config/firmware";
 import { getDeviceFamily } from "@/types/device";
 import { WizardStepper } from "@/components/wizard/wizard-stepper";
 import { DeviceGrid } from "@/components/device-picker/device-grid";
+import { DownloadConfigMenu } from "@/components/download-config-menu";
 import { ConnectStep, type TransportState } from "@/components/connect/connect-step";
 import { FlashStep, type FlashTransport } from "@/components/flash/flash-step";
 import { Nrf52FlashStep } from "@/components/flash/nrf52-flash-step";
@@ -128,6 +129,7 @@ export function WizardContainer() {
                 onContinue={canAdvance("pick-device") ? advance : undefined}
               />
               <AppDownloadsCard variant="compact" />
+              <DownloadConfigMenu payload={null} variant="card" />
             </div>
           )}
 

@@ -13,6 +13,7 @@ import type { ConfigProgress, DeviceConfigPayload } from "@/types/config";
 import type { DeviceHardware, DeviceFamily } from "@/types/device";
 import { getDeviceImagePath, getArchLabel } from "@/config/devices";
 import { ConfigPipeline } from "@/components/configure/config-pipeline";
+import { DownloadConfigMenu } from "@/components/download-config-menu";
 import { useCopy } from "@/components/CopyProvider";
 
 const ARCH_COLORS: Record<string, "primary" | "secondary" | "warning" | "success"> = {
@@ -271,6 +272,10 @@ export function ConfigureStep({
           </div>
         </>
       )}
+
+      {/* Manual-setup escape hatch: grab the exact config this step pushes
+          (txt/json/CLI) — payload may be null pre-fetch; menu self-fetches. */}
+      <DownloadConfigMenu payload={configureState.configPayload} variant="button" />
     </div>
   );
 }
