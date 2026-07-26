@@ -105,6 +105,20 @@ const DEFAULT_EGGS: EggModal[] = [
     links: [mapLink(36.135189, -115.158541)],
   },
   {
+    id: "dc34-deuce",
+    eyebrow: "Strip Transit",
+    title: "🚌 The Deuce",
+    titleUrl: "https://www.rtcsnv.com/ways-to-travel/routes-schedules/",
+    descriptionHtml:
+      "<p><strong>The Deuce</strong> — RTC's double-decker crawling Las Vegas Blvd " +
+      "24/7, Fremont Street Experience to Mandalay Bay. A day pass buys you " +
+      "air-conditioned recovery when your legs give out. Ride the top deck at " +
+      "night; hop off at the Strat and walk it down like a rabbit.</p>",
+    address: "Las Vegas Blvd, end to end",
+    accent: "#0067B1",
+    links: [mapLink(36.1473, -115.1553)],
+  },
+  {
     id: "dc34-coffee",
     eyebrow: "Rabbit Fuel Stop",
     title: "☕ PublicUs",

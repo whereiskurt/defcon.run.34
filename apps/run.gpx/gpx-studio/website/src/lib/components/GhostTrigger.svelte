@@ -13,9 +13,11 @@
     import { mode } from 'mode-watcher';
     import { ghostMode, recordHit } from '$lib/stores/ghost';
     import { rainbowUnlocked, toggleForcedArch } from '$lib/stores/rainbow';
+    import { toggleDeuce } from '$lib/stores/deuce';
     import { ARCH_SEARCH_WORDS } from '$lib/components/map/rainbow-geometry';
 
     let keyBuf: number[] = [];
+    let deuceBuf: number[] = [];
     let themeBuf: number[] = [];
     let typed = '';
     let firstMode = true;
@@ -37,6 +39,16 @@
                     toggleForcedArch(ARCH_SEARCH_WORDS['dd']);
                     typed = '';
                 }
+            }
+            // The Deuce: press 2-2-2 quickly to toggle the Strip bus layer.
+            // Must sit before the '!' block below — it early-returns on every
+            // non-'!' key.
+            if (e.key === '2') {
+                const r2 = recordHit(deuceBuf, Date.now(), 1500, 3);
+                deuceBuf = r2.buf;
+                if (r2.hit) toggleDeuce();
+            } else {
+                deuceBuf = [];
             }
             if (e.key !== '!') {
                 keyBuf = [];

@@ -7,6 +7,7 @@ import { recordHit } from '$lib/stores/ghost';
 import { rainbowUnlocked, toggleForcedArch } from '$lib/stores/rainbow';
 import { ARCH_SEARCH_WORDS } from './rainbow-geometry';
 import { coffeeUnlocked } from '$lib/stores/coffee';
+import { toggleDeuce } from '$lib/stores/deuce';
 
 const { treeFileView, elevationProfile, bottomPanelSize, rightPanelSize, distanceUnits } = settings;
 
@@ -100,6 +101,9 @@ export class MapboxGLMap {
                     // and desktop, unlike a typed keyword. Searching still
                     // geocodes normally below.
                     if (/publicus|coffee/i.test(query)) coffeeUnlocked.set(true);
+                    // The Deuce: searching "deuce" toggles the Strip bus layer
+                    // (mobile-friendly twin of the 2-2-2 key gesture).
+                    if (/\bdeuce\b/i.test(query)) toggleDeuce();
                     // Per-arch shortcuts: searching a keyword *toggles* that
                     // arch on/off (weed→NuWu, dd→Double Down, vegas→LV sign).
                     for (const [word, archId] of Object.entries(ARCH_SEARCH_WORDS)) {
