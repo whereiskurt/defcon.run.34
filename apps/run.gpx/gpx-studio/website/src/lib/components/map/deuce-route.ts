@@ -25,8 +25,12 @@ export const CYCLE_MIN = 2 * ONE_WAY_MIN;
 /** Buses on the road — one per headway slot across the cycle. */
 export const FLEET = Math.ceil(CYCLE_MIN / HEADWAY_MIN); // 8
 
-/** [lng, lat] southbound along S Las Vegas Blvd, Fremont → Mandalay Bay. */
+/** [lng, lat] southbound along S Las Vegas Blvd, Fremont → Mandalay Bay.
+ * First vertex sits at the Fremont Street Experience canopy's east entrance
+ * (Fremont & LVB — SlotZilla end), a short hand-added hop north of where
+ * OSM's "South Las Vegas Boulevard" naming begins. */
 export const DEUCE_ROUTE: [number, number][] = [
+    [-115.13988, 36.17004],
     [-115.14074, 36.16927],
     [-115.15041, 36.15445],
     [-115.15061, 36.15422],
@@ -62,7 +66,7 @@ export const DEUCE_ROUTE: [number, number][] = [
 
 /** Named stops, pre-snapped onto DEUCE_ROUTE (nearest-point projection). */
 export const DEUCE_STOPS: { name: string; lngLat: [number, number] }[] = [
-    { name: 'Fremont Street Experience', lngLat: [-115.14074, 36.16927] },
+    { name: 'Fremont Street Experience', lngLat: [-115.13988, 36.17004] },
     { name: 'The STRAT', lngLat: [-115.15517, 36.14724] },
     { name: 'SAHARA Las Vegas', lngLat: [-115.15812, 36.14276] },
     { name: 'Convention Center', lngLat: [-115.16318, 36.13498] },
@@ -125,32 +129,48 @@ export function pointAtFraction(
 export type BusState = {
     id: number;
     lngLat: [number, number];
-    /** true = heading Fremont → Mandalay Bay (down the route array). */
+    /** true = heading down the route array (Deuce: Fremont → Mandalay Bay). */
     southbound: boolean;
 };
 
-const DEFAULT_CUM = routeCumulativeM(DEUCE_ROUTE);
-
 /**
- * All bus positions at `nowMs` (epoch ms). Bus k is offset k·HEADWAY_MIN into
- * the shared out-and-back cycle: phase ∈ [0,1) runs southbound at fraction
- * `phase`, phase ∈ [1,2) runs northbound at `2 − phase`.
+ * Generic out-and-back vehicle simulator (shared with the monorail). Vehicle k
+ * is offset k·headwayMin into the shared cycle of 2·oneWayMin: phase ∈ [0,1)
+ * runs down the route array at fraction `phase`, phase ∈ [1,2) runs back at
+ * `2 − phase`. Pure function of epoch ms — identical for every viewer.
  */
-export function busStates(
+export function vehicleStates(
     nowMs: number,
-    route: [number, number][] = DEUCE_ROUTE,
-    cum: number[] = route === DEUCE_ROUTE ? DEFAULT_CUM : routeCumulativeM(route)
+    route: [number, number][],
+    cum: number[],
+    opts: { oneWayMin: number; headwayMin: number; fleet: number }
 ): BusState[] {
     if (route.length < 2) return [];
+    const cycleMin = 2 * opts.oneWayMin;
     const out: BusState[] = [];
     const nowMin = nowMs / 60000;
-    for (let k = 0; k < FLEET; k++) {
+    for (let k = 0; k < opts.fleet; k++) {
         const cyclePos =
-            (((nowMin + k * HEADWAY_MIN) % CYCLE_MIN) + CYCLE_MIN) % CYCLE_MIN;
-        const phase = cyclePos / ONE_WAY_MIN;
+            (((nowMin + k * opts.headwayMin) % cycleMin) + cycleMin) % cycleMin;
+        const phase = cyclePos / opts.oneWayMin;
         const southbound = phase < 1;
         const f = southbound ? phase : 2 - phase;
         out.push({ id: k, lngLat: pointAtFraction(route, cum, f), southbound });
     }
     return out;
+}
+
+const DEFAULT_CUM = routeCumulativeM(DEUCE_ROUTE);
+
+/** All Deuce bus positions at `nowMs` (epoch ms). */
+export function busStates(
+    nowMs: number,
+    route: [number, number][] = DEUCE_ROUTE,
+    cum: number[] = route === DEUCE_ROUTE ? DEFAULT_CUM : routeCumulativeM(route)
+): BusState[] {
+    return vehicleStates(nowMs, route, cum, {
+        oneWayMin: ONE_WAY_MIN,
+        headwayMin: HEADWAY_MIN,
+        fleet: FLEET,
+    });
 }
