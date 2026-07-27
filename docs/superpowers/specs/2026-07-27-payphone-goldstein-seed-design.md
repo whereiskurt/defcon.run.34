@@ -114,3 +114,19 @@ The Booth with a number pill.**
 - No copyrighted 2600 photos — the art is an original SVG homage (photos would
   be a licensing problem and a raster blob in the bundle).
 - Ship: run.gpx only (studio bundle) → buildpub `run.gpx` use1 → deploy.yml.
+
+## Enhancement v3 — two more booths (2026-07-27)
+
+Same Booth layout, parameterized. `payphone.ts` becomes spec-driven
+(`PAYPHONES: PhoneSpec[]`, one `PayPhone` class instance manages all markers;
+`boothSvg(number)` templates the taped note; pill shows each phone's number):
+
+| eggId | Place | Number | Location (Nominatim) |
+|---|---|---|---|
+| `dc34-payphone` | The Strat | 725-404-3234 | `[-115.1561024, 36.1476992]` |
+| `dc34-payphone-sign` | Welcome to Fabulous Las Vegas Sign | 725-404-3283 | `[-115.1727735, 36.0820593]` |
+| `dc34-payphone-rio` | The Rio, 3700 W Flamingo Rd | 725-404-8283 | `[-115.1882831, 36.1175311]` |
+
+Each gets its own `DEFAULT_EGGS` entry ("Call me! <number>", same eyebrow/
+accent); `EXPECTED_IDS` extended. LayerControl unchanged (same class name and
+constructor). Ship: run.gpx only, same CI flow.

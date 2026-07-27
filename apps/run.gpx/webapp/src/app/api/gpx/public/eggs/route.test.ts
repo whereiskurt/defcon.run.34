@@ -22,6 +22,8 @@ const EXPECTED_IDS = [
   "dc34-monorail",
   "dc34-coffee",
   "dc34-payphone",
+  "dc34-payphone-sign",
+  "dc34-payphone-rio",
 ];
 
 type EggModal = {

@@ -2,21 +2,47 @@ import mapboxgl from 'mapbox-gl';
 import { openEggModal } from './egg-modal';
 
 /**
- * The PayPhone — a CTF clue beacon at The Strat.
+ * The PayPhones — CTF clue beacons at The Strat, the Las Vegas sign, and the Rio.
  *
- * Sibling of The Spot (the-spot.ts) and the PublicUs coffee beacon: a flat,
- * always-on DOM marker — "The Booth", an SVG Bell-blue payphone (keypad,
+ * Siblings of The Spot (the-spot.ts) and the PublicUs coffee beacon: flat,
+ * always-on DOM markers — "The Booth", an SVG Bell-blue payphone (keypad,
  * handset, coin slot) with a hand-scrawled note taped to the faceplate:
- * "CALL ME! 725-404-3234". It bobs with amber "ringing" rays over a monospace
- * "☎ 725-404-3234" pill so the number reads at every zoom. Clicking opens the
- * dc34-payphone modal (public eggs endpoint, CMS-overridable). No unlock
+ * "CALL ME! <number>". Each bobs with amber "ringing" rays over a monospace
+ * "☎ <number>" pill so the number reads at every zoom. Clicking opens that
+ * phone's egg modal (public eggs endpoint, CMS-overridable). No unlock
  * mechanic, no covert CTF award — the reward is on the other end of the line.
  * The art is an original 2600-zine homage (no licensed photos in the bundle).
  */
 
-/** The Strat, 2000 Las Vegas Blvd S — Nominatim pin (geocoded, not eyeballed). */
-const PAYPHONE_LOCATION: [number, number] = [-115.1561024, 36.1476992];
-const EGG_ID = 'dc34-payphone';
+type PhoneSpec = {
+    eggId: string;
+    /** Nominatim pin (geocoded, not eyeballed). */
+    location: [number, number];
+    number: string;
+    place: string;
+};
+
+const PAYPHONES: PhoneSpec[] = [
+    {
+        eggId: 'dc34-payphone',
+        location: [-115.1561024, 36.1476992], // The Strat, 2000 Las Vegas Blvd S
+        number: '725-404-3234',
+        place: 'The Strat',
+    },
+    {
+        eggId: 'dc34-payphone-sign',
+        location: [-115.1727735, 36.0820593], // Welcome to Fabulous Las Vegas Sign
+        number: '725-404-3283',
+        place: 'Las Vegas Sign',
+    },
+    {
+        eggId: 'dc34-payphone-rio',
+        location: [-115.1882831, 36.1175311], // Rio, 3700 W Flamingo Rd
+        number: '725-404-8283',
+        place: 'The Rio',
+    },
+];
+
 const STYLE_ID = 'dc34-payphone-beacon-style';
 
 /** Inject the beacon CSS once (keyframes can't be inlined on the element). */
@@ -47,13 +73,48 @@ function ensureStyle() {
     document.head.appendChild(s);
 }
 
+/** "The Booth" — the A2 payphone art with the phone's number on the taped note. */
+function boothSvg(number: string): string {
+    return (
+        '<svg viewBox="0 0 60 98" xmlns="http://www.w3.org/2000/svg">' +
+        // Bell-blue enclosure + dark inset + silver faceplate
+        '<rect x="4" y="2" width="52" height="84" rx="6" fill="#1e3a5f" stroke="#4a6f9e" stroke-width="1.5"/>' +
+        '<rect x="9" y="7" width="42" height="74" rx="3" fill="#0f2440"/>' +
+        '<rect x="12" y="10" width="36" height="68" rx="2" fill="#c9ced6"/>' +
+        // handset resting on its hooks
+        '<rect x="14" y="14" width="8" height="34" rx="4" fill="#22262e"/>' +
+        '<rect x="12.5" y="12.5" width="11" height="8" rx="4" fill="#22262e"/>' +
+        '<rect x="12.5" y="41.5" width="11" height="8" rx="4" fill="#22262e"/>' +
+        // keypad
+        '<g fill="#3a4150">' +
+        '<rect x="28" y="16" width="6" height="5" rx="1"/><rect x="35.5" y="16" width="6" height="5" rx="1"/>' +
+        '<rect x="28" y="23" width="6" height="5" rx="1"/><rect x="35.5" y="23" width="6" height="5" rx="1"/>' +
+        '<rect x="28" y="30" width="6" height="5" rx="1"/><rect x="35.5" y="30" width="6" height="5" rx="1"/>' +
+        '<rect x="28" y="37" width="6" height="5" rx="1"/><rect x="35.5" y="37" width="6" height="5" rx="1"/>' +
+        '</g>' +
+        // coin slot + coin return
+        '<rect x="40" y="47" width="6" height="2.5" rx="1" fill="#5a6170"/>' +
+        '<rect x="27" y="70" width="10" height="4" rx="1" fill="#3a4150"/>' +
+        // the taped note — the clue itself
+        '<g transform="rotate(-5 30 60)">' +
+        '<rect x="13" y="53" width="34" height="15" rx="1.5" fill="#fdf6e3" stroke="#d9cba3" stroke-width="0.6"/>' +
+        '<rect x="24" y="51" width="12" height="4" fill="rgba(200,200,190,.6)"/>' +
+        '<text x="30" y="59" text-anchor="middle" font-family="Marker Felt, Comic Sans MS, cursive" font-size="4.6" fill="#c1121f">CALL ME!</text>' +
+        `<text x="30" y="65" text-anchor="middle" font-family="Courier New, monospace" font-weight="bold" font-size="4.8" fill="#1a1a1a">${number}</text>` +
+        '</g>' +
+        // legs
+        '<rect x="16" y="86" width="4" height="10" fill="#31445e"/>' +
+        '<rect x="40" y="86" width="4" height="10" fill="#31445e"/>' +
+        '</svg>'
+    );
+}
+
 export class PayPhone {
     map: mapboxgl.Map;
-    private marker: mapboxgl.Marker | null = null;
-    private el: HTMLElement | null = null;
+    private markers: mapboxgl.Marker[] = [];
 
-    /** The Strat coordinates. */
-    static readonly location = PAYPHONE_LOCATION;
+    /** All payphone locations (Strat, LV Sign, Rio). */
+    static readonly locations = PAYPHONES.map((p) => p.location);
 
     constructor(map: mapboxgl.Map) {
         this.map = map;
@@ -62,57 +123,28 @@ export class PayPhone {
 
     private build() {
         ensureStyle();
-        const el = document.createElement('div');
-        el.className = 'dc34-payphone-beacon';
-        el.title = 'PayPhone — The Strat';
-        el.innerHTML =
-            '<div class="dc34-payphone-phone">' +
-            '<svg viewBox="0 0 60 98" xmlns="http://www.w3.org/2000/svg">' +
-            // Bell-blue enclosure + dark inset + silver faceplate
-            '<rect x="4" y="2" width="52" height="84" rx="6" fill="#1e3a5f" stroke="#4a6f9e" stroke-width="1.5"/>' +
-            '<rect x="9" y="7" width="42" height="74" rx="3" fill="#0f2440"/>' +
-            '<rect x="12" y="10" width="36" height="68" rx="2" fill="#c9ced6"/>' +
-            // handset resting on its hooks
-            '<rect x="14" y="14" width="8" height="34" rx="4" fill="#22262e"/>' +
-            '<rect x="12.5" y="12.5" width="11" height="8" rx="4" fill="#22262e"/>' +
-            '<rect x="12.5" y="41.5" width="11" height="8" rx="4" fill="#22262e"/>' +
-            // keypad
-            '<g fill="#3a4150">' +
-            '<rect x="28" y="16" width="6" height="5" rx="1"/><rect x="35.5" y="16" width="6" height="5" rx="1"/>' +
-            '<rect x="28" y="23" width="6" height="5" rx="1"/><rect x="35.5" y="23" width="6" height="5" rx="1"/>' +
-            '<rect x="28" y="30" width="6" height="5" rx="1"/><rect x="35.5" y="30" width="6" height="5" rx="1"/>' +
-            '<rect x="28" y="37" width="6" height="5" rx="1"/><rect x="35.5" y="37" width="6" height="5" rx="1"/>' +
-            '</g>' +
-            // coin slot + coin return
-            '<rect x="40" y="47" width="6" height="2.5" rx="1" fill="#5a6170"/>' +
-            '<rect x="27" y="70" width="10" height="4" rx="1" fill="#3a4150"/>' +
-            // the taped note — the clue itself
-            '<g transform="rotate(-5 30 60)">' +
-            '<rect x="13" y="53" width="34" height="15" rx="1.5" fill="#fdf6e3" stroke="#d9cba3" stroke-width="0.6"/>' +
-            '<rect x="24" y="51" width="12" height="4" fill="rgba(200,200,190,.6)"/>' +
-            '<text x="30" y="59" text-anchor="middle" font-family="Marker Felt, Comic Sans MS, cursive" font-size="4.6" fill="#c1121f">CALL ME!</text>' +
-            '<text x="30" y="65" text-anchor="middle" font-family="Courier New, monospace" font-weight="bold" font-size="4.8" fill="#1a1a1a">725-404-3234</text>' +
-            '</g>' +
-            // legs
-            '<rect x="16" y="86" width="4" height="10" fill="#31445e"/>' +
-            '<rect x="40" y="86" width="4" height="10" fill="#31445e"/>' +
-            '</svg>' +
-            '</div>' +
-            '<div class="dc34-payphone-label">☎ 725-404-3234</div>';
-        el.addEventListener('click', (e) => {
-            e.stopPropagation();
-            void openEggModal(this.map, EGG_ID, PAYPHONE_LOCATION);
-        });
-        this.el = el;
-        // anchor:'bottom' -> the sign's tip sits on the phone booth.
-        this.marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
-            .setLngLat(PAYPHONE_LOCATION)
-            .addTo(this.map);
+        for (const phone of PAYPHONES) {
+            const el = document.createElement('div');
+            el.className = 'dc34-payphone-beacon';
+            el.title = `PayPhone — ${phone.place}`;
+            el.innerHTML =
+                `<div class="dc34-payphone-phone">${boothSvg(phone.number)}</div>` +
+                `<div class="dc34-payphone-label">☎ ${phone.number}</div>`;
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                void openEggModal(this.map, phone.eggId, phone.location);
+            });
+            // anchor:'bottom' -> the sign's tip sits on the phone booth.
+            this.markers.push(
+                new mapboxgl.Marker({ element: el, anchor: 'bottom' })
+                    .setLngLat(phone.location)
+                    .addTo(this.map)
+            );
+        }
     }
 
     remove() {
-        this.marker?.remove();
-        this.marker = null;
-        this.el = null;
+        for (const m of this.markers) m.remove();
+        this.markers = [];
     }
 }
