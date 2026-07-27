@@ -53,8 +53,8 @@
     "flash.help.esp32.intro": "The browser couldn't open a serial link to your device. Work through the steps below in order — most connect failures fall out at step 1 or 2.",
     "flash.help.esp32.step1": "Confirm the device is plugged into {this} computer with a data-capable USB cable (charge-only cables are a common cause — they enumerate power but not serial).",
     "flash.help.esp32.step2": "Close any other program holding the serial port — Arduino IDE, PlatformIO, the Meshtastic CLI, or another browser tab running the flasher.",
-    "flash.help.esp32.step3": "Most current-generation ESP32-S3 / C3 / C6 boards auto-enter bootloader mode on connect, so you should not need to press BOOT first. Try Connect once; only fall through to manual bootloader (step 4) if the chip doesn't respond.",
-    "flash.help.esp32.step4": "Manual bootloader mode (fallback): hold {boot}, tap {reset}, then release {boot}, then click Connect.",
+    "flash.help.esp32.step3": "Many ESP32-S3 / C3 / C6 boards auto-enter bootloader mode on connect, so you may not need to press BOOT first. Try Connect once; if the chip doesn't respond, use manual bootloader mode (step 4). Some boards (e.g. T-Beam 1W) always need the manual steps.",
+    "flash.help.esp32.step4": "Manual bootloader mode: hold {boot}, tap {reset} (on battery-powered boards: power off, hold {boot}, power on), wait 2-3 seconds, release {boot}, then click Connect.",
     "flash.help.esp32.step5": "ESP32-C3 with USB-JTAG: swap to a different USB port or bypass hubs — some hubs strip the JTAG interface.",
     "flash.help.esp32.step6": "Still stuck? Try a different data USB cable and a different port on your computer.",
 
@@ -120,6 +120,9 @@
     "flash.configure.recovery2": "Make sure your USB cable is still connected",
     "flash.configure.recovery3": "Click Retry to reconnect and try configuration again",
     "flash.configure.retry": "Retry",
+    "flash.configure.powerCycleTitle": "Power-cycle your device",
+    "flash.configure.powerCycleBody": "The new firmware is flashed, but this board can't be rebooted from the browser. Press its RST button — or switch it off and back on — and we'll reconnect automatically.",
+    "flash.configure.selectPortManual": "Can't find it? Select port manually",
 
     "flash.configStage.radio.label": "Radio",
     "flash.configStage.radio.active": "Configuring radio...",

@@ -49,6 +49,36 @@ const CONFIGURE_TIMEOUT_MS = 60000;
 /** Settle delay between commitEditSettings and the post-commit read-backs (ms) */
 const COMMIT_SETTLE_MS = 1500;
 
+/** Native-USB reconnect: total time to wait for the firmware to come up (ms) */
+const NATIVE_USB_BOOT_TIMEOUT_MS = 90000;
+
+/** Native-USB reconnect: how long before prompting the user to power-cycle (ms) */
+const NATIVE_USB_PROMPT_AFTER_MS = 6000;
+
+/** Native-USB reconnect: after this long, accept an openable-but-silent port
+ *  and let the Meshtastic handshake decide (a quietly-running firmware may
+ *  emit no spontaneous boot text) (ms) */
+const NATIVE_USB_SILENT_FALLBACK_MS = 30000;
+
+/** Native-USB reconnect: per-port listen window while polling (ms) */
+const NATIVE_USB_READ_WINDOW_MS = 1500;
+
+/** Native-USB reconnect: gap between poll passes (ms) */
+const NATIVE_USB_POLL_GAP_MS = 300;
+
+/** Options for the ESP32 configure-step reconnect. */
+export type Esp32ConnectOptions = {
+  /** Native-USB board (ESP32-S3/C3/C6, e.g. T-Beam 1W): the classic DTR/RTS
+   *  reset cannot be relied on to exit the ROM bootloader, and a manual
+   *  power-cycle re-enumerates USB, invalidating held port handles. Uses the
+   *  adaptive poll + power-cycle-prompt reconnect instead of the blind
+   *  fixed-delay reboot dance. */
+  nativeUsb?: boolean;
+  /** Fires true when the user needs to power-cycle the device, false once
+   *  the device has been heard from (or the wait ends). */
+  onAwaitingUserReset?: (waiting: boolean) => void;
+};
+
 /**
  * Connect to a Meshtastic device over Web Serial after flash reboot.
  *
@@ -68,79 +98,85 @@ const COMMIT_SETTLE_MS = 1500;
  * @returns Connected and configured MeshDevice instance with registration info
  * @throws Error if connection times out or no port available
  */
-export async function connectMeshtasticDevice(): Promise<{
+export async function connectMeshtasticDevice(
+  options: Esp32ConnectOptions = {}
+): Promise<{
   device: MeshDevice;
   registrationInfo: DeviceRegistrationInfo;
 }> {
-  // Step 1: Get the previously-granted serial port
+  // Step 1: Get the previously-granted serial port. On a native-USB board an
+  // empty list is not fatal — a power-cycle re-enumerates USB, so the poll
+  // below (plus the manual port-select fallback) can still find the device.
   const ports = await navigator.serial.getPorts();
-  if (ports.length === 0) {
+  if (ports.length === 0 && !options.nativeUsb) {
     throw new Error(
       "No serial port available. The device may have disconnected during reboot."
     );
   }
-  const port = ports[0];
 
   // Step 2: Hard-reset the device out of bootloader mode.
   // The Connect step uses ESPLoader.main() which puts the device into ROM
   // bootloader mode. esptool's disconnect() already closed the port, so
   // we must reopen it briefly to toggle DTR/RTS and trigger a hardware
-  // reset via the auto-reset circuitry.
-  console.log("[meshtastic] Resetting device out of bootloader mode...");
-  try {
-    // Open the port if not already open (esptool closed it)
-    if (!port.readable || !port.writable) {
-      await port.open({ baudRate: MESHTASTIC_BAUDRATE });
+  // reset via the auto-reset circuitry. On native-USB boards this reaches the
+  // chip's USB-Serial/JTAG peripheral instead of an auto-reset circuit — it
+  // works on some (Heltec V3-class) and is a no-op on others (T-Beam 1W),
+  // which is why the native-USB path doesn't trust it and polls instead.
+  if (ports.length > 0) {
+    const resetPort = ports[0];
+    console.log("[meshtastic] Resetting device out of bootloader mode...");
+    try {
+      // Open the port if not already open (esptool closed it)
+      if (!resetPort.readable || !resetPort.writable) {
+        await resetPort.open({ baudRate: MESHTASTIC_BAUDRATE });
+      }
+      // Reset-to-application sequence:
+      // RTS=true pulls EN LOW (reset), DTR=false keeps GPIO0 HIGH (no bootloader)
+      await resetPort.setSignals({ dataTerminalReady: false, requestToSend: true });
+      await new Promise((r) => setTimeout(r, 100));
+      // Release EN — device boots into application firmware
+      await resetPort.setSignals({ dataTerminalReady: false, requestToSend: false });
+      await new Promise((r) => setTimeout(r, 50));
+      console.log("[meshtastic] DTR/RTS reset sequence sent");
+      // Close the port so we can reopen cleanly for Meshtastic
+      await resetPort.close();
+    } catch (err) {
+      console.warn("[meshtastic] Reset via setSignals failed:", err);
+      // If port is still open, close it
+      try { if (resetPort.readable || resetPort.writable) await resetPort.close(); } catch { /* ignore */ }
     }
-    // Reset-to-application sequence:
-    // RTS=true pulls EN LOW (reset), DTR=false keeps GPIO0 HIGH (no bootloader)
-    await port.setSignals({ dataTerminalReady: false, requestToSend: true });
-    await new Promise((r) => setTimeout(r, 100));
-    // Release EN — device boots into application firmware
-    await port.setSignals({ dataTerminalReady: false, requestToSend: false });
-    await new Promise((r) => setTimeout(r, 50));
-    console.log("[meshtastic] DTR/RTS reset sequence sent");
-    // Close the port so we can reopen cleanly for Meshtastic
+  }
+
+  let port: SerialPort;
+  if (options.nativeUsb) {
+    // Native-USB (ESP32-S3/C3/C6): the reset above may not have done anything,
+    // and if the user power-cycles instead, USB re-enumerates and old handles
+    // die. Poll fresh enumerations until the firmware is heard from, prompting
+    // the user to power-cycle if nothing shows up.
+    port = await waitForFirmwareBootNativeUsb(options.onAwaitingUserReset);
+  } else {
+    // Classic ESP32 (CP210x/CH9102 bridge): the reset reliably worked and the
+    // bridge chip stays enumerated, so the original fixed-delay dance holds.
+    port = ports[0];
+
+    // Step 3: Wait for the device to boot Meshtastic firmware.
+    console.log(`[meshtastic] Waiting ${REBOOT_DELAY_MS}ms for device to boot firmware...`);
+    await new Promise((resolve) => setTimeout(resolve, REBOOT_DELAY_MS));
+
+    // Step 4: Drain boot/debug text from serial buffer.
+    // Boot messages and debug text (sent when DTR is asserted) contain 0x94
+    // bytes (from ASCII like "ESP-ROM:...") that poison @meshtastic/core's
+    // fromDeviceStream parser — it finds the false 0x94, checks if the next
+    // byte is 0xC3, it's not, and the parser stops processing forever (never
+    // recovers from a false framing byte match). We must drain this text
+    // before creating the MeshDevice.
+    console.log("[meshtastic] Draining boot/debug text from serial buffer...");
+    await port.open({ baudRate: MESHTASTIC_BAUDRATE });
+    await port.setSignals({ dataTerminalReady: true });
+    const drainedBytes = await readForWindow(port, DRAIN_TIMEOUT_MS);
+    console.log(`[meshtastic] Drained ${drainedBytes} bytes of boot text`);
     await port.close();
-  } catch (err) {
-    console.warn("[meshtastic] Reset via setSignals failed:", err);
-    // If port is still open, close it
-    try { if (port.readable || port.writable) await port.close(); } catch { /* ignore */ }
   }
-
-  // Step 3: Wait for the device to boot Meshtastic firmware.
-  console.log(`[meshtastic] Waiting ${REBOOT_DELAY_MS}ms for device to boot firmware...`);
-  await new Promise((resolve) => setTimeout(resolve, REBOOT_DELAY_MS));
-
-  // Step 4: Drain boot/debug text from serial buffer.
-  // ESP32-S3 USB-JTAG sends a burst of boot messages and debug text when
-  // DTR is asserted. This text contains 0x94 bytes (from ASCII like
-  // "ESP-ROM:esp32s3...") that poison @meshtastic/core's fromDeviceStream
-  // parser — it finds the false 0x94, checks if the next byte is 0xC3,
-  // it's not, and the parser stops processing forever (never recovers
-  // from a false framing byte match). We must drain this text before
-  // creating the MeshDevice.
-  console.log("[meshtastic] Draining boot/debug text from serial buffer...");
-  await port.open({ baudRate: MESHTASTIC_BAUDRATE });
-  await port.setSignals({ dataTerminalReady: true });
-
-  const reader = port.readable!.getReader();
-  let drainedBytes = 0;
-  const drainTimeout = setTimeout(() => reader.cancel(), DRAIN_TIMEOUT_MS);
-  try {
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      if (value) drainedBytes += value.length;
-    }
-  } catch {
-    // reader.cancel() fires an error, expected
-  } finally {
-    clearTimeout(drainTimeout);
-    reader.releaseLock();
-  }
-  console.log(`[meshtastic] Drained ${drainedBytes} bytes of boot text`);
-  await port.close();
 
   // Step 5: Reopen the port cleanly for Meshtastic protocol.
   // The serial buffer is now clear of boot text — the library's
@@ -172,6 +208,137 @@ export async function connectMeshtasticDevice(): Promise<{
   const registrationInfo = await configureWithRetry(device);
 
   return { device, registrationInfo };
+}
+
+/** Port handed over by the manual "Select port" fallback button (a user
+ *  gesture calling requestPortForReconnect). The native-USB poll loop picks
+ *  it up on its next pass and treats it as authoritative. */
+let manuallySelectedPort: SerialPort | null = null;
+
+/**
+ * Manual fallback for the native-USB reconnect: prompt the user to pick the
+ * device's serial port. Needed when a power-cycle re-enumerates the device
+ * under a USB identity the site has no stored permission for (getPorts()
+ * never sees it). MUST be called from a user gesture (button click).
+ */
+export async function requestPortForReconnect(): Promise<void> {
+  manuallySelectedPort = await navigator.serial.requestPort();
+}
+
+/**
+ * Read and discard bytes from an OPEN port for windowMs, returning the byte
+ * count. Used both to detect firmware boot text and to drain it (0x94 bytes
+ * in boot text poison @meshtastic/core's framing parser — see call sites).
+ */
+async function readForWindow(port: SerialPort, windowMs: number): Promise<number> {
+  const reader = port.readable!.getReader();
+  let bytes = 0;
+  const timeout = setTimeout(() => reader.cancel(), windowMs);
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      if (value) bytes += value.length;
+    }
+  } catch {
+    // reader.cancel() fires an error, expected
+  } finally {
+    clearTimeout(timeout);
+    reader.releaseLock();
+  }
+  return bytes;
+}
+
+/**
+ * Native-USB reconnect: poll fresh getPorts() enumerations until a port
+ * produces output (firmware boot/debug text), prompting the user to
+ * power-cycle the board if nothing is heard within a few seconds.
+ *
+ * Why polling: on ESP32-S3/C3/C6 native USB there is no bridge chip. The
+ * DTR/RTS reset may be a no-op (T-Beam 1W), so only a manual power-cycle
+ * boots the new firmware — and that re-enumerates USB, killing any held
+ * SerialPort handle. Each pass re-enumerates so we always try live handles.
+ *
+ * Escape hatches:
+ * - manuallySelectedPort (user gesture via requestPortForReconnect) is
+ *   accepted immediately without requiring boot text.
+ * - After NATIVE_USB_SILENT_FALLBACK_MS an openable-but-silent port is
+ *   accepted and the Meshtastic handshake becomes the arbiter (an
+ *   already-running firmware may emit nothing spontaneously).
+ *
+ * @returns a CLOSED SerialPort ready for TransportWebSerial.createFromPort
+ */
+async function waitForFirmwareBootNativeUsb(
+  onAwaitingUserReset?: (waiting: boolean) => void
+): Promise<SerialPort> {
+  const start = Date.now();
+  let prompted = false;
+  console.log("[meshtastic] Native-USB board: polling for firmware boot text...");
+  try {
+    while (Date.now() - start < NATIVE_USB_BOOT_TIMEOUT_MS) {
+      // Manual selection is authoritative — the user pointed at the device.
+      const manual = manuallySelectedPort;
+      if (manual) {
+        manuallySelectedPort = null;
+        try {
+          if (!manual.readable && !manual.writable) {
+            await manual.open({ baudRate: MESHTASTIC_BAUDRATE });
+          }
+          try { await manual.setSignals({ dataTerminalReady: true }); } catch { /* some stacks reject */ }
+          const bytes = await readForWindow(manual, DRAIN_TIMEOUT_MS);
+          await manual.close();
+          console.log(`[meshtastic] Using manually selected port (drained ${bytes} bytes)`);
+          return manual;
+        } catch (err) {
+          console.warn("[meshtastic] Manually selected port failed to open:", err);
+          try { await manual.close(); } catch { /* ignore */ }
+        }
+      }
+
+      const elapsed = Date.now() - start;
+      if (!prompted && elapsed > NATIVE_USB_PROMPT_AFTER_MS) {
+        prompted = true;
+        console.log("[meshtastic] No firmware output yet -- prompting user to power-cycle");
+        onAwaitingUserReset?.(true);
+      }
+
+      // Fresh enumeration every pass: a power-cycle re-enumerates USB and
+      // invalidates old SerialPort objects, but the permission grant survives
+      // for the same USB identity, so getPorts() returns a fresh live handle.
+      const candidates = await navigator.serial.getPorts();
+      for (const candidate of candidates) {
+        if (candidate.readable || candidate.writable) continue; // already open elsewhere
+        let opened = false;
+        try {
+          await candidate.open({ baudRate: MESHTASTIC_BAUDRATE });
+          opened = true;
+          try { await candidate.setSignals({ dataTerminalReady: true }); } catch { /* some stacks reject */ }
+          const bytes = await readForWindow(candidate, NATIVE_USB_READ_WINDOW_MS);
+          if (bytes > 0) {
+            console.log(`[meshtastic] Firmware is talking (${bytes} bytes) -- draining boot text`);
+            await readForWindow(candidate, DRAIN_TIMEOUT_MS);
+            await candidate.close();
+            return candidate;
+          }
+          if (elapsed > NATIVE_USB_SILENT_FALLBACK_MS) {
+            console.log("[meshtastic] Port openable but silent -- attempting handshake anyway");
+            await candidate.close();
+            return candidate;
+          }
+          await candidate.close();
+        } catch {
+          // Stale pre-re-enumeration handle or transient open failure — keep polling.
+          if (opened) { try { await candidate.close(); } catch { /* ignore */ } }
+        }
+      }
+      await new Promise((r) => setTimeout(r, NATIVE_USB_POLL_GAP_MS));
+    }
+  } finally {
+    if (prompted) onAwaitingUserReset?.(false);
+  }
+  throw new Error(
+    "Timed out waiting for the device to boot the new firmware. Power-cycle the device (press RST, or switch it off and on), then click Retry."
+  );
 }
 
 /**

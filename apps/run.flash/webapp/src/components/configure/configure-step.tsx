@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import type { ConfigProgress, DeviceConfigPayload } from "@/types/config";
 import type { DeviceHardware, DeviceFamily } from "@/types/device";
+import { isNativeUsbDevice } from "@/types/device";
+import { requestPortForReconnect } from "@/lib/meshtastic";
 import { getDeviceImagePath, getArchLabel } from "@/config/devices";
 import { ConfigPipeline } from "@/components/configure/config-pipeline";
 import { DownloadConfigMenu } from "@/components/download-config-menu";
@@ -29,9 +31,11 @@ interface UseConfigureReturn {
   isComplete: boolean;
   isError: boolean;
   configPayload: DeviceConfigPayload | null;
+  awaitingUserReset: boolean;
   configure: (
     disconnectTransport: () => Promise<void>,
-    family?: DeviceFamily
+    family?: DeviceFamily,
+    opts?: { nativeUsb?: boolean }
   ) => Promise<void>;
   reset: () => void;
 }
@@ -83,11 +87,15 @@ export function ConfigureStep({
 
   const archColor = device ? (ARCH_COLORS[device.architecture] || "primary") : "primary";
 
+  // Native-USB ESP32 (S3/C3/C6, e.g. T-Beam 1W): reconnect must survive a
+  // manual power-cycle + USB re-enumeration — selects the adaptive path.
+  const nativeUsb = device ? isNativeUsbDevice(device) : false;
+
   const startConfigure = useCallback(() => {
     if (startedRef.current) return;
     startedRef.current = true;
-    configureState.configure(disconnectTransport, family);
-  }, [configureState, disconnectTransport, family]);
+    configureState.configure(disconnectTransport, family, { nativeUsb });
+  }, [configureState, disconnectTransport, family, nativeUsb]);
 
   // ESP32 auto-starts on mount (serial grant already exists, no gesture
   // needed). nRF52 waits for the Connect button click below (requestPort
@@ -135,23 +143,58 @@ export function ConfigureStep({
         </div>
       )}
 
-      {/* Connecting state: device is rebooting after flash */}
+      {/* Connecting state: device is rebooting after flash. On native-USB
+          boards the browser can't force the reboot, so once the poll gives up
+          waiting we escalate to an explicit power-cycle prompt (with a manual
+          port-picker fallback for identity-changing re-enumerations). */}
       {isConnecting && (
-        <div className="glass-card rounded-xl p-5">
+        <div
+          className={
+            configureState.awaitingUserReset
+              ? "glass-card rounded-xl p-5 border-warning/40 bg-warning/5"
+              : "glass-card rounded-xl p-5"
+          }
+        >
           <div className="flex flex-col items-center gap-4 text-center">
             <Spinner size="lg" classNames={{ circle1: "border-b-teal-400", circle2: "border-b-teal-400" }} />
-            <div>
-              <h3 className="font-mono text-lg text-foreground">
-                {family === "nrf52"
-                  ? t("flash.configure.selectPortTitle")
-                  : t("flash.configure.reconnectingTitle")}
-              </h3>
-              <p className="text-sm text-default-400 mt-1">
-                {family === "nrf52"
-                  ? t("flash.configure.selectPortBody")
-                  : t("flash.configure.reconnectingBody")}
-              </p>
-            </div>
+            {configureState.awaitingUserReset ? (
+              <>
+                <div>
+                  <h3 className="font-mono text-lg text-warning">
+                    {t("flash.configure.powerCycleTitle")}
+                  </h3>
+                  <p className="text-sm text-default-400 mt-1 max-w-md">
+                    {t("flash.configure.powerCycleBody")}
+                  </p>
+                </div>
+                <Button
+                  variant="flat"
+                  size="sm"
+                  startContent={<Usb className="w-4 h-4" />}
+                  onPress={() => {
+                    requestPortForReconnect().catch(() => {
+                      /* user cancelled the picker — keep polling */
+                    });
+                  }}
+                  className="font-mono"
+                >
+                  {t("flash.configure.selectPortManual")}
+                </Button>
+              </>
+            ) : (
+              <div>
+                <h3 className="font-mono text-lg text-foreground">
+                  {family === "nrf52"
+                    ? t("flash.configure.selectPortTitle")
+                    : t("flash.configure.reconnectingTitle")}
+                </h3>
+                <p className="text-sm text-default-400 mt-1">
+                  {family === "nrf52"
+                    ? t("flash.configure.selectPortBody")
+                    : t("flash.configure.reconnectingBody")}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
