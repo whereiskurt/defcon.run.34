@@ -17,6 +17,7 @@ function sinceLabel(sec: unknown): string {
 const SOURCE = 'dc34-ghosts';
 const LAYER = 'dc34-ghosts-pins';
 const IMAGE = 'dc34-ghost-icon';
+const IMAGE_GOLD = 'dc34-ghost-icon-gold';
 const POLL_MS = 90_000;
 
 /** Region prefix = path before '/studio' (mirrors public-overlays regionPrefix). */
@@ -27,13 +28,18 @@ function ghostUrl(): string {
     return `${prefix}/api/gpx/public/ghosts`;
 }
 
-// Spooky ghost silhouette (Pac-Man-style wisp) in DC34 violet.
-const GHOST_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+// Spooky ghost silhouette (Pac-Man-style wisp), color-parameterized so
+// goldstein can go gold (he's *gold*stein — the pin is the tell to click him).
+function ghostSvg(fill: string, stroke: string): string {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
   <path d="M4 20V11a8 8 0 0 1 16 0v9l-2.7-1.6L14.6 20 12 18.4 9.4 20 6.7 18.4z"
-        fill="#9b5de5" stroke="#e0aaff" stroke-width="0.8" opacity="0.9"/>
+        fill="${fill}" stroke="${stroke}" stroke-width="0.8" opacity="0.9"/>
   <circle cx="9.4" cy="10" r="1.3" fill="#101015"/>
   <circle cx="14.6" cy="10" r="1.3" fill="#101015"/>
 </svg>`;
+}
+const GHOST_SVG = ghostSvg('#9b5de5', '#e0aaff');
+const GHOST_SVG_GOLD = ghostSvg('#f5c518', '#fff3c4');
 
 export class GhostLayer {
     map: mapboxgl.Map;
@@ -57,10 +63,14 @@ export class GhostLayer {
     }
 
     private loadImage() {
-        if (this.map.hasImage(IMAGE)) return;
-        const img = new Image(64, 64);
-        img.onload = () => { if (!this.map.hasImage(IMAGE)) this.map.addImage(IMAGE, img); };
-        img.src = 'data:image/svg+xml,' + encodeURIComponent(GHOST_SVG);
+        const add = (id: string, svg: string) => {
+            if (this.map.hasImage(id)) return;
+            const img = new Image(64, 64);
+            img.onload = () => { if (!this.map.hasImage(id)) this.map.addImage(id, img); };
+            img.src = 'data:image/svg+xml,' + encodeURIComponent(svg);
+        };
+        add(IMAGE, GHOST_SVG);
+        add(IMAGE_GOLD, GHOST_SVG_GOLD);
     }
 
     private async build() {
@@ -74,11 +84,19 @@ export class GhostLayer {
                 id: LAYER, type: 'symbol', source: SOURCE,
                 layout: {
                     visibility: 'none',
-                    'icon-image': IMAGE, 'icon-size': 0.7, 'icon-allow-overlap': true, 'icon-anchor': 'bottom',
+                    // Goldstein glows gold and a notch bigger — the visual hook
+                    // that draws players to click him for the seed clue.
+                    'icon-image': ['match', ['get', 'slug'], 'goldstein', IMAGE_GOLD, IMAGE],
+                    'icon-size': ['match', ['get', 'slug'], 'goldstein', 0.875, 0.7],
+                    'icon-allow-overlap': true, 'icon-anchor': 'bottom',
                     'text-field': ['get', 'shortName'], 'text-size': 10,
                     'text-offset': [0, 0.6], 'text-anchor': 'top', 'text-allow-overlap': true,
                 },
-                paint: { 'icon-opacity': 0.9, 'text-color': '#e0aaff', 'text-halo-color': '#101015', 'text-halo-width': 1 },
+                paint: {
+                    'icon-opacity': 0.9,
+                    'text-color': ['match', ['get', 'slug'], 'goldstein', '#FFD700', '#e0aaff'],
+                    'text-halo-color': '#101015', 'text-halo-width': 1,
+                },
             });
             this.clickFn = (e) => {
                 const f = (e as unknown as { features?: GeoJSON.Feature[] }).features?.[0];
@@ -101,13 +119,24 @@ export class GhostLayer {
                 const link = p.link
                     ? `<a class="dc34-ghost-link" href="${escapeHtml(String(p.link))}" target="_blank" rel="noopener noreferrer">↗ dossier</a>`
                     : '';
+                // Goldstein's published unlock clue: base32 seed + enroll QR.
+                // Only render QR srcs that are data:image/ URIs (feed-vetted too).
+                const seed = typeof p.unlockSeed === 'string' && p.unlockSeed ? p.unlockSeed : '';
+                const qr = typeof p.unlockQr === 'string' && p.unlockQr.startsWith('data:image/') ? p.unlockQr : '';
+                const seedBox = seed
+                    ? `<div class="dc34-ghost-seed"><span class="dc34-ghost-seed-k">🔑 SEED</span>` +
+                      `<code>${escapeHtml(seed)}</code>` +
+                      (qr ? `<img src="${qr}" alt="authenticator QR" width="110" height="110"/>` : '') +
+                      `<span class="dc34-ghost-seed-hint">enroll it · DM him the 6-digit code</span></div>`
+                    : '';
+                const isGold = p.slug === 'goldstein';
                 this.popup
                     .setLngLat((f.geometry as GeoJSON.Point).coordinates as [number, number])
                     .setHTML(
-                        `<div class="dc34-ghost-reveal">` +
-                        `<div class="dc34-ghost-head"><span class="dc34-ghost-glyph">${GHOST_SVG}</span>` +
+                        `<div class="dc34-ghost-reveal${isGold ? ' dc34-ghost-gold' : ''}">` +
+                        `<div class="dc34-ghost-head"><span class="dc34-ghost-glyph">${isGold ? GHOST_SVG_GOLD : GHOST_SVG}</span>` +
                         `<span class="dc34-ghost-id"><strong class="dc34-ghost-name" data-decrypt>${who}</strong>${alias}</span></div>` +
-                        `${blurb}<dl class="dc34-ghost-grid">${grid}</dl>${link}</div>`
+                        `${blurb}<dl class="dc34-ghost-grid">${grid}</dl>${seedBox}${link}</div>`
                     )
                     .addTo(this.map);
                 // "Decrypt" the name on open — on-theme for ghost mode.

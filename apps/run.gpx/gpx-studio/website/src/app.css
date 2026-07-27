@@ -232,6 +232,15 @@
 .dc34-ghost-grid dd { margin: 0; color: #e4e4ef; font-variant-numeric: tabular-nums; }
 .dc34-ghost-link { display: inline-block; margin-top: 8px; font-size: 11px; font-weight: 600; color: #e0aaff; text-decoration: none; }
 .dc34-ghost-link:hover { text-decoration: underline; }
+/* Goldstein's gold treatment + published unlock-seed clue box. */
+.dc34-ghost-gold .dc34-ghost-name { color: #ffd700; }
+.dc34-ghost-gold .dc34-ghost-alias { color: #d4af37; }
+.dc34-ghost-gold .dc34-ghost-glyph { filter: drop-shadow(0 0 4px rgba(245, 197, 24, 0.9)); }
+.dc34-ghost-seed { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; border: 1px solid #f5c518; border-radius: 8px; padding: 6px 8px; margin: 8px 0 0; }
+.dc34-ghost-seed-k { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #ffd700; }
+.dc34-ghost-seed code { font-size: 11px; word-break: break-all; color: #ffd700; user-select: all; }
+.dc34-ghost-seed img { border-radius: 4px; background: #fff; padding: 2px; }
+.dc34-ghost-seed-hint { font-size: 10px; color: #c9c2d6; opacity: 0.8; }
 
 /* Ghost-mode matrix overlay — absolute inside the map container, over the map
    tiles but UNDER the controls (see .mapboxgl-ctrl-* z-index below) and under
