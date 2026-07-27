@@ -3,8 +3,10 @@
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DonateCard } from "./DonateCard";
+import { BibSalesClosedModal } from "./BibSalesClosedModal";
 import { useCopy } from "@/components/CopyProvider";
 import { flushPendingBibName } from "@/lib/pending-bib-save";
+import { BIB_SALES_CLOSED } from "@/lib/bib-sales";
 
 /**
  * SponsorForm
@@ -143,6 +145,12 @@ export interface SponsorCheckoutDeps {
   onSubmitting: () => void;
   onIdle: () => void;
   onError: (detail: string) => void;
+  /**
+   * Bib sales are closed (lib/bib-sales.ts) and the caller tried to buy a
+   * bib — NO other side-effect (flush/fetch/navigate/redirect) may fire.
+   * In the component this triggers the dumpster-fire "sales closed" gag.
+   */
+  onSalesClosed?: () => void;
 }
 
 /**
@@ -158,9 +166,19 @@ export async function performSponsorCheckout(
     provider: SponsorProvider;
     amountCents: number;
     offerNonStripe: boolean;
+    /** Bib sales closed (lib/bib-sales.ts). Blocks variant='bib' entirely. */
+    salesClosed?: boolean;
   },
   deps: SponsorCheckoutDeps
 ): Promise<void> {
+  // Sales closed → nothing else runs for a bib purchase: no flush, no fetch,
+  // no provider handoff. General donations are unaffected. The server mirrors
+  // this with a 403 on /api/checkout/bib.
+  if (args.variant === "bib" && args.salesClosed) {
+    deps.onSalesClosed?.();
+    return;
+  }
+
   // Commit any unsaved bib name FIRST — awaited so the PATCH lands before we
   // leave the page. Variant-agnostic: fires for bib AND general checkout.
   await deps.flush();
@@ -266,6 +284,7 @@ export function SponsorForm({
   );
   const [provider, setProvider] = useState<SponsorProvider>("stripe");
   const [submit, setSubmit] = useState<SubmitState>({ kind: "idle" });
+  const [salesClosedOpen, setSalesClosedOpen] = useState(false);
 
   // Both bib + general offer Stripe / Venmo (Kurt 2026-07-03). Venmo doesn't
   // reconcile instantly — it surfaces once an admin approves the match.
@@ -282,7 +301,7 @@ export function SponsorForm({
   // checkout side-effect, for both variants (Kurt 2026-07-04, SC34.6).
   const runCheckout = useCallback(async () => {
     await performSponsorCheckout(
-      { variant, provider, amountCents, offerNonStripe },
+      { variant, provider, amountCents, offerNonStripe, salesClosed: BIB_SALES_CLOSED },
       {
         flush: flushPendingBibName,
         fetchImpl: (input, init) => fetch(input, init),
@@ -293,6 +312,16 @@ export function SponsorForm({
         onSubmitting: () => setSubmit({ kind: "submitting" }),
         onIdle: () => setSubmit({ kind: "idle" }),
         onError: (detail) => setSubmit({ kind: "error", detail }),
+        onSalesClosed: () => {
+          // The gag (Kurt 2026-07-26): hold the normal "redirecting…"
+          // submitting state for a dramatic beat — as if checkout were
+          // starting — then drop the dumpster fire.
+          setSubmit({ kind: "submitting" });
+          window.setTimeout(() => {
+            setSubmit({ kind: "idle" });
+            setSalesClosedOpen(true);
+          }, 900);
+        },
       }
     );
   }, [amountCents, provider, offerNonStripe, variant, router]);
@@ -307,6 +336,7 @@ export function SponsorForm({
   // "page" → full modal-style card (kicker + coin art + title) for /donate.
   const asPage = presentation === "page";
   return (
+    <>
     <DonateCard
       bare={!asPage}
       amountCents={amountCents}
@@ -346,6 +376,11 @@ export function SponsorForm({
         redirecting: t("bib.checkout.redirecting"),
       }}
     />
+    <BibSalesClosedModal
+      open={salesClosedOpen}
+      onClose={() => setSalesClosedOpen(false)}
+    />
+    </>
   );
 }
 

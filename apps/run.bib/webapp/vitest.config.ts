@@ -21,6 +21,11 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
+      // Mirror tsconfig's `@public/*` → public/* so modules with Next static
+      // asset imports (e.g. BibSalesClosedModal's dumpster-fire.gif) load in
+      // node tests. Vite serves the .gif as a URL-string module — fine, since
+      // tests never render it.
+      "@public": fileURLToPath(new URL("./public", import.meta.url)),
     },
   },
 });

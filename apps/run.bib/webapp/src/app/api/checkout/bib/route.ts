@@ -6,6 +6,7 @@ import { getStripeClient } from "@/lib/stripe";
 import { STRIPE_PRODUCT_BIB } from "@/config/stripe-products";
 import { checkQuota, type QuotaTier } from "@/lib/quota-client";
 import { assertNotLockedLive } from "@/lib/live-lockout";
+import { BIB_SALES_CLOSED } from "@/lib/bib-sales";
 
 /**
  * POST /api/checkout/bib — create a Stripe Checkout Session for a bib
@@ -58,6 +59,16 @@ function bibPublicUrl(): string {
 }
 
 export async function POST(req: NextRequest) {
+  // Bib sales are closed (Kurt 2026-07-26, lib/bib-sales.ts). The UI never
+  // reaches this route while closed (SponsorForm shows the dumpster-fire
+  // modal instead); this guard stops direct POSTs from buying a bib anyway.
+  if (BIB_SALES_CLOSED) {
+    return NextResponse.json(
+      { error: "bib_sales_closed", detail: "bib sales have ended — donate instead" },
+      { status: 403 }
+    );
+  }
+
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
