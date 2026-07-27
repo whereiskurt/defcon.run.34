@@ -5,7 +5,11 @@ import (
 	"path/filepath"
 )
 
-//go:embed example/*.gpx
+// DC34 con routes (ghost personas, rabbit sims, city packs) must stay in this
+// directive: the upstream meshtk copy of this file only embeds example/*.gpx,
+// and a vendor-sync that overwrites it silently strands every GPX-driven sim
+// at 0,0 (routes resolve from this embed.FS at runtime, not the filesystem).
+//go:embed dc33/*.gpx ghosts/*.gpx city/*.gpx runs/*.gpx example/*.gpx
 var EmbeddedGPXFiles embed.FS
 
 // GetEmbeddedGPXContent returns the content of an embedded GPX file by name
