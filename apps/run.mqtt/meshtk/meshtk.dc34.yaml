@@ -558,10 +558,7 @@ Fleet:
     NodesPerRampInterval: [1]
     RampUpSecs: 30
     RampDownSecs: 2
-    # EXPERIMENT (reliable-delivery test): rabbit cover-traffic sims parked
-    # so the channel is quiet enough to tell whether DM loss is volume or
-    # the BLE link. Restore to the previous value to bring the crowd back.
-    NodesPerSteadyInterval: [0]
+    NodesPerSteadyInterval: [1]
     Distribution: "uniform"
     BroadcastGitterSec: 600
     LatLongAltGitter: 1000
@@ -587,10 +584,7 @@ Fleet:
     NodesPerRampInterval: [1]
     RampUpSecs: 30
     RampDownSecs: 2
-    # EXPERIMENT (reliable-delivery test): rabbit cover-traffic sims parked
-    # so the channel is quiet enough to tell whether DM loss is volume or
-    # the BLE link. Restore to the previous value to bring the crowd back.
-    NodesPerSteadyInterval: [0]
+    NodesPerSteadyInterval: [1]
     Distribution: "uniform"
     BroadcastGitterSec: 600
     LatLongAltGitter: 1000
@@ -616,10 +610,7 @@ Fleet:
     NodesPerRampInterval: [1]
     RampUpSecs: 30
     RampDownSecs: 2
-    # EXPERIMENT (reliable-delivery test): rabbit cover-traffic sims parked
-    # so the channel is quiet enough to tell whether DM loss is volume or
-    # the BLE link. Restore to the previous value to bring the crowd back.
-    NodesPerSteadyInterval: [0]
+    NodesPerSteadyInterval: [1]
     Distribution: "uniform"
     BroadcastGitterSec: 600
     LatLongAltGitter: 1000
@@ -645,10 +636,7 @@ Fleet:
     NodesPerRampInterval: [1]
     RampUpSecs: 30
     RampDownSecs: 2
-    # EXPERIMENT (reliable-delivery test): rabbit cover-traffic sims parked
-    # so the channel is quiet enough to tell whether DM loss is volume or
-    # the BLE link. Restore to the previous value to bring the crowd back.
-    NodesPerSteadyInterval: [0]
+    NodesPerSteadyInterval: [1]
     Distribution: "uniform"
     BroadcastGitterSec: 600
     LatLongAltGitter: 1000
@@ -674,10 +662,7 @@ Fleet:
     NodesPerRampInterval: [1]
     RampUpSecs: 30
     RampDownSecs: 2
-    # EXPERIMENT (reliable-delivery test): rabbit cover-traffic sims parked
-    # so the channel is quiet enough to tell whether DM loss is volume or
-    # the BLE link. Restore to the previous value to bring the crowd back.
-    NodesPerSteadyInterval: [0]
+    NodesPerSteadyInterval: [1]
     Distribution: "uniform"
     BroadcastGitterSec: 600
     LatLongAltGitter: 1000
@@ -703,10 +688,7 @@ Fleet:
     NodesPerRampInterval: [1]
     RampUpSecs: 30
     RampDownSecs: 2
-    # EXPERIMENT (reliable-delivery test): rabbit cover-traffic sims parked
-    # so the channel is quiet enough to tell whether DM loss is volume or
-    # the BLE link. Restore to the previous value to bring the crowd back.
-    NodesPerSteadyInterval: [0]
+    NodesPerSteadyInterval: [1]
     Distribution: "uniform"
     BroadcastGitterSec: 600
     LatLongAltGitter: 1000
@@ -732,10 +714,7 @@ Fleet:
     NodesPerRampInterval: [1]
     RampUpSecs: 30
     RampDownSecs: 2
-    # EXPERIMENT (reliable-delivery test): rabbit cover-traffic sims parked
-    # so the channel is quiet enough to tell whether DM loss is volume or
-    # the BLE link. Restore to the previous value to bring the crowd back.
-    NodesPerSteadyInterval: [0]
+    NodesPerSteadyInterval: [1]
     Distribution: "uniform"
     BroadcastGitterSec: 600
     LatLongAltGitter: 1000
@@ -761,10 +740,7 @@ Fleet:
     NodesPerRampInterval: [1]
     RampUpSecs: 30
     RampDownSecs: 2
-    # EXPERIMENT (reliable-delivery test): rabbit cover-traffic sims parked
-    # so the channel is quiet enough to tell whether DM loss is volume or
-    # the BLE link. Restore to the previous value to bring the crowd back.
-    NodesPerSteadyInterval: [0]
+    NodesPerSteadyInterval: [1]
     Distribution: "uniform"
     BroadcastGitterSec: 600
     LatLongAltGitter: 1000
@@ -790,10 +766,7 @@ Fleet:
     NodesPerRampInterval: [1]
     RampUpSecs: 30
     RampDownSecs: 2
-    # EXPERIMENT (reliable-delivery test): rabbit cover-traffic sims parked
-    # so the channel is quiet enough to tell whether DM loss is volume or
-    # the BLE link. Restore to the previous value to bring the crowd back.
-    NodesPerSteadyInterval: [0]
+    NodesPerSteadyInterval: [1]
     Distribution: "uniform"
     BroadcastGitterSec: 600
     LatLongAltGitter: 1000
@@ -819,10 +792,7 @@ Fleet:
     NodesPerRampInterval: [1]
     RampUpSecs: 30
     RampDownSecs: 2
-    # EXPERIMENT (reliable-delivery test): rabbit cover-traffic sims parked
-    # so the channel is quiet enough to tell whether DM loss is volume or
-    # the BLE link. Restore to the previous value to bring the crowd back.
-    NodesPerSteadyInterval: [0]
+    NodesPerSteadyInterval: [1]
     Distribution: "uniform"
     BroadcastGitterSec: 600
     LatLongAltGitter: 1000
@@ -848,10 +818,7 @@ Fleet:
     NodesPerRampInterval: [1]
     RampUpSecs: 30
     RampDownSecs: 2
-    # EXPERIMENT (reliable-delivery test): rabbit cover-traffic sims parked
-    # so the channel is quiet enough to tell whether DM loss is volume or
-    # the BLE link. Restore to the previous value to bring the crowd back.
-    NodesPerSteadyInterval: [0]
+    NodesPerSteadyInterval: [1]
     Distribution: "uniform"
     BroadcastGitterSec: 600
     LatLongAltGitter: 1000
@@ -877,10 +844,7 @@ Fleet:
     NodesPerRampInterval: [1]
     RampUpSecs: 30
     RampDownSecs: 2
-    # EXPERIMENT (reliable-delivery test): rabbit cover-traffic sims parked
-    # so the channel is quiet enough to tell whether DM loss is volume or
-    # the BLE link. Restore to the previous value to bring the crowd back.
-    NodesPerSteadyInterval: [0]
+    NodesPerSteadyInterval: [1]
     Distribution: "uniform"
     BroadcastGitterSec: 600
     LatLongAltGitter: 1000
@@ -906,10 +870,7 @@ Fleet:
     NodesPerRampInterval: [5]
     RampUpSecs: 30
     RampDownSecs: 2
-    # EXPERIMENT (reliable-delivery test): rabbit cover-traffic sims parked
-    # so the channel is quiet enough to tell whether DM loss is volume or
-    # the BLE link. Restore to the previous value to bring the crowd back.
-    NodesPerSteadyInterval: [0]
+    NodesPerSteadyInterval: [1]
     Distribution: "uniform"
     BroadcastGitterSec: 600
     LatLongAltGitter: 5000
@@ -919,10 +880,53 @@ Fleet:
         GPXFile: "./lvccindoor.gpx"
         Travel: "loop"
 
-  # rabbit.nyc + rabbit.jpn DISABLED 2026-07-19: 12 nodes each at 3s cadence
-  # were flooding the dc.run channel and starving real (BLE-proxied) radios of
-  # NODEINFO / directed PKI downlink. Re-enable post-debug once retain-on-reconnect
-  # lands. (Fleets preserved in git history.)
+  # rabbit.nyc + rabbit.jpn re-enabled 2026-07-26 (delivery debugging done).
+  # Restored from #676 but on the thinned cadence the other rabbit sims use
+  # (NodeInfo 30s, position every 3rd tic = 90s) instead of the original burst
+  # that starved real radios of downlink.
+  - Id: "rabbit.nyc"
+    Description: "rabbit.nyc (12-runner Manhattan group run)"
+    BehaviourTag: ["nodeinfo", "movement", "gitter"]
+    BehaviourSecs: 30
+    MovementEveryTics: 3
+    RampSteadySecs: 2419200
+    Seed: "c0ffee02-2026-4dc3-9a11-000000000012"
+    ShortNameTmpl: "RN{{.nodeId}}"
+    LongNameTmpl: "rabbit-sim-nyc-{{.nodeId}}"
+    NodesPerRampInterval: [12]
+    RampUpSecs: 30
+    RampDownSecs: 2
+    NodesPerSteadyInterval: [12]
+    Distribution: "uniform"
+    BroadcastGitterSec: 600
+    LatLongAltGitter: 5000
+    TextMessageGitterSec: 300
+    Movement:
+      - Type: "gpx"
+        GPXFile: "./manhatten.gpx"
+        Travel: "loop"
+
+  - Id: "rabbit.jpn"
+    Description: "rabbit.jpn (12-runner Tokyo group run)"
+    BehaviourTag: ["nodeinfo", "movement", "gitter"]
+    BehaviourSecs: 30
+    MovementEveryTics: 3
+    RampSteadySecs: 2419200
+    Seed: "c0ffee03-2026-4dc3-9a11-000000000012"
+    ShortNameTmpl: "RJ{{.nodeId}}"
+    LongNameTmpl: "rabbit-sim-jpn-{{.nodeId}}"
+    NodesPerRampInterval: [12]
+    RampUpSecs: 30
+    RampDownSecs: 2
+    NodesPerSteadyInterval: [12]
+    Distribution: "uniform"
+    BroadcastGitterSec: 600
+    LatLongAltGitter: 5000
+    TextMessageGitterSec: 300
+    Movement:
+      - Type: "gpx"
+        GPXFile: "./japan.gpx"
+        Travel: "loop"
 
 TextMessage:
   ChannelSlot: "primary"
