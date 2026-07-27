@@ -92,3 +92,25 @@ Change: parameterize the wisp SVG color; register a second image
 
 One PR (both apps) → buildpub `run.human,run.gpx` use1 → deploy.yml us-east-1 →
 live verify. No infra/task-def changes (all env vars already present).
+
+## Enhancement v2 — "The Booth" marker art (2026-07-27, after v1 shipped)
+
+Kurt: the emoji didn't sell it — make it *look* like a payphone with the number
+on it, 2600-zine energy, "implying someone should call it." Chosen via visual
+companion from three directions (Booth / Zine Cutout / Off-The-Hook): **A2 —
+The Booth with a number pill.**
+
+- Replace the ☎️ emoji div in `payphone.ts` with an inline **SVG payphone**
+  (~48×78 px, viewBox 0 0 60 98): Bell-blue enclosure `#1e3a5f` with `#4a6f9e`
+  stroke, dark inset, silver faceplate `#c9ced6`, black handset on left hooks,
+  2×4 keypad, coin slot + coin return, two legs — and a slightly-rotated taped
+  paper note on the faceplate reading **"CALL ME!"** (red, marker-style font
+  w/ cursive fallback) over **"725-404-3234"** (bold monospace).
+- The label pill text changes from "PayPhone / The Strat" to monospace
+  **"☎ 725-404-3234"** so the number is legible at every zoom even when the
+  taped note isn't. Pill keeps the amber border style.
+- Everything else unchanged: bob + amber conic rays (rays now sized to the SVG
+  box), `anchor:'bottom'`, click → `dc34-payphone` modal, reduced-motion guard.
+- No copyrighted 2600 photos — the art is an original SVG homage (photos would
+  be a licensing problem and a raster blob in the bundle).
+- Ship: run.gpx only (studio bundle) → buildpub `run.gpx` use1 → deploy.yml.
