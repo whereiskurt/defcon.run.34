@@ -138,7 +138,10 @@ RUN apk update && apk add --no-cache \
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+# npm ci, NOT npm install: install floats semver ranges to whatever npm has
+# newest (2026-07-26: next ^16.1.6 → 16.2.12 against a cached 16.1.6 swc layer
+# → Turbopack panic "Expected to inject all imports"). ci obeys the lockfile.
+RUN npm ci
 COPY . .
 
 # Firmware binaries + APKs into public/ for build.sh S3 extraction; runtime
