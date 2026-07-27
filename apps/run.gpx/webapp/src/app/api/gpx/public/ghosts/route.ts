@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ghostFeatureCollection, type NodeDb } from "@/lib/mesh-nodes";
+import { goldsteinUnlock } from "@/lib/ghost-unlock";
 
 /**
  * GET /api/gpx/public/ghosts — the "ghost proxy" (trust boundary).
@@ -26,7 +27,9 @@ export async function GET() {
     const res = await fetch(GHOST_FEED_URL, { cache: "no-store", signal: AbortSignal.timeout(3000) });
     if (!res.ok) return json(EMPTY);
     const db = (await res.json()) as NodeDb;
-    return json(ghostFeatureCollection(db));
+    // Goldstein's unlock-seed clue — fail-soft (null just omits the props).
+    const clue = await goldsteinUnlock();
+    return json(ghostFeatureCollection(db, clue));
   } catch (error) {
     console.error("ghost proxy error:", error);
     return json(EMPTY);

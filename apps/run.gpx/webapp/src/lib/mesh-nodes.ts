@@ -91,7 +91,13 @@ function keyToNum(key: string, n: MeshNode): number {
   return n.fromStr ? hexToNodeNum(n.fromStr) : 0;
 }
 
-export function ghostFeatureCollection(db: NodeDb): GeoJSON.FeatureCollection {
+/** Goldstein's published DM-unlock clue (seed + authenticator QR data-URI). */
+export type GhostUnlockClue = { secret: string; qr: string };
+
+export function ghostFeatureCollection(
+  db: NodeDb,
+  goldsteinClue?: GhostUnlockClue | null
+): GeoJSON.FeatureCollection {
   const features: GeoJSON.Feature[] = [];
   for (const [key, n] of Object.entries(db)) {
     if (!isGhost(n) || !hasValidPosition(n)) continue;
@@ -111,6 +117,11 @@ export function ghostFeatureCollection(db: NodeDb): GeoJSON.FeatureCollection {
         // Same allowlisted radio subset the rabbit popups show — never keys.
         ...radioFields(n),
         lastSeen: lastSeen(n),
+        // Deliberately-published CTF clue: goldstein's DM-unlock seed. The
+        // unlock seed is distinct from the chain/daily-claim seed (07-25 split).
+        ...(slug === "goldstein" && goldsteinClue
+          ? { unlockSeed: goldsteinClue.secret, unlockQr: goldsteinClue.qr }
+          : {}),
       },
     });
   }
