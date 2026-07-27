@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { getDeviceFamily, type DeviceHardware } from "./device";
+import {
+  getDeviceFamily,
+  isNativeUsbDevice,
+  type DeviceHardware,
+} from "./device";
 
 function dev(architecture: string): DeviceHardware {
   return {
@@ -28,5 +32,22 @@ describe("getDeviceFamily", () => {
 
   it("throws on unsupported architectures", () => {
     expect(() => getDeviceFamily(dev("portduino"))).toThrow(/Unsupported/);
+  });
+});
+
+describe("isNativeUsbDevice", () => {
+  it("classic bridge-chip esp32 (T-Beam) is NOT native USB", () => {
+    expect(isNativeUsbDevice(dev("esp32"))).toBe(false);
+  });
+
+  it("esp32-s3 (T-Beam 1W), c3, c6 are native USB", () => {
+    expect(isNativeUsbDevice(dev("esp32-s3"))).toBe(true);
+    expect(isNativeUsbDevice(dev("esp32-c3"))).toBe(true);
+    expect(isNativeUsbDevice(dev("esp32-c6"))).toBe(true);
+  });
+
+  it("uf2-class architectures are NOT native-USB esp32", () => {
+    expect(isNativeUsbDevice(dev("nrf52840"))).toBe(false);
+    expect(isNativeUsbDevice(dev("rp2040"))).toBe(false);
   });
 });

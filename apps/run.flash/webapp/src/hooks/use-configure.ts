@@ -37,6 +37,9 @@ interface UseConfigureReturn {
   configPayload: DeviceConfigPayload | null;
   /** Radio auto-registration result */
   registrationStatus: RegistrationStatus;
+  /** True while the native-USB reconnect needs the user to power-cycle the
+   *  device (no firmware output heard yet). Drives the power-cycle prompt. */
+  awaitingUserReset: boolean;
   /**
    * Start the configure pipeline:
    * 1. Disconnect esptool transport
@@ -49,10 +52,13 @@ interface UseConfigureReturn {
    *   reuses the connect-step serial grant + resets out of ROM bootloader;
    *   "nrf52" prompts for the freshly-enumerated CDC port (UF2 flash grants no
    *   serial permission). Defaults to "esp32" for the pre-existing call shape.
+   * @param opts.nativeUsb - Native-USB ESP32 (S3/C3/C6): use the adaptive
+   *   poll + power-cycle-prompt reconnect instead of the blind DTR/RTS dance.
    */
   configure: (
     disconnectTransport: () => Promise<void>,
-    family?: DeviceFamily
+    family?: DeviceFamily,
+    opts?: { nativeUsb?: boolean }
   ) => Promise<void>;
   /** Retry radio registration (only available after a failed registration) */
   retryRegistration: () => Promise<void>;
@@ -90,6 +96,7 @@ export function useConfigure(): UseConfigureReturn {
   const [progress, setProgress] = useState<ConfigProgress>(INITIAL_CONFIG_PROGRESS);
   const [configPayload, setConfigPayload] = useState<DeviceConfigPayload | null>(null);
   const [registrationStatus, setRegistrationStatus] = useState<RegistrationStatus>({ state: "idle" });
+  const [awaitingUserReset, setAwaitingUserReset] = useState(false);
   const registrationInfoRef = useRef<{ nodeId: string; privateKey: string; publicKey: string } | null>(null);
   const isConfiguringRef = useRef(false);
   const deviceRef = useRef<MeshDevice | null>(null);
@@ -97,7 +104,8 @@ export function useConfigure(): UseConfigureReturn {
   const configure = useCallback(
     async (
       disconnectTransport: () => Promise<void>,
-      family: DeviceFamily = "esp32"
+      family: DeviceFamily = "esp32",
+      opts?: { nativeUsb?: boolean }
     ) => {
       if (isConfiguringRef.current) return;
       isConfiguringRef.current = true;
@@ -124,7 +132,10 @@ export function useConfigure(): UseConfigureReturn {
         const { device, registrationInfo } =
           family === "nrf52"
             ? await connectMeshtasticDeviceNrf52()
-            : await connectMeshtasticDevice();
+            : await connectMeshtasticDevice({
+                nativeUsb: opts?.nativeUsb,
+                onAwaitingUserReset: setAwaitingUserReset,
+              });
         deviceRef.current = device;
 
         setProgress((prev) => ({
@@ -244,6 +255,7 @@ export function useConfigure(): UseConfigureReturn {
           error: message,
         }));
       } finally {
+        setAwaitingUserReset(false);
         // Only disconnect on error — on success, keep the connection alive
         // until component unmounts (Done step transition).
         // Disconnecting on success causes "Cannot cancel a locked stream"
@@ -379,6 +391,7 @@ export function useConfigure(): UseConfigureReturn {
     setProgress(INITIAL_CONFIG_PROGRESS);
     setConfigPayload(null);
     setRegistrationStatus({ state: "idle" });
+    setAwaitingUserReset(false);
     isConfiguringRef.current = false;
   }, []);
 
@@ -407,6 +420,7 @@ export function useConfigure(): UseConfigureReturn {
     isError: progress.stage === "error",
     configPayload,
     registrationStatus,
+    awaitingUserReset,
     configure,
     retryRegistration,
     syncKeys,
