@@ -16,6 +16,7 @@
     import { fireRainbowEgg } from '$lib/components/map/rainbow-egg';
     import { CoffeeCup } from '$lib/components/map/coffee-cup';
     import { TheSpot } from '$lib/components/map/the-spot';
+    import { PayPhone } from '$lib/components/map/payphone';
     import { fireCoffeeEgg } from '$lib/components/map/coffee-egg';
     import { DeuceLayer } from '$lib/components/map/deuce-layer';
     import { fireDeuceEgg } from '$lib/components/map/deuce-egg';
@@ -57,6 +58,7 @@
     let rainbowArch: RainbowArch | undefined;
     let coffeeCup: CoffeeCup | undefined;
     let theSpot: TheSpot | undefined;
+    let payPhone: PayPhone | undefined;
     let deuceLayer: DeuceLayer | undefined;
 
     // Task 8 (popup -> day-assign bridge): the file whose con-day assign
@@ -296,6 +298,9 @@
         // click -> dc34-spot modal. No unlock/CTF wiring.
         if (theSpot) theSpot.remove();
         theSpot = new TheSpot(_map);
+        // PayPhone at The Strat: click -> dc34-payphone modal. Pure CTF clue.
+        if (payPhone) payPhone.remove();
+        payPhone = new PayPhone(_map);
         coffeeUnlocked.subscribe((on) => {
             void coffeeCup?.setUnlocked(on);
             if (on) fireCoffeeEgg();

@@ -148,6 +148,16 @@ const DEFAULT_EGGS: EggModal[] = [
       },
     ],
   },
+  {
+    id: "dc34-payphone",
+    eyebrow: "Public Utility",
+    title: "☎️ PayPhone",
+    descriptionHtml:
+      '<p><strong>Call me!</strong> <a href="tel:+17254043234">725-404-3234</a></p>',
+    address: "The Strat, 2000 Las Vegas Blvd S",
+    accent: "#F2A900",
+    links: [mapLink(36.1476992, -115.1561024)],
+  },
 ];
 
 export async function GET() {
