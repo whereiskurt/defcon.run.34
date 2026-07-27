@@ -48,7 +48,9 @@ variable "redirects" {
     the movie-marquee splash (interstitial.html.tftpl); "countdown" = an electronic
     boot splash with a visible 5s countdown (interstitial-countdown.html.tftpl);
     "bib" = the race-bib splash used by b.defcon.run (interstitial-bib.html.tftpl);
-    "flash" = the radio-flashing splash used by f.defcon.run (interstitial-flash.html.tftpl).
+    "flash" = the radio-flashing splash used by f.defcon.run (interstitial-flash.html.tftpl);
+    "phone" = the phreak DTMF-dialer splash used by p.defcon.run (interstitial-phone.html.tftpl);
+    "ghost" = the purple matrix-rain splash used by g.defcon.run (interstitial-ghost.html.tftpl).
     Unknown values fall back to the hackers splash.
 
     covert_v (optional): when set, the countdown splash fires a fire-and-forget

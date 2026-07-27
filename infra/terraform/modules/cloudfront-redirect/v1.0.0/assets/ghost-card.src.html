@@ -1,0 +1,154 @@
+<!doctype html>
+<!--
+  ghost-card.src.html — source for ghost-card.png, the g.defcon.run unfurl card.
+
+  1200x630. Same approach as the other cards: the site's own surface (#0a0a0f,
+  Inter + Fira Code, MuseoModerno wordmark) in full purple-ghost-matrix mode —
+  a JS canvas paints purple matrix rain (katakana + the odd ghost glyph), three
+  apparitions float on the right, and a séance log runs under the headline.
+  "5 apparitions" is grounded: five ghost chatbots haunt the DC34 mesh.
+
+  Because the rain is JS-drawn, give Chrome a virtual-time budget so the canvas
+  has rained before the shot (--force-device-scale-factor=1 is REQUIRED or you
+  get 2400x1260):
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+      --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=1 \
+      --window-size=1200,630 --virtual-time-budget=4000 \
+      --screenshot=ghost-card.png "file://$PWD/ghost-card.src.html"
+    sips -g pixelWidth -g pixelHeight ghost-card.png   # must read 1200 x 630
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Ghosts — DEF CON 34</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=MuseoModerno:wght@400;700&family=Inter:wght@400;600;800;900&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0a0f; --ink:#e4e4ef; --muted:#a4a4b8; --faint:#8f8fa8;
+    --ghost:#a855f7; --deep:#7c3aed; --lav:#d8b4fe;
+    --border:#2a2a3a; --surface:#111118;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1200px;height:630px;overflow:hidden}
+  body{background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;position:relative}
+  #rain{position:absolute;inset:0}
+  .vig{position:absolute;inset:0;background:
+    linear-gradient(100deg,rgba(10,10,15,.94) 0%,rgba(10,10,15,.82) 46%,rgba(10,10,15,.30) 74%,rgba(10,10,15,.55) 100%),
+    radial-gradient(60% 80% at 100% 100%,rgba(124,58,237,.18),transparent 60%)}
+  .frame{position:absolute;inset:22px;border:1px solid #2a1f4599;border-radius:22px}
+
+  .card{position:relative;z-index:2;display:flex;height:100%;padding:56px 60px 48px}
+  .left{flex:1.2;display:flex;flex-direction:column}
+  .right{flex:.8;position:relative}
+
+  .mark{font-family:MuseoModerno,Inter,sans-serif;font-size:40px;font-weight:700;letter-spacing:-.02em}
+  .mark .dot{color:var(--ghost)}
+  .kick{margin-top:6px;font-family:"Fira Code",monospace;font-size:15px;font-weight:600;
+    letter-spacing:.26em;color:var(--ghost)}
+
+  h1{margin-top:52px;font-size:96px;line-height:.98;font-weight:900;letter-spacing:-.03em}
+  h1 .g{display:block;background:linear-gradient(92deg,var(--lav),var(--ghost) 55%,var(--deep));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 0 26px rgba(168,85,247,.45))}
+  .sub{margin-top:26px;font-family:"Fira Code",monospace;font-size:19px;color:var(--muted)}
+  .sub b{color:var(--lav);font-weight:600}
+
+  .chips{display:flex;gap:12px;margin-top:34px}
+  .chip{font-family:"Fira Code",monospace;font-size:15px;font-weight:600;letter-spacing:.06em;
+    padding:10px 16px;border-radius:999px;border:1px solid var(--border);background:rgba(17,17,24,.85);
+    color:var(--muted)}
+  .chip.ap{border-color:#a855f766;color:var(--lav)}
+  .chip.ch{border-color:#7c3aed66;color:var(--ghost)}
+
+  .log{margin-top:auto;font-family:"Fira Code",monospace;font-size:16px;color:var(--lav);
+    text-shadow:0 0 8px #a855f755}
+  .url{margin-top:12px;font-family:"Fira Code",monospace;font-size:20px;font-weight:600;color:var(--ink)}
+  .url span{color:var(--ghost)}
+
+  /* three apparitions, big one forward, two fading behind */
+  .gh{position:absolute;filter:drop-shadow(0 0 34px rgba(168,85,247,.55))}
+  .gh svg{display:block;width:100%;height:auto}
+  .gh1{width:220px;right:44px;top:150px}
+  .gh2{width:130px;right:250px;top:70px;opacity:.55;filter:drop-shadow(0 0 22px rgba(168,85,247,.4))}
+  .gh3{width:96px;right:10px;top:20px;opacity:.35;filter:drop-shadow(0 0 16px rgba(168,85,247,.35))}
+  .shadow{position:absolute;right:74px;top:472px;width:160px;height:16px;border-radius:50%;
+    background:radial-gradient(50% 50% at 50% 50%,rgba(124,58,237,.5),transparent 70%)}
+</style>
+</head>
+<body>
+  <canvas id="rain" width="1200" height="630"></canvas>
+  <div class="vig"></div><div class="frame"></div>
+  <div class="card">
+    <div class="left">
+      <div class="mark">defcon<span class="dot">.</span>run</div>
+      <div class="kick">DEF CON 34 &middot; AN OFFICIAL EVENT &middot; LAS VEGAS</div>
+
+      <h1>THE<span class="g">GHOSTS.</span></h1>
+      <div class="sub">&gt; dead channels &middot; <b>voices that answer back</b></div>
+
+      <div class="chips">
+        <span class="chip ap">5 APPARITIONS</span>
+        <span class="chip ch">CH 200 &middot; DEAD AIR</span>
+        <span class="chip">EVP CAPTURE: LIVE</span>
+      </div>
+
+      <div class="log">$ evp --tune ch200 ▸ contact&hellip; they know your name</div>
+      <div class="url"><span>g.</span>defcon.run</div>
+    </div>
+
+    <div class="right">
+      <div class="gh gh3">
+        <svg viewBox="0 0 100 110" aria-hidden="true">
+          <path d="M50 4C26 4 12 24 12 48v52c0 4 5 6 8 3l7-7 8 8c2 2 5 2 7 0l8-8 8 8c2 2 5 2 7 0l8-8 7 7c3 3 8 1 8-3V48C88 24 74 4 50 4Z"
+            fill="#151022" stroke="#7c3aed" stroke-width="3"/>
+          <circle cx="37" cy="44" r="7" fill="#7c3aed"/><circle cx="63" cy="44" r="7" fill="#7c3aed"/>
+        </svg>
+      </div>
+      <div class="gh gh2">
+        <svg viewBox="0 0 100 110" aria-hidden="true">
+          <path d="M50 4C26 4 12 24 12 48v52c0 4 5 6 8 3l7-7 8 8c2 2 5 2 7 0l8-8 8 8c2 2 5 2 7 0l8-8 7 7c3 3 8 1 8-3V48C88 24 74 4 50 4Z"
+            fill="#151022" stroke="#a855f7" stroke-width="3"/>
+          <circle cx="37" cy="44" r="7" fill="#a855f7"/><circle cx="63" cy="44" r="7" fill="#a855f7"/>
+          <path d="M40 62q10 8 20 0" fill="none" stroke="#7c3aed" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="gh gh1">
+        <svg viewBox="0 0 100 110" aria-hidden="true">
+          <path d="M50 4C26 4 12 24 12 48v52c0 4 5 6 8 3l7-7 8 8c2 2 5 2 7 0l8-8 8 8c2 2 5 2 7 0l8-8 7 7c3 3 8 1 8-3V48C88 24 74 4 50 4Z"
+            fill="#151022" stroke="#a855f7" stroke-width="3"/>
+          <circle cx="37" cy="44" r="8" fill="#a855f7"/><circle cx="63" cy="44" r="8" fill="#a855f7"/>
+          <circle cx="39" cy="46" r="3" fill="#0a0a0f"/><circle cx="65" cy="46" r="3" fill="#0a0a0f"/>
+          <path d="M40 64q10 9 20 0" fill="none" stroke="#7c3aed" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="shadow"></div>
+    </div>
+  </div>
+<script>
+  // Rain enough frames that the canvas is saturated before the screenshot.
+  var cv = document.getElementById("rain"), cx = cv.getContext("2d");
+  var GLYPHS = "アイウエオカキクケコサシスセソタチツテトナニヌネノ01".split("");
+  GLYPHS.push("\u{1F47B}");
+  var COL = 18, cols = Math.ceil(cv.width / COL), drops = [];
+  for (var i = 0; i < cols; i++) drops[i] = Math.floor(Math.random() * -50);
+  cx.fillStyle = "#0a0a0f";
+  cx.fillRect(0, 0, cv.width, cv.height);
+  function frame() {
+    cx.fillStyle = "rgba(10,10,15,0.16)";
+    cx.fillRect(0, 0, cv.width, cv.height);
+    cx.font = "15px monospace";
+    for (var i = 0; i < cols; i++) {
+      var g = GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
+      cx.fillStyle = Math.random() < 0.08 ? "#d8b4fe" : "#a855f7";
+      cx.fillText(g, i * COL, drops[i] * COL);
+      if (drops[i] * COL > cv.height && Math.random() > 0.97) drops[i] = 0;
+      drops[i]++;
+    }
+  }
+  for (var w = 0; w < 60; w++) frame();
+  setInterval(frame, 50);
+</script>
+</body>
+</html>

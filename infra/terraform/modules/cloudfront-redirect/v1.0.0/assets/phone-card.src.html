@@ -1,0 +1,145 @@
+<!doctype html>
+<!--
+  phone-card.src.html — source for phone-card.png, the p.defcon.run unfurl card.
+
+  1200x630. Same approach as bib-card / flash-card: rebuild the site's own
+  surface (#0a0a0f base, Inter + Fira Code, MuseoModerno wordmark) and theme it
+  phreak — Bell-system blue (#3b82f6) instead of teal, a payphone DTMF keypad
+  mid-dial on 2600, a 2600 Hz tone chip, and an operator log line. The card is
+  fully static HTML/CSS: no JS, so a plain screenshot captures it.
+
+  Render (--force-device-scale-factor=1 is REQUIRED or you get 2400x1260):
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+      --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=1 \
+      --window-size=1200,630 --screenshot=phone-card.png "file://$PWD/phone-card.src.html"
+    sips -g pixelWidth -g pixelHeight phone-card.png   # must read 1200 x 630
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Make a Call — DEF CON 34</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=MuseoModerno:wght@400;700&family=Inter:wght@400;600;800;900&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0a0f; --ink:#e4e4ef; --muted:#a4a4b8; --faint:#8f8fa8;
+    --bell:#3b82f6; --sky:#7db8ff; --amber:#f59e0b; --matrix:#00ff41;
+    --border:#2a2a3a; --surface:#111118; --raised:#1a1a24;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1200px;height:630px;overflow:hidden}
+  body{background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;position:relative}
+  .glow{position:absolute;inset:0;background:
+    radial-gradient(55% 60% at 10% 0%,rgba(59,130,246,.20),transparent 60%),
+    radial-gradient(60% 70% at 96% 100%,rgba(245,158,11,.12),transparent 60%)}
+  .noise{position:absolute;inset:0;opacity:.035;background-size:256px 256px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23n)'/%3E%3C/svg%3E")}
+  .frame{position:absolute;inset:22px;border:1px solid #23233199;border-radius:22px}
+
+  .card{position:relative;z-index:2;display:flex;height:100%;padding:56px 60px 48px}
+  .left{flex:1.15;display:flex;flex-direction:column}
+  .right{flex:.85;display:flex;align-items:center;justify-content:center}
+
+  .mark{font-family:MuseoModerno,Inter,sans-serif;font-size:40px;font-weight:700;letter-spacing:-.02em}
+  .mark .dot{color:var(--bell)}
+  .kick{margin-top:6px;font-family:"Fira Code",monospace;font-size:15px;font-weight:600;
+    letter-spacing:.26em;color:var(--bell)}
+
+  h1{margin-top:52px;font-size:92px;line-height:.98;font-weight:900;letter-spacing:-.03em}
+  h1 .call{display:block;color:var(--sky);
+    text-shadow:0 0 30px rgba(59,130,246,.55)}
+  .sub{margin-top:26px;font-family:"Fira Code",monospace;font-size:19px;color:var(--muted)}
+  .sub b{color:var(--amber);font-weight:600}
+  .sub .p{color:var(--bell)}
+
+  .chips{display:flex;gap:12px;margin-top:34px}
+  .chip{font-family:"Fira Code",monospace;font-size:15px;font-weight:600;letter-spacing:.06em;
+    padding:10px 16px;border-radius:999px;border:1px solid var(--border);background:var(--surface);
+    color:var(--muted)}
+  .chip.hz{border-color:#3b82f666;color:var(--sky)}
+  .chip.coin{border-color:#f59e0b55;color:var(--amber)}
+
+  .log{margin-top:auto;font-family:"Fira Code",monospace;font-size:16px;color:var(--matrix);
+    text-shadow:0 0 6px #00ff4155}
+  .url{margin-top:12px;font-family:"Fira Code",monospace;font-size:20px;font-weight:600;color:var(--ink)}
+  .url span{color:var(--bell)}
+
+  /* the payphone face: readout mid-dial, DTMF keypad, coin slot */
+  .phone{width:330px;background:var(--surface);border:2px solid var(--border);border-radius:24px;
+    padding:24px 24px 26px;box-shadow:0 24px 60px rgba(0,0,0,.65),0 0 70px rgba(59,130,246,.18)}
+  .readout{height:66px;border-radius:12px;background:#05060a;border:1px solid #1d2436;
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    font-family:"Fira Code",monospace;font-size:34px;font-weight:600;letter-spacing:.16em;
+    color:var(--sky);text-shadow:0 0 14px rgba(59,130,246,.85)}
+  .readout .cursor{display:inline-block;width:16px;height:38px;background:var(--sky);
+    box-shadow:0 0 14px rgba(59,130,246,.85)}
+  .tone{margin-top:12px;display:flex;justify-content:space-between;align-items:center;
+    font-family:"Fira Code",monospace;font-size:13px;letter-spacing:.08em}
+  .tone .f{color:var(--amber);text-shadow:0 0 8px rgba(245,158,11,.6)}
+  .tone .s{color:var(--faint)}
+  .pad{margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .key{height:56px;border-radius:12px;border:1px solid var(--border);background:var(--raised);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+  .key b{font-family:"Fira Code",monospace;font-size:21px;font-weight:600;color:var(--ink)}
+  .key i{font-style:normal;font-family:"Fira Code",monospace;font-size:9px;letter-spacing:.18em;color:var(--faint)}
+  .key.hit{background:var(--bell);border-color:var(--sky);
+    box-shadow:0 0 22px rgba(59,130,246,.75)}
+  .key.hit b,.key.hit i{color:#fff}
+  .slot{margin-top:16px;display:flex;align-items:center;justify-content:space-between}
+  .coin{display:flex;align-items:center;gap:10px;font-family:"Fira Code",monospace;
+    font-size:12px;letter-spacing:.14em;color:var(--faint)}
+  .coin .slit{width:44px;height:8px;border-radius:4px;background:#05060a;border:1px solid #1d2436}
+  .led{display:flex;align-items:center;gap:8px;font-family:"Fira Code",monospace;
+    font-size:12px;letter-spacing:.14em;color:var(--matrix)}
+  .led i{width:10px;height:10px;border-radius:50%;background:var(--matrix);
+    box-shadow:0 0 12px rgba(0,255,65,.8)}
+</style>
+</head>
+<body>
+  <div class="glow"></div><div class="noise"></div><div class="frame"></div>
+  <div class="card">
+    <div class="left">
+      <div class="mark">defcon<span class="dot">.</span>run</div>
+      <div class="kick">DEF CON 34 &middot; AN OFFICIAL EVENT &middot; LAS VEGAS</div>
+
+      <h1>MAKE A<span class="call">CALL.</span></h1>
+      <div class="sub">&gt; whistle <b>2600&nbsp;Hz</b> &middot; seize the trunk &middot; <span class="p">phreak the Strip</span></div>
+
+      <div class="chips">
+        <span class="chip hz">2600 Hz</span>
+        <span class="chip coin">25&cent; DEPOSITED</span>
+        <span class="chip">OPERATOR: STANDING BY</span>
+      </div>
+
+      <div class="log">$ bluebox --tone 2600 --seize ▸ trunk is yours</div>
+      <div class="url"><span>p.</span>defcon.run</div>
+    </div>
+
+    <div class="right">
+      <div class="phone">
+        <div class="readout">260<span class="cursor"></span></div>
+        <div class="tone"><span class="f">TONE&nbsp;2600Hz</span><span class="s">LINE&nbsp;1&nbsp;&middot;&nbsp;LOOP</span></div>
+        <div class="pad">
+          <div class="key"><b>1</b><i>&nbsp;</i></div>
+          <div class="key hit"><b>2</b><i>ABC</i></div>
+          <div class="key"><b>3</b><i>DEF</i></div>
+          <div class="key"><b>4</b><i>GHI</i></div>
+          <div class="key"><b>5</b><i>JKL</i></div>
+          <div class="key hit"><b>6</b><i>MNO</i></div>
+          <div class="key"><b>7</b><i>PQRS</i></div>
+          <div class="key"><b>8</b><i>TUV</i></div>
+          <div class="key"><b>9</b><i>WXYZ</i></div>
+          <div class="key"><b>*</b><i>&nbsp;</i></div>
+          <div class="key hit"><b>0</b><i>OPER</i></div>
+          <div class="key"><b>#</b><i>&nbsp;</i></div>
+        </div>
+        <div class="slot">
+          <span class="coin"><span class="slit"></span>INSERT&nbsp;25&cent;</span>
+          <span class="led"><i></i>TRUNK&nbsp;SEIZED</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -44,17 +44,26 @@ describe("loadVanityRedirects", () => {
     expect(all.find((r) => r.host === "f")!.targetUrl).toBe("https://q.defcon.run/f");
     expect(all.find((r) => r.host === "f")!.splash).toBe("flash");
     expect(all.find((r) => r.host === "f")!.statusCode).toBe("HTTP_302");
+    // p. and g. are the phreak / ghost vanity domains — resolver codes seeded
+    // to the rickroll for now (retargetable from /admin/qr), each with its own
+    // splash template.
+    expect(all.find((r) => r.host === "p")!.targetUrl).toBe("https://q.defcon.run/p");
+    expect(all.find((r) => r.host === "p")!.splash).toBe("phone");
+    expect(all.find((r) => r.host === "p")!.statusCode).toBe("HTTP_302");
+    expect(all.find((r) => r.host === "g")!.targetUrl).toBe("https://q.defcon.run/g");
+    expect(all.find((r) => r.host === "g")!.splash).toBe("ghost");
+    expect(all.find((r) => r.host === "g")!.statusCode).toBe("HTTP_302");
   });
 
   it("returns hosts sorted by priority", () => {
     const hosts = all.map((r) => r.host);
-    expect(hosts).toEqual(["r", "h", "sao", "donate", "b", "f"]);
+    expect(hosts).toEqual(["r", "h", "sao", "donate", "b", "f", "p", "g"]);
   });
 
   it("uses only splash styles Terraform knows how to render", () => {
     // splash_style selects a template in cloudfront-redirect/assets — an unknown
     // value silently falls back to the hackers splash.
-    const known = new Set(["hackers", "countdown", "bib", "flash"]);
+    const known = new Set(["hackers", "countdown", "bib", "flash", "phone", "ghost"]);
     for (const r of all) expect(known.has(r.splash), `splash ${r.splash}`).toBe(true);
   });
 
