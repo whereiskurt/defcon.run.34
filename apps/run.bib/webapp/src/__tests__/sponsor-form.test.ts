@@ -214,6 +214,43 @@ describe("performSponsorCheckout() — implicit save before checkout (Plan 34-03
     expect(deps.fetchImpl).not.toHaveBeenCalled();
   });
 
+  it("blocks a bib purchase entirely when sales are closed — only onSalesClosed fires", async () => {
+    // Kurt 2026-07-26: bibs are done. With salesClosed, a variant='bib'
+    // checkout must produce ZERO side-effects (no flush, no fetch, no
+    // provider handoff, no redirect) — just the sales-closed hook, which the
+    // component turns into the dumpster-fire modal. Both providers blocked.
+    for (const provider of ["stripe", "venmo"] as const) {
+      const order: string[] = [];
+      const onSalesClosed = vi.fn(() => order.push("salesClosed"));
+      const deps = makeDeps(order, { onSalesClosed });
+      await performSponsorCheckout(
+        { variant: "bib", provider, amountCents: 5000, offerNonStripe: true, salesClosed: true },
+        deps
+      );
+      expect(order).toEqual(["salesClosed"]);
+      expect(deps.flush).not.toHaveBeenCalled();
+      expect(deps.fetchImpl).not.toHaveBeenCalled();
+      expect(deps.navigate).not.toHaveBeenCalled();
+      expect(deps.redirect).not.toHaveBeenCalled();
+    }
+  });
+
+  it("leaves general donations open when bib sales are closed", async () => {
+    const order: string[] = [];
+    const onSalesClosed = vi.fn();
+    const deps = makeDeps(order, { onSalesClosed });
+    await performSponsorCheckout(
+      { variant: "general", provider: "stripe", amountCents: 5000, offerNonStripe: true, salesClosed: true },
+      deps
+    );
+    expect(order).toEqual(["flush", "fetch", "redirect"]);
+    expect(onSalesClosed).not.toHaveBeenCalled();
+    expect(deps.fetchImpl).toHaveBeenCalledWith(
+      "/api/checkout/general",
+      expect.objectContaining({ method: "POST" })
+    );
+  });
+
   it("still flushes before surfacing an error (fetch failure does not skip the save)", async () => {
     const order: string[] = [];
     const deps = makeDeps(order, {
