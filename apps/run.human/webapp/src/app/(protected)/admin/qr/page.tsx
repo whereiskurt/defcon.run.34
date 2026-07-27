@@ -73,6 +73,10 @@ export default async function QrAdminPage() {
         </div>
       </div>
 
+      {/* QR codes + the vanity subdomains that point at them, side by side on
+          wide screens (each card h-scrolls internally when the column is
+          narrower than its table). CTF gets the full width below. */}
+      <div className="grid grid-cols-1 gap-6 2xl:grid-cols-2">
       {/* QR codes */}
       <section className="flex flex-col gap-2.5">
         <div className="flex items-center justify-between">
@@ -158,6 +162,53 @@ export default async function QrAdminPage() {
         </div>
       </section>
 
+      {/* Vanity subdomains - Terraform-managed, read-only */}
+      <section className="flex flex-col gap-2.5">
+        <div className="flex items-center justify-between">
+          <h2 className={cls.h2}>Vanity subdomains ({vanity.length})</h2>
+        </div>
+        <div className={`${cls.card} overflow-hidden`}>
+          <div className="overflow-x-auto">
+            <table className={`${cls.table} min-w-[640px]`}>
+              <thead className={cls.thead}>
+                <tr>
+                  {["Host", "Target", "Splash", "Status"].map((c, i) => (
+                    <th key={c || i} className={cls.th}>
+                      {c}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {vanity.map((row) => (
+                  <tr key={row.host} className={cls.tr}>
+                    <td className={cls.td}>
+                      <span className="text-primary font-mono">{row.fqdn}</span>
+                    </td>
+                    <td
+                      className={`${cls.td} max-w-[340px] truncate`}
+                      title={row.targetUrl}
+                    >
+                      {row.targetUrl}
+                    </td>
+                    <td className={`${cls.td} text-default-500`}>{row.splash}</td>
+                    <td className={cls.td}>
+                      <span className="text-primary">live</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <p className="text-[11.5px] text-default-400">
+          Terraform-managed - edit{" "}
+          <code>apps/run.human/webapp/src/data/redirects.json</code> and apply the{" "}
+          <code>redirect-rules</code> unit. Not editable here.
+        </p>
+      </section>
+      </div>
+
       {/* CTF challenges */}
       <section className="flex flex-col gap-2.5">
         <div className="flex items-center justify-between">
@@ -220,52 +271,6 @@ export default async function QrAdminPage() {
             </table>
           </div>
         </div>
-      </section>
-
-      {/* Vanity subdomains - Terraform-managed, read-only */}
-      <section className="flex flex-col gap-2.5">
-        <div className="flex items-center justify-between">
-          <h2 className={cls.h2}>Vanity subdomains ({vanity.length})</h2>
-        </div>
-        <div className={`${cls.card} overflow-hidden`}>
-          <div className="overflow-x-auto">
-            <table className={`${cls.table} min-w-[640px]`}>
-              <thead className={cls.thead}>
-                <tr>
-                  {["Host", "Target", "Splash", "Status"].map((c, i) => (
-                    <th key={c || i} className={cls.th}>
-                      {c}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {vanity.map((row) => (
-                  <tr key={row.host} className={cls.tr}>
-                    <td className={cls.td}>
-                      <span className="text-primary font-mono">{row.fqdn}</span>
-                    </td>
-                    <td
-                      className={`${cls.td} max-w-[340px] truncate`}
-                      title={row.targetUrl}
-                    >
-                      {row.targetUrl}
-                    </td>
-                    <td className={`${cls.td} text-default-500`}>{row.splash}</td>
-                    <td className={cls.td}>
-                      <span className="text-primary">live</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <p className="text-[11.5px] text-default-400">
-          Terraform-managed - edit{" "}
-          <code>apps/run.human/webapp/src/data/redirects.json</code> and apply the{" "}
-          <code>redirect-rules</code> unit. Not editable here.
-        </p>
       </section>
 
       <p className="text-[11.5px] text-default-400">
