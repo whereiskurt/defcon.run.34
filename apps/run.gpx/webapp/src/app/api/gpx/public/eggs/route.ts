@@ -158,6 +158,26 @@ const DEFAULT_EGGS: EggModal[] = [
     accent: "#F2A900",
     links: [mapLink(36.1476992, -115.1561024)],
   },
+  {
+    id: "dc34-payphone-sign",
+    eyebrow: "Public Utility",
+    title: "☎️ PayPhone",
+    descriptionHtml:
+      '<p><strong>Call me!</strong> <a href="tel:+17254043283">725-404-3283</a></p>',
+    address: "Welcome to Fabulous Las Vegas Sign, 5200 Las Vegas Blvd S",
+    accent: "#F2A900",
+    links: [mapLink(36.0820593, -115.1727735)],
+  },
+  {
+    id: "dc34-payphone-rio",
+    eyebrow: "Public Utility",
+    title: "☎️ PayPhone",
+    descriptionHtml:
+      '<p><strong>Call me!</strong> <a href="tel:+17254048283">725-404-8283</a></p>',
+    address: "The Rio, 3700 W Flamingo Rd",
+    accent: "#F2A900",
+    links: [mapLink(36.1175311, -115.1882831)],
+  },
 ];
 
 export async function GET() {
