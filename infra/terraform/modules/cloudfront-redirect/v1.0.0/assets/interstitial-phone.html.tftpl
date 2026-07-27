@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${og_title}</title>
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="defcon.run">
+<meta property="og:url" content="${page_url}">
+<meta property="og:title" content="${og_title}">
+<meta property="og:description" content="${og_description}">
+<meta property="og:image" content="${og_image}">
+<meta property="og:image:secure_url" content="${og_image}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${og_title}">
+<meta name="twitter:description" content="${og_description}">
+<meta name="twitter:image" content="${og_image}">
+
+<!-- Phone/phreak splash: a DTMF keypad auto-dials 2600, a phreak log narrates
+     the trunk seizure, then we place the call. Same ~1.6s beat as the other
+     splashes (so the tab title reads the og_title, not the destination).
+     meta-refresh is the no-JS fallback, long enough to never preempt the JS.
+     NOTE (terraform templatefile): a percent sign immediately followed by an
+     open brace is read as a control directive, so CSS percent keyframe
+     selectors must double the percent sign. This splash uses from/to keyframes
+     to sidestep it entirely — including in this comment, which is also parsed. -->
+<meta http-equiv="refresh" content="4;url=${target_url}">
+<link rel="canonical" href="${target_url}">
+<style>
+  :root{ --bg:#0a0a0f; --ink:#e4e4ef; --muted:#a4a4b8; --bell:#3b82f6; --sky:#7db8ff;
+         --amber:#f59e0b; --matrix:#00ff41; --border:#2a2a3a; --surface:#111118; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--ink); overflow:hidden;
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    display:flex; align-items:center; justify-content:center; text-align:center;
+  }
+  .glow{position:fixed;inset:0;background:
+    radial-gradient(55% 60% at 12% 4%,rgba(59,130,246,.18),transparent 62%),
+    radial-gradient(60% 70% at 94% 98%,rgba(245,158,11,.10),transparent 60%);}
+  .noise{position:fixed;inset:0;opacity:.03;background-size:256px 256px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23n)'/%3E%3C/svg%3E")}
+  .wrap{position:relative;z-index:2;padding:24px;max-width:560px;width:100%}
+
+  .mark{font-size:clamp(22px,6vw,30px);font-weight:800;letter-spacing:-.02em}
+  .mark .dot{color:var(--bell)}
+  .kick{margin-top:6px;font-size:clamp(10px,2.8vw,12px);font-weight:800;
+    letter-spacing:.30em;color:var(--bell)}
+
+  /* payphone face: a number readout above a 3x4 DTMF keypad */
+  .phone{margin:34px auto 0;width:min(220px,58vw);background:var(--surface);
+    border:2px solid var(--border);border-radius:16px;padding:14px 14px 16px;
+    box-shadow:0 18px 38px rgba(0,0,0,.6),0 0 40px rgba(59,130,246,.14)}
+  .readout{height:44px;border-radius:8px;background:#05060a;border:1px solid #1d2436;
+    display:flex;align-items:center;justify-content:center;gap:2px;
+    font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;font-size:22px;
+    font-weight:700;letter-spacing:.14em;color:var(--sky);
+    text-shadow:0 0 12px rgba(59,130,246,.8);font-variant-numeric:tabular-nums}
+  .readout .hz{font-size:11px;letter-spacing:.08em;color:var(--amber);
+    text-shadow:0 0 8px rgba(245,158,11,.7)}
+  .pad{margin-top:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+  .pad b{display:flex;align-items:center;justify-content:center;height:34px;
+    border-radius:8px;border:1px solid var(--border);background:#161622;
+    font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;font-size:15px;
+    font-weight:600;color:var(--muted)}
+  .pad b.hit{background:var(--bell);border-color:var(--bell);color:#fff;
+    box-shadow:0 0 16px rgba(59,130,246,.8)}
+
+  .log{margin-top:18px;font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;
+    font-size:clamp(10px,2.9vw,12px);color:var(--matrix);letter-spacing:.02em;
+    text-shadow:0 0 6px #00ff4166,0 0 14px #00ff4133;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .load{margin-top:12px;font-size:clamp(12px,3.4vw,14px);letter-spacing:.18em;color:var(--muted)}
+  .bar{margin:12px auto 0;width:min(340px,80vw);height:8px;border:1px solid var(--border);
+    border-radius:6px;overflow:hidden;background:rgba(17,17,24,.9)}
+  .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--bell),var(--amber));
+    box-shadow:0 0 14px rgba(59,130,246,.6);animation:fill 1.5s ease-out forwards}
+  @keyframes fill{to{width:100%}}
+  .foot{margin-top:18px;font-size:12px;letter-spacing:.12em;color:#8f8fa8}
+  .foot a{color:var(--bell);text-decoration:none}
+  @media (prefers-reduced-motion:reduce){
+    .bar>i{animation:none;width:100%}
+  }
+</style>
+</head>
+<body>
+  <div class="glow"></div><div class="noise"></div>
+  <div class="wrap">
+    <div class="mark">defcon<span class="dot">.</span>run</div>
+    <div class="kick">DEF CON 34 &middot; OPERATOR</div>
+
+    <div class="phone">
+      <div class="readout"><span id="num"></span><span class="hz" id="hz"></span></div>
+      <div class="pad" id="pad">
+        <b>1</b><b>2</b><b>3</b>
+        <b>4</b><b>5</b><b>6</b>
+        <b>7</b><b>8</b><b>9</b>
+        <b>*</b><b>0</b><b>#</b>
+      </div>
+    </div>
+
+    <div class="log" id="l">picking up the handset&hellip;</div>
+    <div class="load">CONNECTING YOUR CALL&hellip;</div>
+    <div class="bar"><i></i></div>
+    <div class="foot"><a href="${target_url}">skip &rsaquo;</a> &nbsp;&middot;&nbsp; p.defcon.run</div>
+  </div>
+<script>
+  // Dial 2-6-0-0 on the keypad over the splash beat, then seize the trunk and go.
+  var TARGET = ${target_url_json};
+  var DIGITS = ["2", "6", "0", "0"];
+  var LOG = [
+    "coin accepted ▸ 25¢",
+    "dialing…",
+    "playing 2600 Hz…",
+    "trunk seized — routing call"
+  ];
+  var keys = document.getElementById("pad").getElementsByTagName("b");
+  var keyFor = {};
+  for (var i = 0; i < keys.length; i++) keyFor[keys[i].textContent] = keys[i];
+  var num = document.getElementById("num"), hz = document.getElementById("hz");
+  var l = document.getElementById("l"), t0 = Date.now(), lastStep = -1;
+  var tick = setInterval(function () {
+    var f = Math.min(1, (Date.now() - t0) / 1500);
+    var step = Math.min(DIGITS.length - 1, Math.floor(f * DIGITS.length));
+    if (step !== lastStep) {
+      lastStep = step;
+      num.textContent = DIGITS.slice(0, step + 1).join("");
+      for (var k = 0; k < keys.length; k++) keys[k].className = "";
+      keyFor[DIGITS[step]].className = "hit";
+      l.textContent = LOG[step];
+    }
+    if (f >= 1) {
+      hz.textContent = " 2600Hz";
+      clearInterval(tick);
+    }
+  }, 50);
+  setTimeout(function () { location.replace(TARGET); }, 1600);
+</script>
+</body>
+</html>

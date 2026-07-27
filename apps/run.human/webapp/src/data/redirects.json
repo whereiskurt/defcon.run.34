@@ -85,5 +85,35 @@
       "image": "https://f.defcon.run/flash-card.png",
       "image_file": "flash-card.png"
     }
+  },
+  {
+    "host": "p",
+    "target_host": "q.defcon.run",
+    "target_path": "/p",
+    "target_query": "",
+    "status_code": "HTTP_302",
+    "priority": 96,
+    "splash_style": "phone",
+    "og": {
+      "title": "Make a Call — DEF CON 34",
+      "description": "Drop a quarter, whistle 2600 Hz, and seize the trunk. The operator is standing by. An official DEF CON 34 event in Las Vegas.",
+      "image": "https://p.defcon.run/phone-card.png",
+      "image_file": "phone-card.png"
+    }
+  },
+  {
+    "host": "g",
+    "target_host": "q.defcon.run",
+    "target_path": "/g",
+    "target_query": "",
+    "status_code": "HTTP_302",
+    "priority": 97,
+    "splash_style": "ghost",
+    "og": {
+      "title": "The Ghosts — DEF CON 34",
+      "description": "Something haunts the DEF CON 34 mesh. Purple static, dead channels, voices that answer back. Follow them if you dare.",
+      "image": "https://g.defcon.run/ghost-card.png",
+      "image_file": "ghost-card.png"
+    }
   }
 ]
