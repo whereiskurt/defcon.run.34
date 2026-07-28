@@ -33,3 +33,11 @@ export const BUCKET = process.env.S3_UPLOADS_BUCKET!;
 export function getUserPrefix(userId: string): string {
   return `uploads/${userId}/gpx/`;
 }
+
+/**
+ * Get the S3 key prefix for a user's Route templates (routes-vs-runs spec).
+ * Both path segments are always server-derived — never from a request body.
+ */
+export function getRoutePrefix(userId: string): string {
+  return `uploads/${userId}/routes/`;
+}
