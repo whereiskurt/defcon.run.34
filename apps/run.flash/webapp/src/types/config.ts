@@ -4,6 +4,7 @@ export interface DeviceConfigPayload {
   channels: ChannelConfig[];
   identity: IdentityConfig;
   radio: RadioConfig;
+  device: DeviceBehaviorConfig;
   ringtone: string; // RTTTL tune (resolved: per-user override or class default)
   position: PositionConfig;
   mapReport: MapReportConfig;
@@ -49,6 +50,11 @@ export interface RadioConfig {
   modemPreset: string; // e.g., "SHORT_TURBO"
   channelNum: number; // LoRa frequency slot (0 = derive from primary channel name)
   hopLimit: number; // e.g., 3
+}
+
+/** Device-level behavior config pushed by the flasher */
+export interface DeviceBehaviorConfig {
+  rebroadcastMode: string; // e.g., "CORE_PORTNUMS_ONLY"
 }
 
 /** Config push stage names (4 stages per CONTEXT.md) */

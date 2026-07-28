@@ -95,6 +95,7 @@ export async function GET() {
       channels: meshtasticConfig.channels,
       identity: { longName, shortName },
       radio: meshtasticConfig.radio,
+      device: meshtasticConfig.device,
       ringtone,
       position: meshtasticConfig.position,
       mapReport: meshtasticConfig.mapReport,

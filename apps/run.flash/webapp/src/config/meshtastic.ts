@@ -28,6 +28,30 @@ export const meshtasticConfig = Object.freeze({
       // 0 = position off; ~13 = coarse grid). Only the dc.run PSK holders see it.
       positionPrecision: Number(process.env.DCR34_PRIMARY_POS_PRECISION) || 32,
     },
+    // DEF CON 34 event-firmware channels. These PSKs are public constants —
+    // they are baked into meshtastic/firmware event/defcon34 userPrefs.jsonc —
+    // so carrying them makes defcon.run radios and b00d event radios mutually
+    // audible on RF. Position precision mirrors the event build: DEFCONnect 14
+    // (km-scale blur, matches event ch0), chat channels 0 (no position — the
+    // keys are world-readable, exact coords don't belong there).
+    {
+      name: "DEFCONnect",
+      psk: "OEu8wB3AItGBvza4YSHh+5a3LlW/dCJ+nWr7SNZMsaE=",
+      role: "SECONDARY" as const,
+      positionPrecision: 14,
+    },
+    {
+      name: "HackerComms",
+      psk: "6IzsaoVhx1ETWeWuu0dUWMLqItvYJLbRzwgTAKCfvtY=",
+      role: "SECONDARY" as const,
+      positionPrecision: 0,
+    },
+    {
+      name: "NodeChat",
+      psk: "TiIdi8MJG+IRnIkS8iUZXRU+MHuGtuzEasOWXp4QndU=",
+      role: "SECONDARY" as const,
+      positionPrecision: 0,
+    },
     {
       name: "LongFast",
       psk: process.env.DCR34_BRIDGE_PSK || "AQ==",
@@ -37,6 +61,12 @@ export const meshtasticConfig = Object.freeze({
       positionPrecision: Number(process.env.DCR34_BRIDGE_POS_PRECISION) || 0,
     },
   ],
+  // Device config: rebroadcast only CORE portnums (text/position/nodeinfo/
+  // telemetry/routing). At con density a radio relaying every exotic app port
+  // burns shared airtime; core-only keeps the mesh useful for everyone.
+  device: {
+    rebroadcastMode: process.env.DEVICE_REBROADCAST_MODE || "CORE_PORTNUMS_ONLY",
+  },
   radio: {
     // Region is HARDCODED to US and intentionally NOT env-overridable. Every
     // device is flashed on-site at DEF CON (Las Vegas), and a wrong/UNSET region
