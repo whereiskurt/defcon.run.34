@@ -6,6 +6,9 @@ import { FIRMWARE_VERSIONS } from "@/config/firmware";
 interface FirmwareVersionSelectProps {
   value: string;
   onChange: (version: string) => void;
+  /** Lock the picker (slot-locked boards — the shown version is the only
+   *  one with a binary for this target). */
+  isDisabled?: boolean;
 }
 
 /** Firmware version dropdown, populated from the build-time manifest.
@@ -14,11 +17,13 @@ interface FirmwareVersionSelectProps {
 export function FirmwareVersionSelect({
   value,
   onChange,
+  isDisabled,
 }: FirmwareVersionSelectProps) {
   return (
     <Select
       aria-label="Firmware version"
       selectedKeys={[value]}
+      isDisabled={isDisabled}
       disallowEmptySelection
       onSelectionChange={(keys) => {
         const key = Array.from(keys)[0];

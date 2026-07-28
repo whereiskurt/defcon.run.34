@@ -31,3 +31,32 @@ describe("firmware filename helpers", () => {
     );
   });
 });
+
+describe("slot-locked devices", () => {
+  it("locks t-beam-bpf to the nightly slot's pinned version", async () => {
+    const { lockedVersionForDevice } = await import("./firmware");
+    const manifest = (await import("@/../public/data/firmware-manifest.json"))
+      .default;
+    const nightly = manifest.versions.find((v) => v.slot === "nightly");
+    expect(nightly).toBeDefined();
+    expect(lockedVersionForDevice("t-beam-bpf")).toBe(nightly?.version);
+  });
+
+  it("returns null for unlocked devices", async () => {
+    const { lockedVersionForDevice } = await import("./firmware");
+    expect(lockedVersionForDevice("tbeam")).toBeNull();
+    expect(lockedVersionForDevice("heltec-v3")).toBeNull();
+  });
+
+  it("the BPF entry exists in the hardware list snapshot", async () => {
+    const hw = (await import("@/../public/data/hardware-list.json")).default;
+    const bpf = hw.find(
+      (d: { platformioTarget: string }) => d.platformioTarget === "t-beam-bpf"
+    );
+    expect(bpf).toMatchObject({
+      hwModel: 124,
+      hwModelSlug: "TBEAM_BPF",
+      architecture: "esp32-s3",
+    });
+  });
+});

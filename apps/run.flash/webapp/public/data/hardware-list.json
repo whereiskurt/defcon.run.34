@@ -1488,5 +1488,20 @@
     "tags": [
       "Seeed"
     ]
+  },
+  {
+    "hwModel": 124,
+    "hwModelSlug": "TBEAM_BPF",
+    "platformioTarget": "t-beam-bpf",
+    "architecture": "esp32-s3",
+    "activelySupported": true,
+    "supportLevel": 3,
+    "displayName": "LILYGO T-Beam BPF (2m HAM)",
+    "tags": [
+      "LilyGo"
+    ],
+    "images": [
+      "tbeam-1w.svg"
+    ]
   }
 ]

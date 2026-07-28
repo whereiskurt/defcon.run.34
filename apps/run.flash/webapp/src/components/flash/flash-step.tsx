@@ -13,7 +13,7 @@ import { Chip } from "@heroui/react";
 import type { DeviceHardware } from "@/types/device";
 import { getDeviceImagePath, getArchLabel } from "@/config/devices";
 import type { ChipInfo, ConsoleEntry, FlashProgress } from "@/types/serial";
-import { getFactoryFilename } from "@/config/firmware";
+import { getFactoryFilename, lockedVersionForDevice } from "@/config/firmware";
 import { FirmwareVersionSelect } from "@/components/flash/firmware-version-select";
 import { FlashPipeline } from "@/components/flash/flash-pipeline";
 import { FlashConsole } from "@/components/flash/flash-console";
@@ -197,6 +197,9 @@ export function FlashStep({
               <FirmwareVersionSelect
                 value={firmwareVersion}
                 onChange={onFirmwareVersionChange}
+                // Slot-locked boards (e.g. T-Beam BPF: 2.8-nightly-only
+                // target) pin the picker — other versions have no binary.
+                isDisabled={lockedVersionForDevice(device.platformioTarget) !== null}
               />
             </div>
             <div className="border-t border-default-200/10" />

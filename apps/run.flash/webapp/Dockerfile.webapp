@@ -6,15 +6,18 @@ WORKDIR /firmware
 # Version pins + APK sources are checked-in config, not build args — see
 # firmware-versions.json (slots: stable/previous/nightly) and
 # app-downloads.sources.json. Rollback = edit the file, not the pipeline.
-COPY firmware-versions.json app-downloads.sources.json /build-config/
+COPY firmware-versions.json app-downloads.sources.json extra-devices.json /build-config/
 
 # Device hardware list FIRST — the nightly fetcher derives per-target
 # filenames from it. Overwrites the tracked public/data/hardware-list.json
-# snapshot when copied into Stage 2 (DEVC-06).
+# snapshot when copied into Stage 2 (DEVC-06). extra-devices.json appends
+# curated boards firmware ships but the API doesn't list yet (T-Beam BPF);
+# the app dedups by hwModel, so an eventual API entry supersedes ours.
 RUN mkdir -p /hardware && \
     curl -fsSL --retry 5 --retry-all-errors --retry-connrefused \
       https://api.meshtastic.org/resource/deviceHardware \
       | jq '[.[] | select(.architecture == "esp32" or .architecture == "esp32-s3" or .architecture == "esp32-c3" or .architecture == "esp32-c6" or .architecture == "nrf52840" or .architecture == "rp2040")]' \
+      | jq -s '.[0] + .[1]' - /build-config/extra-devices.json \
       > /hardware/hardware-list.json && \
     jq -e 'length > 0' /hardware/hardware-list.json
 
