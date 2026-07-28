@@ -542,7 +542,32 @@ export async function pushDeviceConfig(
   console.log("[meshtastic] MQTT config applied");
   onStageComplete("mqtt", mqttAddress);
 
-  // 3. Channel Config
+  // 3. Identity Config — MUST run BEFORE channels. HAM-band-only hardware
+  // (T-Beam BPF: HAS_HAM_2M_ONLY) boots with owner.is_licensed=true, and a
+  // licensed device SANITIZES every channel write on arrival — PSKs stripped
+  // to cleartext (ensureLicensedOperation). Pushing the owner first with an
+  // explicit isLicensed:false flips the device to normal operation, so the
+  // channel PSKs that follow actually persist. Observed live 2026-07-28: the
+  // old channels-then-identity order left a BPF unlicensed AND PSK-less.
+  console.log("[meshtastic] Pushing identity config...");
+  // Byte-guard at the hardware boundary (server already clamps, but a stale or
+  // hand-crafted payload must not reach the radio over-length): long_name over
+  // 39 UTF-8 bytes fails nanopb decode on the device — the whole owner write is
+  // silently dropped — and a shortName sliced by UTF-16 code units can exceed
+  // the 4-byte limit and render as garbage.
+  const owner = create(Protobuf.Mesh.UserSchema, {
+    longName: clampLongName(config.identity.longName),
+    shortName: buildShortName(config.identity.shortName),
+    // Explicit, not proto-default: licensed mode is the operator's decision
+    // (flip in the app), never an accident of hardware defaults. Encrypted
+    // dc.run participation requires an unlicensed device.
+    isLicensed: false,
+  });
+  await awaitAckTolerant(device.setOwner(owner), "setOwner");
+  console.log("[meshtastic] Identity applied");
+  onStageComplete("identity", config.identity.longName);
+
+  // 4. Channel Config
   console.log("[meshtastic] Pushing channel config...");
   for (let i = 0; i < config.channels.length; i++) {
     const ch = config.channels[i];
@@ -574,21 +599,6 @@ export async function pushDeviceConfig(
     console.log(`[meshtastic] Channel ${i} (${ch.name}) applied`);
   }
   onStageComplete("channels", `${config.channels.length} channels`);
-
-  // 4. Identity Config
-  console.log("[meshtastic] Pushing identity config...");
-  // Byte-guard at the hardware boundary (server already clamps, but a stale or
-  // hand-crafted payload must not reach the radio over-length): long_name over
-  // 39 UTF-8 bytes fails nanopb decode on the device — the whole owner write is
-  // silently dropped — and a shortName sliced by UTF-16 code units can exceed
-  // the 4-byte limit and render as garbage.
-  const owner = create(Protobuf.Mesh.UserSchema, {
-    longName: clampLongName(config.identity.longName),
-    shortName: buildShortName(config.identity.shortName),
-  });
-  await awaitAckTolerant(device.setOwner(owner), "setOwner");
-  console.log("[meshtastic] Identity applied");
-  onStageComplete("identity", config.identity.longName);
 
   // 4b. Ringtone (RTTTL) — set via AdminMessage on the ADMIN_APP port.
   // @meshtastic/core has no setRingtone() helper; mirror its setCannedMessages
