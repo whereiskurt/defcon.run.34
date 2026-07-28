@@ -3,11 +3,13 @@
     import LayerTree from './LayerTree.svelte';
     import PublicOverlays from './PublicOverlays.svelte';
     import MyConRuns from './MyConRuns.svelte';
+    import CommunityRoutes from './CommunityRoutes.svelte';
     import ConDaySaveDialog from '$lib/components/cloud/ConDaySaveDialog.svelte';
     import { cloudFiles, type CloudFile } from '$lib/cloud-sync';
     import { OverpassLayer } from './overpass-layer';
     import { PublicOverlaysLayer, publicOverlayGroups, publicAggregate } from '../public-overlays';
     import { MyConRunsLayer, myConRunGroups } from '../my-con-runs';
+    import { CommunityRoutesLayer, communityRoutes } from '../community-routes';
     import { myConRunsRefresh, myConRunsReveal } from '$lib/stores/my-con-runs';
     import { isAuthenticated } from '$lib/stores/auth';
     import { GhostLayer } from '$lib/components/map/ghost-layer';
@@ -53,6 +55,10 @@
     // subscription below that loads the layer the FIRST time auth resolves true.
     let myConRunsAuthUnsubscribe: (() => void) | undefined;
     let myConRunsLoadAttempted = false;
+    // Community Routes (routes-vs-runs spec): published route templates from
+    // other runners. Same async-auth load pattern as My DEF CON Runs.
+    let communityRoutesLayer: CommunityRoutesLayer | undefined = $state();
+    let communityRoutesLoadAttempted = false;
     let ghostLayer: GhostLayer | undefined;
     let rabbitLayer: RabbitLayer | undefined;
     let rainbowArch: RainbowArch | undefined;
@@ -257,11 +263,18 @@
         // on a normal page load. Load on the FIRST true; loadAttempted stops a
         // second load if the store flips again (MyConRunsLayer.load() also
         // guards internally via `loaded`, so this composes safely with reload()).
+        if (communityRoutesLayer) communityRoutesLayer.remove();
+        communityRoutesLayer = new CommunityRoutesLayer(_map);
         myConRunsLoadAttempted = false;
+        communityRoutesLoadAttempted = false;
         myConRunsAuthUnsubscribe = isAuthenticated.subscribe((authed) => {
             if (authed && !myConRunsLoadAttempted && myConRunsLayer) {
                 myConRunsLoadAttempted = true;
                 void myConRunsLayer.load();
+            }
+            if (authed && !communityRoutesLoadAttempted && communityRoutesLayer) {
+                communityRoutesLoadAttempted = true;
+                void communityRoutesLayer.load();
             }
         });
         if (ghostLayer) ghostLayer.remove();
@@ -494,6 +507,12 @@
                                 My DEF CON Runs
                             </div>
                             <MyConRuns layer={myConRunsLayer} />
+                        </div>
+                    {/if}
+                    {#if $communityRoutes.length > 0}
+                        <Separator class="w-full" />
+                        <div class="p-2 ml-1">
+                            <CommunityRoutes layer={communityRoutesLayer} />
                         </div>
                     {/if}
                     <!-- POI/Overpass section removed for DEF CON -->

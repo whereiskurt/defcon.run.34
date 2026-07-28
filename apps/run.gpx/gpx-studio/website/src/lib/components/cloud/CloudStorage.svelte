@@ -28,9 +28,11 @@
         Footprints,
         Map as MapIcon,
         CalendarCheck,
+        Route as RouteIcon,
     } from '@lucide/svelte';
     import ShareDialog from './ShareDialog.svelte';
     import ConDaySaveDialog from './ConDaySaveDialog.svelte';
+    import RouteCardForm from './RouteCardForm.svelte';
     import {
         cloudFiles,
         cloudFolders,
@@ -49,6 +51,7 @@
         refreshCurrentFolder,
         getApiBase,
         getConDayUsage,
+        createRouteFromFile,
         type CloudFile,
         type CloudFolder,
         type FileVersion,
@@ -69,6 +72,33 @@
     let error: string | null = null;
     let editingFileId: string | null = null;
     let editFileName: string = '';
+
+    // "Save as route" (routes-vs-runs spec): convert a file/run into a
+    // shareable DATELESS route template. Server copies the GPX; the original
+    // file (and its con-day/accomplishment, if any) is untouched.
+    // (legacy-mode component — plain lets are reactive here, no runes)
+    let routeDialogFile: CloudFile | null = null;
+    let routeConvertBusy = false;
+    let routeConvertMsg: string | null = null;
+    let routeConvertErr: string | null = null;
+
+    async function onSaveAsRoute(card: {
+        name: string;
+        description?: string;
+        routeType?: string;
+    }) {
+        if (!routeDialogFile) return;
+        routeConvertBusy = true;
+        routeConvertErr = null;
+        try {
+            await createRouteFromFile(routeDialogFile.fileId, card);
+            routeConvertMsg = `Route "${card.name}" created — find it under "Create a route" in the Add run hub, and share it from there.`;
+        } catch (e) {
+            routeConvertErr = e instanceof Error ? e.message : 'Could not create the route';
+        } finally {
+            routeConvertBusy = false;
+        }
+    }
 
     // Share dialog state
     let shareDialogOpen = false;
@@ -808,6 +838,21 @@
                                             >
                                                 <CalendarCheck class="h-3.5 w-3.5" />
                                             </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                class="h-7 w-7"
+                                                onclick={() => {
+                                                    routeConvertMsg = null;
+                                                    routeConvertErr = null;
+                                                    routeDialogFile = file;
+                                                }}
+                                                disabled={loading}
+                                                title="Save as route (shareable template)"
+                                                aria-label="Save as route"
+                                            >
+                                                <RouteIcon class="h-3.5 w-3.5" />
+                                            </Button>
                                             {#if (file.versionCount || 1) > 1}
                                                 <DropdownMenu.Root onOpenChange={(isOpen) => { if (isOpen) fetchVersionHistory(file); }}>
                                                     <DropdownMenu.Trigger
@@ -909,3 +954,41 @@
         }}
     />
 {/if}
+
+<!-- "Save as route" card dialog (routes-vs-runs spec) -->
+<Dialog.Root
+    open={routeDialogFile !== null}
+    onOpenChange={(o) => {
+        if (!o) routeDialogFile = null;
+    }}
+>
+    <Dialog.Content class="sm:max-w-md">
+        <Dialog.Header>
+            <Dialog.Title class="flex items-center gap-2">
+                <RouteIcon class="h-4 w-4" /> Save as route
+            </Dialog.Title>
+            <Dialog.Description>
+                Make a shareable, dateless route template from
+                "{routeDialogFile?.fileName}". The original file stays exactly as
+                it is.
+            </Dialog.Description>
+        </Dialog.Header>
+        {#if routeConvertMsg}
+            <p class="text-sm font-medium text-green-600 dark:text-green-400">
+                {routeConvertMsg}
+            </p>
+            <Button onclick={() => (routeDialogFile = null)}>Done</Button>
+        {:else}
+            <RouteCardForm
+                initial={{ name: routeDialogFile?.fileName?.replace(/\.gpx$/i, '') ?? '' }}
+                submitLabel={routeConvertBusy ? 'Creating…' : 'Create route'}
+                busy={routeConvertBusy}
+                onsubmit={onSaveAsRoute}
+                oncancel={() => (routeDialogFile = null)}
+            />
+            {#if routeConvertErr}
+                <p class="text-sm text-destructive">{routeConvertErr}</p>
+            {/if}
+        {/if}
+    </Dialog.Content>
+</Dialog.Root>

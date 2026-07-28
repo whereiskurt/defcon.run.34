@@ -909,3 +909,162 @@ export async function loadVersionFromCloud(fileId: string, version: number): Pro
     throw error;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Routes (2026-07-28 routes-vs-runs spec) — shareable, DATELESS route
+// templates, a separate concept from con-day runs. Server is authoritative for
+// everything security-relevant (ownership, caps, sanitization, geometry).
+// ---------------------------------------------------------------------------
+
+export interface RouteSummary {
+  routeId: string;
+  name: string;
+  description?: string;
+  routeType?: string;
+  trackCount?: number;
+  waypointCount?: number;
+  totalDistance?: number;
+  totalElevation?: number;
+  bounds?: { minLat: number; maxLat: number; minLon: number; maxLon: number };
+  visibility?: 'private' | 'published';
+  status?: string;
+  createdByName?: string;
+  copyCount?: number;
+  publishedAt?: number;
+  downloadUrl?: string;
+}
+
+export interface RouteCardInput {
+  name?: string;
+  description?: string;
+  routeType?: string;
+}
+
+async function routeApiError(response: Response, fallback: string): Promise<never> {
+  if (response.status === 401) {
+    redirectToLogin();
+    throw new AuthenticationError('Session expired. Redirecting to login...');
+  }
+  if (response.status === 429) {
+    const data = await response.json().catch(() => ({}));
+    throw new QuotaExceededError(data.error || 'Limit reached', 0);
+  }
+  const data = await response.json().catch(() => ({}));
+  throw new Error(data.error || fallback);
+}
+
+/** List the signed-in runner's own route templates. */
+export async function listMyRoutes(): Promise<RouteSummary[]> {
+  const response = await fetch(`${getApiBase()}/routes`, {
+    credentials: 'include',
+  });
+  if (!response.ok) await routeApiError(response, 'Failed to load your routes');
+  return (await response.json()).routes as RouteSummary[];
+}
+
+/**
+ * Create a route from GPX content: create (presign) → PUT to S3 → confirm.
+ * Returns the new routeId. Mirrors saveToCloud's upload sequence.
+ */
+export async function createRouteFromContent(
+  gpxContent: string,
+  card: RouteCardInput & { name: string }
+): Promise<string> {
+  const blob = new Blob([gpxContent], { type: 'application/gpx+xml' });
+
+  const createResponse = await fetch(`${getApiBase()}/routes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ ...card, fileSize: blob.size }),
+  });
+  if (!createResponse.ok) await routeApiError(createResponse, 'Failed to create route');
+  const { routeId, uploadUrl } = await createResponse.json();
+
+  const uploadResponse = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/gpx+xml' },
+    body: blob,
+  });
+  if (!uploadResponse.ok) throw new Error('Failed to upload route file');
+
+  const confirmResponse = await fetch(
+    `${getApiBase()}/routes/${encodeURIComponent(routeId)}/confirm`,
+    { method: 'POST', credentials: 'include' }
+  );
+  if (!confirmResponse.ok) await routeApiError(confirmResponse, 'Route validation failed');
+
+  return routeId as string;
+}
+
+/** Convert an existing cloud file (e.g. a logged run) into a route template. */
+export async function createRouteFromFile(
+  fileId: string,
+  card: RouteCardInput & { name: string }
+): Promise<RouteSummary> {
+  const response = await fetch(`${getApiBase()}/routes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ ...card, fromFileId: fileId }),
+  });
+  if (!response.ok) await routeApiError(response, 'Failed to convert to route');
+  return (await response.json()).route as RouteSummary;
+}
+
+/** Update a route's card (name/description/type). */
+export async function updateRouteCard(routeId: string, card: RouteCardInput): Promise<void> {
+  const response = await fetch(`${getApiBase()}/routes/${encodeURIComponent(routeId)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(card),
+  });
+  if (!response.ok) await routeApiError(response, 'Failed to update route');
+}
+
+/** Delete a route template (does not touch copies others already made). */
+export async function deleteRoute(routeId: string): Promise<void> {
+  const response = await fetch(`${getApiBase()}/routes/${encodeURIComponent(routeId)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  if (!response.ok) await routeApiError(response, 'Failed to delete route');
+}
+
+/** Publish a route to every signed-in defcon.run runner. */
+export async function publishRoute(routeId: string): Promise<void> {
+  const response = await fetch(
+    `${getApiBase()}/routes/${encodeURIComponent(routeId)}/publish`,
+    { method: 'POST', credentials: 'include' }
+  );
+  if (!response.ok) await routeApiError(response, 'Failed to publish route');
+}
+
+/** Unpublish (owner takes a route back private). */
+export async function unpublishRoute(routeId: string): Promise<void> {
+  const response = await fetch(
+    `${getApiBase()}/routes/${encodeURIComponent(routeId)}/unpublish`,
+    { method: 'POST', credentials: 'include' }
+  );
+  if (!response.ok) await routeApiError(response, 'Failed to unpublish route');
+}
+
+/** All published community routes (signed-in only; presigned download URLs). */
+export async function listCommunityRoutes(): Promise<RouteSummary[]> {
+  const response = await fetch(`${getApiBase()}/routes/community`, {
+    credentials: 'include',
+  });
+  if (!response.ok) await routeApiError(response, 'Failed to load community routes');
+  return (await response.json()).routes as RouteSummary[];
+}
+
+/** Copy a community route into My Maps as a private, dateless file. */
+export async function copyRouteToMyMaps(routeId: string): Promise<string> {
+  const response = await fetch(
+    `${getApiBase()}/routes/${encodeURIComponent(routeId)}/copy`,
+    { method: 'POST', credentials: 'include' }
+  );
+  if (!response.ok) await routeApiError(response, 'Failed to copy route');
+  return (await response.json()).fileId as string;
+}
