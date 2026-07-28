@@ -64,6 +64,19 @@ describe("GET /api/gpx/public/eggs", () => {
     const mono = body.eggs.find((e) => e.id === "dc34-monorail")!;
     expect(mono.accent).toBe("#22D3EE");
     expect((mono as { titleUrl?: string }).titleUrl).toContain("lvmonorail.com");
+
+    // Payphones: every booth has its bundled CC0 photo; only sign/rio carry
+    // the ghost-mode graffiti clue (strat is the clean phone).
+    type Graf = { coverGraffiti?: { text: string; tone: string } };
+    const strat = body.eggs.find((e) => e.id === "dc34-payphone")!;
+    const sign = body.eggs.find((e) => e.id === "dc34-payphone-sign")!;
+    const rio = body.eggs.find((e) => e.id === "dc34-payphone-rio")!;
+    expect(strat.coverImageDisplayUrl).toBe("/use1/payphones/strat.jpg");
+    expect(sign.coverImageDisplayUrl).toBe("/use1/payphones/sign.jpg");
+    expect(rio.coverImageDisplayUrl).toBe("/use1/payphones/rio.jpg");
+    expect((strat as Graf).coverGraffiti).toBeUndefined();
+    expect((sign as Graf).coverGraffiti).toEqual({ text: "1337", tone: "pink" });
+    expect((rio as Graf).coverGraffiti).toEqual({ text: "696969", tone: "green" });
   });
 
   it("CMS overrides only the editable fields; defaults win elsewhere", async () => {

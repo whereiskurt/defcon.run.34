@@ -27,6 +27,8 @@ export type EggModal = {
   address?: string;
   coverImageUrl?: string;
   coverImageDisplayUrl?: string;
+  // Ghost-mode spray tag over the cover photo (hardcoded-only, never from CMS).
+  coverGraffiti?: { text: string; tone: "pink" | "green" };
   links?: EggLink[];
   accent?: string; // left-tab / link color (hex; hardcoded-only, never from CMS)
 };
@@ -34,6 +36,11 @@ export type EggModal = {
 /** A Google Maps "search this point" link — honest, non-fabricated, and useful. */
 function mapLink(lat: number, lon: number): EggLink {
   return { label: "Map it", url: `https://www.google.com/maps/search/?api=1&query=${lat},${lon}` };
+}
+
+/** Bundled CC0 payphone photo (public/payphones/), served under the region basePath. */
+function payphonePhoto(file: string): string {
+  return `/${process.env.REGION_SHORT || "use1"}/payphones/${file}`;
 }
 
 /**
@@ -156,6 +163,8 @@ const DEFAULT_EGGS: EggModal[] = [
       '<p><strong>Call me!</strong> <a href="tel:+17254043234">725-404-3234</a></p>',
     address: "The Strat, 2000 Las Vegas Blvd S",
     accent: "#F2A900",
+    coverImageUrl: payphonePhoto("strat.jpg"),
+    coverImageDisplayUrl: payphonePhoto("strat.jpg"),
     links: [mapLink(36.1476992, -115.1561024)],
   },
   {
@@ -166,6 +175,9 @@ const DEFAULT_EGGS: EggModal[] = [
       '<p><strong>Call me!</strong> <a href="tel:+17254043283">725-404-3283</a></p>',
     address: "Welcome to Fabulous Las Vegas Sign, 5200 Las Vegas Blvd S",
     accent: "#F2A900",
+    coverImageUrl: payphonePhoto("sign.jpg"),
+    coverImageDisplayUrl: payphonePhoto("sign.jpg"),
+    coverGraffiti: { text: "1337", tone: "pink" },
     links: [mapLink(36.0820593, -115.1727735)],
   },
   {
@@ -176,6 +188,9 @@ const DEFAULT_EGGS: EggModal[] = [
       '<p><strong>Call me!</strong> <a href="tel:+17254048283">725-404-8283</a></p>',
     address: "The Rio, 3700 W Flamingo Rd",
     accent: "#F2A900",
+    coverImageUrl: payphonePhoto("rio.jpg"),
+    coverImageDisplayUrl: payphonePhoto("rio.jpg"),
+    coverGraffiti: { text: "696969", tone: "green" },
     links: [mapLink(36.1175311, -115.1882831)],
   },
 ];
