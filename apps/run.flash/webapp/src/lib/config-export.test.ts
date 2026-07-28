@@ -9,7 +9,7 @@ const payload: DeviceConfigPayload = {
     { name: "LongFast", psk: "AQ==", role: "SECONDARY", positionPrecision: 0 },
   ],
   identity: { longName: "rabbit_abc1", shortName: "RABB" },
-  radio: { region: "US", modemPreset: "LONG_FAST", hopLimit: 3 },
+  radio: { region: "US", modemPreset: "SHORT_TURBO", channelNum: 31, hopLimit: 3 },
   ringtone: "ax:d=4,o=5,b=100:8g,8g",
   position: { broadcastSecs: 60, smartEnabled: true },
   mapReport: { enabled: true, positionPrecision: 32, publishIntervalSecs: 3600 },
@@ -21,7 +21,7 @@ describe("toReadableText", () => {
     expect(txt).toMatch(/keep this file private/i);
     for (const v of ["mqtt.defcon.run", "4433", "abc123", "s3cret", "msh/US",
       "dc.run", "Wjt8kzHci9lqdS4tBzSF2VbQd86u6U3nhHaBl7V5TGE=", "LongFast", "AQ==",
-      "rabbit_abc1", "RABB", "US", "LONG_FAST", "ax:d=4,o=5,b=100:8g,8g"]) {
+      "rabbit_abc1", "RABB", "US", "SHORT_TURBO", "Frequency slot: 31", "ax:d=4,o=5,b=100:8g,8g"]) {
       expect(txt).toContain(v);
     }
     expect(txt).toMatch(/TLS:\s*on/i);
@@ -43,6 +43,7 @@ describe("toCliScript", () => {
     expect(sh).toContain("--ch-set psk 'base64:Wjt8kzHci9lqdS4tBzSF2VbQd86u6U3nhHaBl7V5TGE=' --ch-index 0");
     expect(sh).toContain("--ch-set psk 'base64:AQ==' --ch-index 1");
     expect(sh).toContain("--set lora.region US");
+    expect(sh).toContain("--set lora.modem_preset SHORT_TURBO --set lora.channel_num 31");
     expect(sh).toContain("--set-owner 'rabbit_abc1'");
     expect(sh).toContain("--set-ringtone 'ax:d=4,o=5,b=100:8g,8g'");
     expect(sh).toMatch(/keep this file private/i);
