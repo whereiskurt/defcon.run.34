@@ -61,7 +61,8 @@ export const routeSchema = {
       type: "string",
       required: true,
     },
-    // uploads/{ownerId}/routes/{routeId}.gpx — fully server-derived.
+    // uploads/ROUTES/{routeId}.gpx — fully server-derived, and deliberately
+    // free of any user identifier (presigned URLs expose the key path).
     key: {
       type: "string",
       required: true,

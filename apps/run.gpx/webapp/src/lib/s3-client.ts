@@ -35,9 +35,13 @@ export function getUserPrefix(userId: string): string {
 }
 
 /**
- * Get the S3 key prefix for a user's Route templates (routes-vs-runs spec).
- * Both path segments are always server-derived — never from a request body.
+ * S3 key for a Route template (routes-vs-runs spec). Deliberately contains NO
+ * user identifier: presigned URLs expose the object key in their path, and
+ * community/detail endpoints hand those URLs to other signed-in users — a key
+ * of uploads/{ownerId}/... would leak the owner's OIDC sub (security review
+ * finding, 2026-07-28). "ROUTES" is a reserved sentinel segment like GLOBAL;
+ * routeId is a server-minted uuid, so keys are unguessable and never listed.
  */
-export function getRoutePrefix(userId: string): string {
-  return `uploads/${userId}/routes/`;
+export function getRouteKey(routeId: string): string {
+  return `uploads/ROUTES/${routeId}.gpx`;
 }

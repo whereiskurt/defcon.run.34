@@ -8,7 +8,7 @@ import {
   s3Client,
   s3ClientForPresign,
   BUCKET,
-  getRoutePrefix,
+  getRouteKey,
 } from "@/lib/s3-client";
 import { v4 as uuidv4 } from "uuid";
 import { PRESIGN_EXPIRY_SECONDS } from "@/lib/constants";
@@ -105,7 +105,9 @@ export async function POST(request: Request) {
     }
 
     const routeId = uuidv4();
-    const key = `${getRoutePrefix(session.user.id)}${routeId}.gpx`;
+    // Key carries no user identifier — presigned URLs expose the key path to
+    // other signed-in users (see getRouteKey).
+    const key = getRouteKey(routeId);
     const createdByName =
       sanitizeCardText(session.user.name ?? "").slice(0, 80) || undefined;
 

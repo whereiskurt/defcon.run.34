@@ -42,7 +42,9 @@ owner GSI).
   - `routeId` — server-generated uuid (never client-supplied)
   - `ownerId` — OIDC sub from session (never client-supplied)
   - `name` (required), `description`, `routeType` (`loop|out-and-back|point-to-point`)
-  - `bucket`, `key` — S3 pointer, key = `uploads/{ownerId}/routes/{routeId}.gpx`
+  - `bucket`, `key` — S3 pointer, key = `uploads/ROUTES/{routeId}.gpx` (sentinel
+    prefix, NO user identifier — presigned URLs expose the key path to other
+    signed-in users; security-review finding 2026-07-28)
   - `status` — `pending|active|failed` (same presign→confirm lifecycle as GpxFile)
   - `visibility` — `private|published` (default `private`); `publishedAt`
   - Derived geometry summary: `distance`, `elevation`, `bounds`, `trackCount`, `waypointCount`
@@ -52,8 +54,11 @@ owner GSI).
   reconcile protocol, `Accomplishment`, and `RunUser` rollups are untouched.
 
 ### S3 layout
-`uploads/{ownerId}/routes/{routeId}.gpx` — both path segments server-derived.
-Route content updates overwrite in place (no version chain in v1; YAGNI).
+`uploads/ROUTES/{routeId}.gpx` — fully server-derived, keyed by the unguessable
+server-minted routeId only. Deliberately contains no user identifier: presigned
+GET URLs carry the object key in their path and are handed to non-owners, so an
+owner-scoped key would leak the OIDC sub. Route content updates overwrite in
+place (no version chain in v1; YAGNI).
 
 ## 4. API surface (all under `apps/run.gpx/webapp/src/app/api/gpx/`)
 
@@ -110,8 +115,8 @@ Assume every request field, every stored string, and every GPX byte is hostile.
 
 **GPX content**
 - Presigned PUT constrained with `content-length-range` (10 MB cap) and fixed
-  content type; the S3 key is fully server-generated so a client can never write
-  outside `uploads/{ownerId}/routes/`.
+  content type; the S3 key is fully server-generated (`uploads/ROUTES/{routeId}.gpx`) so a
+  client can never influence where an object lands.
 - `confirm` re-downloads and validates bytes with the existing hardened parser
   (Phase 64 posture): size re-check, structural GPX check, no DTD/external-entity
   resolution, geometry summary computed server-side (never trusted from client).
