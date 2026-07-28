@@ -19,10 +19,13 @@ RUN mkdir -p /hardware && \
     jq -e 'length > 0' /hardware/hardware-list.json
 
 # Multi-version firmware fetch driven by firmware-versions.json.
-# - Pinned slots (pin != ""): GitHub release arch zips (the pre-existing path).
-# - Empty pin, slot=nightly: resolve meshtastic.github.io firmware-nightly
-#   (develop build), fetch per-target factory.bin/.uf2 (folder is flat,
-#   unzipped); missing targets warn-and-continue (experimental tier).
+# - Pinned non-nightly slots (pin != ""): GitHub release arch zips.
+# - slot=nightly: per-target factory.bin/.uf2 off meshtastic.github.io
+#   firmware-nightly (folder is flat, unzipped); missing targets
+#   warn-and-continue (experimental tier). Empty pin resolves the latest;
+#   a pinned nightly MUST also set "ref" (the meshtastic.github.io publish
+#   commit sha) — the live folder only holds the latest nightly, so only a
+#   commit-pinned raw URL keeps an old pin fetchable.
 # - Empty pin otherwise: resolve releases.stable[0] (legacy behavior).
 # Writes /manifest/firmware-manifest.json + /firmware/VERSION.txt (default slot).
 # --retry rides out transient upstream failures (api.meshtastic.org 502s have
@@ -30,7 +33,6 @@ RUN mkdir -p /hardware && \
 RUN set -e; \
     mkdir -p /manifest; \
     CFG=/build-config/firmware-versions.json; \
-    NIGHTLY_BASE="https://raw.githubusercontent.com/meshtastic/meshtastic.github.io/master/firmware-nightly"; \
     COUNT=$(jq '.versions | length' "$CFG"); \
     : > /tmp/manifest-entries.jsonl; \
     DEFAULT_VER=""; \
@@ -38,9 +40,11 @@ RUN set -e; \
     while [ "$i" -lt "$COUNT" ]; do \
       SLOT=$(jq -r ".versions[$i].slot" "$CFG"); \
       PIN=$(jq -r ".versions[$i].pin" "$CFG"); \
+      REF=$(jq -r ".versions[$i].ref // \"master\"" "$CFG"); \
       LABEL=$(jq -r ".versions[$i].label" "$CFG"); \
       IS_DEFAULT=$(jq -r ".versions[$i].default // false" "$CFG"); \
       IS_EXP=$(jq -r ".versions[$i].experimental // false" "$CFG"); \
+      NIGHTLY_BASE="https://raw.githubusercontent.com/meshtastic/meshtastic.github.io/${REF}/firmware-nightly"; \
       if [ -n "$PIN" ]; then \
         FW_VER="$PIN"; \
       elif [ "$SLOT" = "nightly" ]; then \
@@ -55,7 +59,7 @@ RUN set -e; \
         echo "ERROR: could not resolve version for slot $SLOT" && exit 1; \
       fi; \
       echo "=== Slot $SLOT -> $FW_VER ==="; \
-      if [ "$SLOT" = "nightly" ] && [ -z "$PIN" ]; then \
+      if [ "$SLOT" = "nightly" ]; then \
         MISS=0; GOT=0; \
         for T in $(jq -r '.[] | select(.architecture | startswith("esp32")) | .platformioTarget' /hardware/hardware-list.json | sort -u); do \
           if curl -fsSL --retry 2 -o "/firmware/firmware-${T}-${FW_VER}.factory.bin" \

@@ -7,10 +7,13 @@
 #
 # Behavior:
 #   - Reads ../firmware-versions.json (slots: stable/previous/nightly) and
-#     mirrors the Dockerfile logic: pinned slots pull GitHub release arch zips
-#     (esp32 esp32s3 esp32c3 esp32c6 nrf52840 rp2040, factory.bin + uf2);
-#     the nightly slot resolves meshtastic.github.io firmware-nightly and
-#     fetches per-target files derived from public/data/hardware-list.json.
+#     mirrors the Dockerfile logic: pinned non-nightly slots pull GitHub release
+#     arch zips (esp32 esp32s3 esp32c3 esp32c6 nrf52840 rp2040, factory.bin +
+#     uf2); the nightly slot fetches per-target files (derived from
+#     public/data/hardware-list.json) off meshtastic.github.io firmware-nightly.
+#     A pinned nightly MUST also set "ref" (the meshtastic.github.io publish
+#     commit sha) — the live folder only holds the latest nightly, so only a
+#     commit-pinned raw URL keeps an old pin fetchable.
 #   - Writes/overwrites public/data/firmware-manifest.json (tracked snapshot).
 #   - Writes NEXT_PUBLIC_FIRMWARE_VERSION=<default slot version> to .env.local.
 #
@@ -26,7 +29,6 @@ HW_LIST="$WEBAPP_DIR/public/data/hardware-list.json"
 MANIFEST="$WEBAPP_DIR/public/data/firmware-manifest.json"
 
 FIRMWARE_LIST_API="https://api.meshtastic.org/github/firmware/list"
-NIGHTLY_BASE="https://raw.githubusercontent.com/meshtastic/meshtastic.github.io/master/firmware-nightly"
 
 mkdir -p "$FIRMWARE_DIR"
 
@@ -58,15 +60,15 @@ download_release_zips() {
 }
 
 download_nightly() {
-  local ver="$1" got=0 miss=0
+  local ver="$1" base="$2" got=0 miss=0
   while read -r target; do
     if curl -fsSL --retry 2 -o "$FIRMWARE_DIR/firmware-${target}-${ver}.factory.bin" \
-      "$NIGHTLY_BASE/firmware-${target}-${ver}.factory.bin"; then got=$((got + 1)); else
+      "$base/firmware-${target}-${ver}.factory.bin"; then got=$((got + 1)); else
       /bin/rm -f "$FIRMWARE_DIR/firmware-${target}-${ver}.factory.bin"; miss=$((miss + 1)); fi
   done < <(jq -r '.[] | select(.architecture | startswith("esp32")) | .platformioTarget' "$HW_LIST" | sort -u)
   while read -r target; do
     if curl -fsSL --retry 2 -o "$FIRMWARE_DIR/firmware-${target}-${ver}.uf2" \
-      "$NIGHTLY_BASE/firmware-${target}-${ver}.uf2"; then got=$((got + 1)); else
+      "$base/firmware-${target}-${ver}.uf2"; then got=$((got + 1)); else
       /bin/rm -f "$FIRMWARE_DIR/firmware-${target}-${ver}.uf2"; miss=$((miss + 1)); fi
   done < <(jq -r '.[] | select(.architecture == "nrf52840" or .architecture == "rp2040") | .platformioTarget' "$HW_LIST" | sort -u)
   echo "Nightly ${ver}: ${got} targets fetched, ${miss} missing (warn-only)"
@@ -102,14 +104,16 @@ DEFAULT_VER=""
 for ((i = 0; i < COUNT; i++)); do
   SLOT=$(jq -r ".versions[$i].slot" "$CFG")
   PIN=$(jq -r ".versions[$i].pin" "$CFG")
+  REF=$(jq -r ".versions[$i].ref // \"master\"" "$CFG")
   LABEL=$(jq -r ".versions[$i].label" "$CFG")
   IS_DEFAULT=$(jq -r ".versions[$i].default // false" "$CFG")
   IS_EXP=$(jq -r ".versions[$i].experimental // false" "$CFG")
+  SLOT_NIGHTLY_BASE="https://raw.githubusercontent.com/meshtastic/meshtastic.github.io/${REF}/firmware-nightly"
 
   if [ -n "$PIN" ]; then
     FW_VER="$PIN"
   elif [ "$SLOT" = "nightly" ]; then
-    FW_VER=$(curl -fsSL "$NIGHTLY_BASE/index.json" | jq -r '.version')
+    FW_VER=$(curl -fsSL "$SLOT_NIGHTLY_BASE/index.json" | jq -r '.version')
   else
     FW_VER=$(curl -fsSL "$FIRMWARE_LIST_API" | jq -r '.releases.stable[0].id' | sed 's/^v//')
   fi
@@ -120,8 +124,8 @@ for ((i = 0; i < COUNT; i++)); do
 
   echo ""
   echo "=== Slot $SLOT -> $FW_VER ==="
-  if [ "$SLOT" = "nightly" ] && [ -z "$PIN" ]; then
-    download_nightly "$FW_VER"
+  if [ "$SLOT" = "nightly" ]; then
+    download_nightly "$FW_VER" "$SLOT_NIGHTLY_BASE"
   else
     download_release_zips "$FW_VER"
   fi

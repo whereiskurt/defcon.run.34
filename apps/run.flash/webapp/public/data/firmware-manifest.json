@@ -16,8 +16,8 @@
     },
     {
       "slot": "nightly",
-      "version": "2.8.0.ef1aedd",
-      "label": "2.8.0 nightly — experimental",
+      "version": "2.8.0.dafa583",
+      "label": "2.8.0 — DC34 event firmware base",
       "default": false,
       "experimental": true
     }
