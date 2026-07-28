@@ -481,6 +481,21 @@ export async function pushDeviceConfig(
   });
   await awaitAckTolerant(device.setConfig(positionConfig), "setConfig(position)");
   console.log("[meshtastic] Position config applied");
+
+  // 1c. Device Config — rebroadcast mode. CORE_PORTNUMS_ONLY keeps radios from
+  // relaying exotic app-port traffic at con density. Grouped with the other
+  // device Config messages in the radio stage.
+  console.log("[meshtastic] Pushing device config...");
+  const deviceConfig = create(Protobuf.Config.ConfigSchema, {
+    payloadVariant: {
+      case: "device" as const,
+      value: create(Protobuf.Config.Config_DeviceConfigSchema, {
+        rebroadcastMode: mapRebroadcastMode(config.device.rebroadcastMode),
+      }),
+    },
+  });
+  await awaitAckTolerant(device.setConfig(deviceConfig), "setConfig(device)");
+  console.log("[meshtastic] Device config applied");
   onStageComplete(
     "radio",
     `${config.radio.region} / ${config.radio.modemPreset} · slot ${config.radio.channelNum} · GPS on`
@@ -1109,6 +1124,34 @@ function mapModemPreset(
   if (value === undefined) {
     throw new Error(
       `Unknown modem preset: "${preset}". Valid values: ${Object.keys(map).join(", ")}`
+    );
+  }
+  return value;
+}
+
+/**
+ * Map a rebroadcast mode string (e.g., "CORE_PORTNUMS_ONLY") to the protobuf
+ * Config_DeviceConfig_RebroadcastMode enum value.
+ */
+function mapRebroadcastMode(
+  mode: string
+): Protobuf.Config.Config_DeviceConfig_RebroadcastMode {
+  const map: Record<string, Protobuf.Config.Config_DeviceConfig_RebroadcastMode> =
+    {
+      ALL: Protobuf.Config.Config_DeviceConfig_RebroadcastMode.ALL,
+      ALL_SKIP_DECODING:
+        Protobuf.Config.Config_DeviceConfig_RebroadcastMode.ALL_SKIP_DECODING,
+      LOCAL_ONLY: Protobuf.Config.Config_DeviceConfig_RebroadcastMode.LOCAL_ONLY,
+      KNOWN_ONLY: Protobuf.Config.Config_DeviceConfig_RebroadcastMode.KNOWN_ONLY,
+      NONE: Protobuf.Config.Config_DeviceConfig_RebroadcastMode.NONE,
+      CORE_PORTNUMS_ONLY:
+        Protobuf.Config.Config_DeviceConfig_RebroadcastMode.CORE_PORTNUMS_ONLY,
+    };
+
+  const value = map[mode];
+  if (value === undefined) {
+    throw new Error(
+      `Unknown rebroadcast mode: "${mode}". Valid values: ${Object.keys(map).join(", ")}`
     );
   }
   return value;
