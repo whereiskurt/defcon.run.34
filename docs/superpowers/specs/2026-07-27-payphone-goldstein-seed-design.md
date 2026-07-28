@@ -146,19 +146,18 @@ The eggs route sets `coverImageUrl`/`coverImageDisplayUrl` to
 basePath — same origin path scheme as `/use1/studio`). CC0 = no attribution
 required; source filenames recorded here for provenance.
 
-**Ghost-mode spray-paint graffiti** (clue codes; Strat stays clean):
-- Markers: `PhoneSpec` gains `graffiti?: { text; tone: 'pink' | 'green' }` —
-  Sign = pink "1337", Rio = green "696969". Rendered as a rotated (-18°)
-  Marker-Felt neon div over the booth SVG (24px / 19px, offsets from the
-  approved mockup), hidden unless the beacon root has class `dc34-ghost`.
-  `PayPhone` subscribes to the `ghostMode` store itself (unsubscribed in
-  `remove()`); LayerControl stays untouched.
+**Ghost-mode spray-paint graffiti** (clue codes; Strat stays clean).
+*Revised per Kurt after v4 shipped: graffiti lives ONLY on the popup photos —
+never on the map markers — and must react live to ghost mode while a popup is
+open (no reopening required).*
 - Popup photos: `EggModal` gains optional `coverGraffiti?: { text; tone }`
-  (set for the sign/rio eggs). `eggPopupHtml` wraps the cover in a
-  position-relative div and, **only when `ghostMode` is on at open time**
-  (svelte/store `get`), overlays the spray text (~34px/28px, -14°). Generic
+  (sign = pink "1337", rio = green "696969"). The spray span is ALWAYS in the
+  popup DOM (CSS-hidden, `~34px/28px`, -14°); a module-level `ghostMode`
+  subscription in egg-modal.ts toggles `.dc34-egg-graffiti-on` on every such
+  span, so flipping ghost mode sprays/unsprays open popups in place. Generic
   field — any future egg can use it; CMS override cannot set it (default-only).
-- Styles for both live with the existing dc34 rules in `app.css`.
+- Markers: unchanged Booth art in every mode (the v4 marker tags were removed).
+- Styles live with the existing dc34 rules in `app.css`.
 
 Ship: run.gpx only → buildpub `run.gpx` use1 → deploy.yml → verify photos serve
 (200 + content-type) and graffiti markup in bundle.

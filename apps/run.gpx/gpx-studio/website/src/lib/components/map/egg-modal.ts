@@ -1,6 +1,17 @@
 import mapboxgl from 'mapbox-gl';
-import { get } from 'svelte/store';
 import { ghostMode } from '$lib/stores/ghost';
+
+// Ghost-mode spray tags over cover photos react LIVE: the span is always in
+// the popup DOM (CSS-hidden) and this module-level subscription toggles it —
+// flipping ghost mode while a popup is open sprays/unsprays it in place.
+let ghostOn = false;
+ghostMode.subscribe((on) => {
+    ghostOn = on;
+    if (typeof document === 'undefined') return;
+    document
+        .querySelectorAll('.dc34-egg-graffiti')
+        .forEach((el) => el.classList.toggle('dc34-egg-graffiti-on', on));
+});
 
 /**
  * Shared route-style modal for the map easter eggs (rainbow arches + coffee cup).
@@ -82,13 +93,12 @@ function eggPopupHtml(egg: EggModal): string {
         ? `<div style="font-size:12px;opacity:.7;margin-top:6px">📍 ${escapeHtml(egg.address)}</div>`
         : '';
 
-    // Cover image — click opens the full-size original in a new tab. In ghost
-    // mode, eggs with a coverGraffiti get a spray tag over the photo (a clue —
-    // the tag is deliberately absent outside ghost mode).
-    const graffiti =
-        egg.coverGraffiti && get(ghostMode)
-            ? `<span class="dc34-egg-graffiti dc34-graf-${egg.coverGraffiti.tone === 'green' ? 'green' : 'pink'}">${escapeHtml(egg.coverGraffiti.text)}</span>`
-            : '';
+    // Cover image — click opens the full-size original in a new tab. Eggs with
+    // a coverGraffiti always carry the (CSS-hidden) spray span; ghost mode
+    // toggles its visibility live via the module subscription above.
+    const graffiti = egg.coverGraffiti
+        ? `<span class="dc34-egg-graffiti${ghostOn ? ' dc34-egg-graffiti-on' : ''} dc34-graf-${egg.coverGraffiti.tone === 'green' ? 'green' : 'pink'}">${escapeHtml(egg.coverGraffiti.text)}</span>`
+        : '';
     const cover = egg.coverImageDisplayUrl
         ? `<a href="${escapeHtml(egg.coverImageUrl || egg.coverImageDisplayUrl)}" target="_blank" rel="noopener noreferrer"
               style="position:relative;display:block;margin-top:8px">

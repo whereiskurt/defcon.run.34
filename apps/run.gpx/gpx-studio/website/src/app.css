@@ -232,8 +232,10 @@
 .dc34-ghost-grid dd { margin: 0; color: #e4e4ef; font-variant-numeric: tabular-nums; }
 .dc34-ghost-link { display: inline-block; margin-top: 8px; font-size: 11px; font-weight: 600; color: #e0aaff; text-decoration: none; }
 .dc34-ghost-link:hover { text-decoration: underline; }
-/* Ghost-mode spray tag over an egg modal's cover photo (payphone clues). */
-.dc34-egg-graffiti { position: absolute; top: 36%; left: 6%; transform: rotate(-14deg); font: 900 34px 'Marker Felt', 'Comic Sans MS', cursive; letter-spacing: 2px; pointer-events: none; }
+/* Ghost-mode spray tag over an egg modal's cover photo (payphone clues).
+   Hidden by default; .dc34-egg-graffiti-on (toggled live by ghostMode) shows it. */
+.dc34-egg-graffiti { display: none; position: absolute; top: 36%; left: 6%; transform: rotate(-14deg); font: 900 34px 'Marker Felt', 'Comic Sans MS', cursive; letter-spacing: 2px; pointer-events: none; }
+.dc34-egg-graffiti.dc34-egg-graffiti-on { display: block; }
 .dc34-egg-graffiti.dc34-graf-pink { color: #ff2ec4; text-shadow: 0 0 8px rgba(255, 46, 196, 0.95), 0 0 20px rgba(255, 46, 196, 0.6), 2px 2px 0 #7a0057; }
 .dc34-egg-graffiti.dc34-graf-green { color: #39ff14; font-size: 28px; text-shadow: 0 0 8px rgba(57, 255, 20, 0.95), 0 0 20px rgba(57, 255, 20, 0.55), 2px 2px 0 #0a5c00; }
 
