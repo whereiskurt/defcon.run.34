@@ -8,8 +8,11 @@ import { useDfu } from "@/hooks/use-dfu";
 import { useFlash } from "@/hooks/use-flash";
 import { useConfigure } from "@/hooks/use-configure";
 import { validateChipMatch } from "@/lib/esptool";
-import { DEFAULT_FIRMWARE_VERSION } from "@/config/firmware";
-import { getDeviceFamily } from "@/types/device";
+import {
+  DEFAULT_FIRMWARE_VERSION,
+  lockedVersionForDevice,
+} from "@/config/firmware";
+import { getDeviceFamily, type DeviceHardware } from "@/types/device";
 import { WizardStepper } from "@/components/wizard/wizard-stepper";
 import { DeviceGrid } from "@/components/device-picker/device-grid";
 import { DownloadConfigMenu } from "@/components/download-config-menu";
@@ -50,6 +53,21 @@ export function WizardContainer() {
   // booth operator's choice survives multi-board provisioning runs.
   const [firmwareVersion, setFirmwareVersion] = useState(
     DEFAULT_FIRMWARE_VERSION
+  );
+
+  // Device selection applies slot locks: a board whose target only exists in
+  // one firmware slot (T-Beam BPF → the 2.8 nightly pin) forces that version;
+  // picking any other board resets to the default so a lock never leaks into
+  // the next device's flash.
+  const handleSelectDevice = useCallback(
+    (device: DeviceHardware) => {
+      setFirmwareVersion(
+        lockedVersionForDevice(device.platformioTarget) ??
+          DEFAULT_FIRMWARE_VERSION
+      );
+      selectDevice(device);
+    },
+    [selectDevice]
   );
 
   // Derive the device family once here (CONTEXT Decision 2 — never re-derived
@@ -124,7 +142,7 @@ export function WizardContainer() {
           {currentStep === "pick-device" && (
             <div className="space-y-4">
               <DeviceGrid
-                onSelect={selectDevice}
+                onSelect={handleSelectDevice}
                 selectedDevice={selectedDevice}
                 onContinue={canAdvance("pick-device") ? advance : undefined}
               />

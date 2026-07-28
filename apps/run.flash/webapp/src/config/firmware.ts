@@ -22,6 +22,29 @@ export const FIRMWARE_VERSIONS: FirmwareVersionEntry[] =
 export const DEFAULT_FIRMWARE_VERSION: string =
   FIRMWARE_VERSIONS.find((v) => v.default)?.version ?? FIRMWARE_VERSION;
 
+/** Boards whose firmware target only exists in one manifest slot — e.g. the
+ *  T-Beam BPF merged upstream 2026-07-27, present in 2.8 nightlies but in no
+ *  2.7 release zip. Selecting such a device locks the version picker to that
+ *  slot's version (slot-keyed so a future nightly re-pin follows along). */
+export const TARGET_VERSION_SLOT_LOCKS: Record<string, string> = {
+  "t-beam-bpf": "nightly",
+};
+
+/** Resolve the locked firmware version for a device, or null when the device
+ *  may use any listed version. Falls back to the default version if the
+ *  locked slot is somehow missing from the manifest — a nonexistent version
+ *  string would 404 at flash time. */
+export function lockedVersionForDevice(
+  platformioTarget: string
+): string | null {
+  const slot = TARGET_VERSION_SLOT_LOCKS[platformioTarget];
+  if (!slot) return null;
+  return (
+    FIRMWARE_VERSIONS.find((v) => v.slot === slot)?.version ??
+    DEFAULT_FIRMWARE_VERSION
+  );
+}
+
 /** Base path for firmware binaries.
  * In production, firmware is served from S3 via CloudFront using the asset prefix.
  * In development, served locally from public/firmware/.
