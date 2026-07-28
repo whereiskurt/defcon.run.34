@@ -1,4 +1,6 @@
 import mapboxgl from 'mapbox-gl';
+import { get } from 'svelte/store';
+import { ghostMode } from '$lib/stores/ghost';
 
 /**
  * Shared route-style modal for the map easter eggs (rainbow arches + coffee cup).
@@ -25,6 +27,8 @@ export type EggModal = {
     address?: string;
     coverImageUrl?: string;
     coverImageDisplayUrl?: string;
+    // Ghost-mode spray tag over the cover photo (hardcoded-only, server-set).
+    coverGraffiti?: { text: string; tone: 'pink' | 'green' };
     links?: EggLink[];
     accent?: string;
 };
@@ -78,11 +82,18 @@ function eggPopupHtml(egg: EggModal): string {
         ? `<div style="font-size:12px;opacity:.7;margin-top:6px">📍 ${escapeHtml(egg.address)}</div>`
         : '';
 
-    // Cover image — click opens the full-size original in a new tab.
+    // Cover image — click opens the full-size original in a new tab. In ghost
+    // mode, eggs with a coverGraffiti get a spray tag over the photo (a clue —
+    // the tag is deliberately absent outside ghost mode).
+    const graffiti =
+        egg.coverGraffiti && get(ghostMode)
+            ? `<span class="dc34-egg-graffiti dc34-graf-${egg.coverGraffiti.tone === 'green' ? 'green' : 'pink'}">${escapeHtml(egg.coverGraffiti.text)}</span>`
+            : '';
     const cover = egg.coverImageDisplayUrl
-        ? `<a href="${escapeHtml(egg.coverImageUrl || egg.coverImageDisplayUrl)}" target="_blank" rel="noopener noreferrer">
+        ? `<a href="${escapeHtml(egg.coverImageUrl || egg.coverImageDisplayUrl)}" target="_blank" rel="noopener noreferrer"
+              style="position:relative;display:block;margin-top:8px">
               <img src="${escapeHtml(egg.coverImageDisplayUrl)}" alt="${escapeHtml(egg.title)}"
-                   loading="lazy" style="width:100%;border-radius:6px;margin-top:8px;display:block" /></a>`
+                   loading="lazy" style="width:100%;border-radius:6px;display:block" />${graffiti}</a>`
         : '';
 
     // Rich-text body — trusted HTML (server-rendered whitelist / hardcoded default).

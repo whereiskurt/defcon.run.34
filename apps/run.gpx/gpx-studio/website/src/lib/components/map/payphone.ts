@@ -1,5 +1,6 @@
 import mapboxgl from 'mapbox-gl';
 import { openEggModal } from './egg-modal';
+import { ghostMode } from '$lib/stores/ghost';
 
 /**
  * The PayPhones — CTF clue beacons at The Strat, the Las Vegas sign, and the Rio.
@@ -20,6 +21,8 @@ type PhoneSpec = {
     location: [number, number];
     number: string;
     place: string;
+    /** Ghost-mode spray tag over the booth (a clue). Absent = clean phone. */
+    graffiti?: { text: string; tone: 'pink' | 'green' };
 };
 
 const PAYPHONES: PhoneSpec[] = [
@@ -34,12 +37,14 @@ const PAYPHONES: PhoneSpec[] = [
         location: [-115.1727735, 36.0820593], // Welcome to Fabulous Las Vegas Sign
         number: '725-404-3283',
         place: 'Las Vegas Sign',
+        graffiti: { text: '1337', tone: 'pink' },
     },
     {
         eggId: 'dc34-payphone-rio',
         location: [-115.1882831, 36.1175311], // Rio, 3700 W Flamingo Rd
         number: '725-404-8283',
         place: 'The Rio',
+        graffiti: { text: '696969', tone: 'green' },
     },
 ];
 
@@ -64,6 +69,12 @@ function ensureStyle() {
 .dc34-payphone-label{margin-top:4px;background:rgba(28,24,12,.65);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);
   color:#fff3d6;border:1px solid rgba(242,169,0,.85);border-radius:9px;padding:2px 8px;text-align:center;
   font:600 10px/1.25 'Courier New',monospace;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,.4);}
+/* ghost-mode spray tags — hidden until the beacon root gets .dc34-ghost */
+.dc34-payphone-graf{display:none;position:absolute;transform:rotate(-18deg);
+  font:900 24px 'Marker Felt','Comic Sans MS',cursive;letter-spacing:2px;pointer-events:none;z-index:2;}
+.dc34-payphone-beacon.dc34-ghost .dc34-payphone-graf{display:block;}
+.dc34-graf-pink{color:#ff2ec4;text-shadow:0 0 8px rgba(255,46,196,.95),0 0 20px rgba(255,46,196,.6),2px 2px 0 #7a0057;top:14px;left:-20px;}
+.dc34-graf-green{color:#39ff14;text-shadow:0 0 8px rgba(57,255,20,.95),0 0 20px rgba(57,255,20,.55),2px 2px 0 #0a5c00;font-size:19px;top:18px;left:-26px;}
 @keyframes dc34phonebob{0%,100%{transform:translateY(0)}50%{transform:translateY(-.08em)}}
 @keyframes dc34phonespin{to{transform:rotate(360deg)}}
 @keyframes dc34phoneglow{0%,100%{opacity:.35}50%{opacity:.95}}
@@ -112,6 +123,8 @@ function boothSvg(number: string): string {
 export class PayPhone {
     map: mapboxgl.Map;
     private markers: mapboxgl.Marker[] = [];
+    private els: HTMLElement[] = [];
+    private unsubGhost: (() => void) | null = null;
 
     /** All payphone locations (Strat, LV Sign, Rio). */
     static readonly locations = PAYPHONES.map((p) => p.location);
@@ -119,6 +132,11 @@ export class PayPhone {
     constructor(map: mapboxgl.Map) {
         this.map = map;
         this.build();
+        // Spray tags are ghost-mode clues: toggle a root class the CSS keys on.
+        // Self-subscribed (not via LayerControl) so initial state always syncs.
+        this.unsubGhost = ghostMode.subscribe((on) => {
+            for (const el of this.els) el.classList.toggle('dc34-ghost', on);
+        });
     }
 
     private build() {
@@ -127,13 +145,17 @@ export class PayPhone {
             const el = document.createElement('div');
             el.className = 'dc34-payphone-beacon';
             el.title = `PayPhone — ${phone.place}`;
+            const graffiti = phone.graffiti
+                ? `<div class="dc34-payphone-graf dc34-graf-${phone.graffiti.tone}">${phone.graffiti.text}</div>`
+                : '';
             el.innerHTML =
-                `<div class="dc34-payphone-phone">${boothSvg(phone.number)}</div>` +
+                `<div class="dc34-payphone-phone">${boothSvg(phone.number)}${graffiti}</div>` +
                 `<div class="dc34-payphone-label">☎ ${phone.number}</div>`;
             el.addEventListener('click', (e) => {
                 e.stopPropagation();
                 void openEggModal(this.map, phone.eggId, phone.location);
             });
+            this.els.push(el);
             // anchor:'bottom' -> the sign's tip sits on the phone booth.
             this.markers.push(
                 new mapboxgl.Marker({ element: el, anchor: 'bottom' })
@@ -144,7 +166,10 @@ export class PayPhone {
     }
 
     remove() {
+        this.unsubGhost?.();
+        this.unsubGhost = null;
         for (const m of this.markers) m.remove();
         this.markers = [];
+        this.els = [];
     }
 }

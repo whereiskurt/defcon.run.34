@@ -130,3 +130,35 @@ Same Booth layout, parameterized. `payphone.ts` becomes spec-driven
 Each gets its own `DEFAULT_EGGS` entry ("Call me! <number>", same eyebrow/
 accent); `EXPECTED_IDS` extended. LayerControl unchanged (same class name and
 constructor). Ship: run.gpx only, same CI flow.
+
+## Enhancement v4 — popup photos + ghost-mode graffiti (2026-07-27)
+
+Approved via visual companion (v2 screen). Two additions, run.gpx only:
+
+**Real payphone photos in the popups.** Three CC0 (public-domain) photos from
+Wikimedia Commons, bundled at ~960px into
+`apps/run.gpx/webapp/public/payphones/{strat,sign,rio}.jpg`:
+- Strat → "Payphone (Unsplash).jpg" (clean chrome booth)
+- Sign → "Payphone (Unsplash WtZqMLOEwlI).jpg" (tagged phone on chain-link fence)
+- Rio → "Payphone in Boston littered with coffee, stickers, and graffiti.jpg"
+The eggs route sets `coverImageUrl`/`coverImageDisplayUrl` to
+`/${REGION_SHORT}/payphones/<f>.jpg` (public/ is served under the region
+basePath — same origin path scheme as `/use1/studio`). CC0 = no attribution
+required; source filenames recorded here for provenance.
+
+**Ghost-mode spray-paint graffiti** (clue codes; Strat stays clean):
+- Markers: `PhoneSpec` gains `graffiti?: { text; tone: 'pink' | 'green' }` —
+  Sign = pink "1337", Rio = green "696969". Rendered as a rotated (-18°)
+  Marker-Felt neon div over the booth SVG (24px / 19px, offsets from the
+  approved mockup), hidden unless the beacon root has class `dc34-ghost`.
+  `PayPhone` subscribes to the `ghostMode` store itself (unsubscribed in
+  `remove()`); LayerControl stays untouched.
+- Popup photos: `EggModal` gains optional `coverGraffiti?: { text; tone }`
+  (set for the sign/rio eggs). `eggPopupHtml` wraps the cover in a
+  position-relative div and, **only when `ghostMode` is on at open time**
+  (svelte/store `get`), overlays the spray text (~34px/28px, -14°). Generic
+  field — any future egg can use it; CMS override cannot set it (default-only).
+- Styles for both live with the existing dc34 rules in `app.css`.
+
+Ship: run.gpx only → buildpub `run.gpx` use1 → deploy.yml → verify photos serve
+(200 + content-type) and graffiti markup in bundle.
