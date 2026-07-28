@@ -162,7 +162,8 @@ export function DoneStep({ device, firmwareVersion, configPayload, registrationS
           <div className="flex items-center justify-between text-sm">
             <span className="text-default-500">{t("flash.done.radio")}</span>
             <span className="font-mono text-foreground">
-              {configPayload.radio.region} / {configPayload.radio.modemPreset}
+              {configPayload.radio.region} / {configPayload.radio.modemPreset} · slot{" "}
+              {configPayload.radio.channelNum}
             </span>
           </div>
           <div className="border-t border-default-200/10" />

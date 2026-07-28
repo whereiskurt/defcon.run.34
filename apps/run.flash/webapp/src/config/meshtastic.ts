@@ -48,7 +48,14 @@ export const meshtasticConfig = Object.freeze({
     // the post-commit reboot (a firmware/flash concern) — the config push
     // already sent US correctly. Detecting that needs a post-commit read-back.
     region: "US",
-    modemPreset: process.env.LORA_MODEM_PRESET || "LONG_FAST",
+    // RF settings match the official DEF CON 34 event firmware (meshtastic/firmware
+    // event/defcon34: SHORT_TURBO, frequency slot 31) so defcon.run radios and
+    // event-firmware radios share the same LoRa channel and can hear each other.
+    modemPreset: process.env.LORA_MODEM_PRESET || "SHORT_TURBO",
+    // Explicit frequency slot. 0 would let the firmware derive the slot from the
+    // primary channel name ("dc.run"), which lands on a different frequency than
+    // the event mesh.
+    channelNum: Number(process.env.LORA_CHANNEL_NUM) || 31,
     hopLimit: Number(process.env.LORA_HOP_LIMIT) || 3,
   },
   // Device-level Position module: enable GPS + smart broadcast so the node

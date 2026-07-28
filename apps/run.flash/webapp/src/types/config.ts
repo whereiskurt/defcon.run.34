@@ -46,7 +46,8 @@ export interface IdentityConfig {
 
 export interface RadioConfig {
   region: string; // e.g., "US"
-  modemPreset: string; // e.g., "LONG_FAST"
+  modemPreset: string; // e.g., "SHORT_TURBO"
+  channelNum: number; // LoRa frequency slot (0 = derive from primary channel name)
   hopLimit: number; // e.g., 3
 }
 

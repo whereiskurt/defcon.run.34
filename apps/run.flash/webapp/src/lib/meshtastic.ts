@@ -447,6 +447,7 @@ export async function pushDeviceConfig(
       value: create(Protobuf.Config.Config_LoRaConfigSchema, {
         region: regionCode,
         modemPreset: modemPreset,
+        channelNum: config.radio.channelNum,
         hopLimit: config.radio.hopLimit,
         txEnabled: true,
         usePreset: true,
@@ -482,7 +483,7 @@ export async function pushDeviceConfig(
   console.log("[meshtastic] Position config applied");
   onStageComplete(
     "radio",
-    `${config.radio.region} / ${config.radio.modemPreset} · GPS on`
+    `${config.radio.region} / ${config.radio.modemPreset} · slot ${config.radio.channelNum} · GPS on`
   );
 
   // 2. MQTT Config (ModuleConfig)
