@@ -6,14 +6,15 @@
 #   ./scripts/download-firmware.sh 2.5.19.f81a3f7  # legacy: single explicit version
 #
 # Behavior:
-#   - Reads ../firmware-versions.json (slots: stable/previous/nightly) and
-#     mirrors the Dockerfile logic: pinned non-nightly slots pull GitHub release
-#     arch zips (esp32 esp32s3 esp32c3 esp32c6 nrf52840 rp2040, factory.bin +
-#     uf2); the nightly slot fetches per-target files (derived from
-#     public/data/hardware-list.json) off meshtastic.github.io firmware-nightly.
-#     A pinned nightly MUST also set "ref" (the meshtastic.github.io publish
-#     commit sha) — the live folder only holds the latest nightly, so only a
-#     commit-pinned raw URL keeps an old pin fetchable.
+#   - Reads ../firmware-versions.json and mirrors the Dockerfile logic:
+#     release-sourced slots pull GitHub release arch zips (esp32 esp32s3
+#     esp32c3 esp32c6 nrf52840 rp2040, factory.bin + uf2); nightly-sourced
+#     slots ("source": "nightly", or legacy slot name "nightly") fetch
+#     per-target files (derived from public/data/hardware-list.json) off
+#     meshtastic.github.io firmware-nightly. A pinned nightly MUST also set
+#     "ref" (the meshtastic.github.io publish commit sha) — the live folder
+#     only holds the latest nightly, so only a commit-pinned raw URL keeps
+#     an old pin fetchable.
 #   - Writes/overwrites public/data/firmware-manifest.json (tracked snapshot).
 #   - Writes NEXT_PUBLIC_FIRMWARE_VERSION=<default slot version> to .env.local.
 #
@@ -103,6 +104,7 @@ DEFAULT_VER=""
 
 for ((i = 0; i < COUNT; i++)); do
   SLOT=$(jq -r ".versions[$i].slot" "$CFG")
+  SOURCE=$(jq -r ".versions[$i].source // .versions[$i].slot" "$CFG")
   PIN=$(jq -r ".versions[$i].pin" "$CFG")
   REF=$(jq -r ".versions[$i].ref // \"master\"" "$CFG")
   LABEL=$(jq -r ".versions[$i].label" "$CFG")
@@ -112,7 +114,7 @@ for ((i = 0; i < COUNT; i++)); do
 
   if [ -n "$PIN" ]; then
     FW_VER="$PIN"
-  elif [ "$SLOT" = "nightly" ]; then
+  elif [ "$SOURCE" = "nightly" ]; then
     FW_VER=$(curl -fsSL "$SLOT_NIGHTLY_BASE/index.json" | jq -r '.version')
   else
     FW_VER=$(curl -fsSL "$FIRMWARE_LIST_API" | jq -r '.releases.stable[0].id' | sed 's/^v//')
@@ -124,7 +126,7 @@ for ((i = 0; i < COUNT; i++)); do
 
   echo ""
   echo "=== Slot $SLOT -> $FW_VER ==="
-  if [ "$SLOT" = "nightly" ]; then
+  if [ "$SOURCE" = "nightly" ]; then
     download_nightly "$FW_VER" "$SLOT_NIGHTLY_BASE"
   else
     download_release_zips "$FW_VER"
