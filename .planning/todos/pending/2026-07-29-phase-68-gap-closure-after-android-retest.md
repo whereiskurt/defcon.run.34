@@ -8,11 +8,10 @@ resolves_phase: 68
 Phase 68 (MQTT v5 dual codec) executed and LIVE (meshtk v0.0.72, task :115) but
 verification = gaps_found (36/38). Kurt is deliberately waiting before gap closure.
 
-**Trigger to resume:** Kurt retests Android 2.8.0-open.6 through mqtt.defcon.run:4433.
-- If a real `action=MQTT5_CONNECT` appears in `/ecs/run-mqtt-meshtk-run-mqtt-use1-dc34`
-  → gap 2 (SC1 machine evidence) closes with zero code. NOTE: his node is `!174e59c8`
-  (KPH_90e4; `!435990e4` is the MAC, not a node ID).
-- Gap 1 (v5 parity blockers) needs code regardless: CR-04 parse-fail = inspection
+**TRIGGER FIRED 2026-07-29 16:03Z — gap 2 (SC1) CLOSED with machine evidence:** real
+Android v5 sessions `MeshtasticAndroidMqttProxy-!aed94d05` + second user `!84b2fcb5`,
+ALLOW publishes, welcome DM delivered. VERIFICATION.md now 37/38; only gap 1 remains.
+- Gap 1 (v5 parity blockers) needs code: CR-04 parse-fail = inspection
   bypass (unclamped hop reaches broker), CR-02 v5 ConnTrack only refreshed on PUBLISH
   (180s reaper → idle v5 flap), CR-03 second CONNECT/AUTH relayed with client creds.
 
