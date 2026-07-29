@@ -2,7 +2,8 @@ import mapboxgl from 'mapbox-gl';
 import { openEggModal } from './egg-modal';
 
 /**
- * The PayPhones — CTF clue beacons at The Strat, the Las Vegas sign, and the Rio.
+ * The PayPhones — CTF clue beacons at ReBAR, the Las Vegas sign, the Rio, and
+ * the Double Down Saloon.
  *
  * Siblings of The Spot (the-spot.ts) and the PublicUs coffee beacon: flat,
  * always-on DOM markers — "The Booth", an SVG Bell-blue payphone (keypad,
@@ -25,9 +26,9 @@ type PhoneSpec = {
 const PAYPHONES: PhoneSpec[] = [
     {
         eggId: 'dc34-payphone',
-        location: [-115.1561024, 36.1476992], // The Strat, 2000 Las Vegas Blvd S
+        location: [-115.1535043, 36.1565826], // ReBAR, 1225 S Main St (moved from The Strat)
         number: '725-404-3234',
-        place: 'The Strat',
+        place: 'ReBAR',
     },
     {
         eggId: 'dc34-payphone-sign',
@@ -40,6 +41,12 @@ const PAYPHONES: PhoneSpec[] = [
         location: [-115.1882831, 36.1175311], // Rio, 3700 W Flamingo Rd
         number: '725-404-8283',
         place: 'The Rio',
+    },
+    {
+        eggId: 'dc34-payphone-doubledown',
+        location: [-115.1503087, 36.1055201], // Double Down Saloon, 4640 Paradise Rd
+        number: '1-855-916-4636',
+        place: 'Double Down Saloon',
     },
 ];
 
@@ -75,6 +82,8 @@ function ensureStyle() {
 
 /** "The Booth" — the A2 payphone art with the phone's number on the taped note. */
 function boothSvg(number: string): string {
+    // The taped note fits ~12 chars at 4.8; toll-free numbers need a step down.
+    const noteFs = number.length > 12 ? 4.1 : 4.8;
     return (
         '<svg viewBox="0 0 60 98" xmlns="http://www.w3.org/2000/svg">' +
         // Bell-blue enclosure + dark inset + silver faceplate
@@ -100,7 +109,7 @@ function boothSvg(number: string): string {
         '<rect x="13" y="53" width="34" height="15" rx="1.5" fill="#fdf6e3" stroke="#d9cba3" stroke-width="0.6"/>' +
         '<rect x="24" y="51" width="12" height="4" fill="rgba(200,200,190,.6)"/>' +
         '<text x="30" y="59" text-anchor="middle" font-family="Marker Felt, Comic Sans MS, cursive" font-size="4.6" fill="#c1121f">CALL ME!</text>' +
-        `<text x="30" y="65" text-anchor="middle" font-family="Courier New, monospace" font-weight="bold" font-size="4.8" fill="#1a1a1a">${number}</text>` +
+        `<text x="30" y="65" text-anchor="middle" font-family="Courier New, monospace" font-weight="bold" font-size="${noteFs}" fill="#1a1a1a">${number}</text>` +
         '</g>' +
         // legs
         '<rect x="16" y="86" width="4" height="10" fill="#31445e"/>' +

@@ -24,6 +24,7 @@ const EXPECTED_IDS = [
   "dc34-payphone",
   "dc34-payphone-sign",
   "dc34-payphone-rio",
+  "dc34-payphone-doubledown",
 ];
 
 type EggModal = {
@@ -77,6 +78,12 @@ describe("GET /api/gpx/public/eggs", () => {
     expect((strat as Graf).coverGraffiti).toBeUndefined();
     expect((sign as Graf).coverGraffiti).toEqual({ text: "1337", tone: "pink" });
     expect((rio as Graf).coverGraffiti).toEqual({ text: "696969", tone: "green" });
+    const dd = body.eggs.find((e) => e.id === "dc34-payphone-doubledown")!;
+    expect(dd.coverImageDisplayUrl).toBe("/use1/payphones/doubledown.jpg");
+    expect((dd as Graf).coverGraffiti).toEqual({ text: "7425678", tone: "violet" });
+    expect(dd.descriptionHtml).toContain("1-855-916-4636");
+    // The dc34-payphone booth moved to ReBAR (was The Strat).
+    expect(strat.address).toContain("ReBAR");
   });
 
   it("CMS overrides only the editable fields; defaults win elsewhere", async () => {
