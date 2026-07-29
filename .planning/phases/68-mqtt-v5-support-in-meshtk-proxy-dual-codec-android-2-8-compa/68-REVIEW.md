@@ -1,315 +1,634 @@
 ---
 phase: 68-mqtt-v5-support-in-meshtk-proxy-dual-codec-android-2-8-compa
-reviewed: 2026-07-29T00:00:00Z
+reviewed: 2026-07-29T17:40:00Z
 depth: standard
-files_reviewed: 11
+files_reviewed: 8
 files_reviewed_list:
-  - /Users/khundeck/working/meshtk/internal/app/server/proxy.go
-  - /Users/khundeck/working/meshtk/internal/app/server/proxy_v5.go
-  - /Users/khundeck/working/meshtk/internal/app/server/inspect.go
-  - /Users/khundeck/working/meshtk/internal/app/server/inspect_v5.go
-  - /Users/khundeck/working/meshtk/internal/app/server/rules.go
-  - /Users/khundeck/working/meshtk/internal/app/server/proxy_v5_test.go
-  - /Users/khundeck/working/meshtk/internal/app/server/proxy_v4_golden_test.go
-  - /Users/khundeck/working/meshtk/internal/app/server/inspect_v5_test.go
-  - /Users/khundeck/working/meshtk/internal/app/server/proxy_v5_publish_test.go
-  - /Users/khundeck/working/meshtk/internal/app/server/proxy_v5_e2e_test.go
-  - /Users/khundeck/working/meshtk/internal/app/server/testdata/mosquitto.e2e.conf
+  - apps/run.mqtt/meshtk/internal/app/server/inspect.go
+  - apps/run.mqtt/meshtk/internal/app/server/inspect_v5.go
+  - apps/run.mqtt/meshtk/internal/app/server/proxy_v5.go
+  - apps/run.mqtt/meshtk/internal/app/server/proxy_v5_e2e_test.go
+  - apps/run.mqtt/meshtk/internal/app/server/proxy_v5_parity_test.go
+  - apps/run.mqtt/meshtk/internal/app/server/proxy_v5_rawpublish.go
+  - apps/run.mqtt/meshtk/internal/app/server/proxy_v5_rawpublish_test.go
+  - apps/run.mqtt/meshtk/internal/app/server/rules.go
 findings:
-  critical: 5
-  warning: 18
+  critical: 3
+  warning: 13
   info: 0
-  total: 23
+  total: 16
 status: issues_found
 ---
 
 # Phase 68: Code Review Report
 
-**Reviewed:** 2026-07-29
+**Reviewed:** 2026-07-29T17:40:00Z
 **Depth:** standard
-**Files Reviewed:** 11
+**Files Reviewed:** 8
 **Status:** issues_found
-**Repo under review:** `/Users/khundeck/working/meshtk` @ `c5341ce` (deployed as meshtk v0.0.72)
+
+**Code under review:** the shipped final state of the phase — the v5 parity fixes
+(upstream meshtk PR #27 @ `5769031`, vendored as monorepo `74e98f34`, live as
+meshtk **v0.0.73**). The eight files were read from `origin/main`; a byte-identical
+working copy of the upstream module (which has `go.mod` + `vendor`, so it compiles)
+was used to **execute** probes. Every finding marked PROVEN below is backed by
+runtime output, not inspection.
 
 ## Summary
 
-The dual-codec seam itself is well built: `readFrame` framing is correct (varint bounds, size cap checked before `make`), the v4 golden pins the 3.1.1 wire bytes, and the "capture-then-parse, forward exactly once" discipline in `handleV5PublishUplink` genuinely closes the meshtk#22 no-op class *for parseable packets*. Tests pass (`go test ./internal/app/server/` OK) and are unusually honest about wire-level assertions.
+The dual-codec seam is the strongest part of this phase and the parity fixes are
+real: `readFrame` framing is correct (varint terminated at 4 bytes, size cap
+checked *before* `make`), `parseV5PublishFrame` is a genuinely property-agnostic
+walker that closes CR-04/PROBE-A, `spliceV5PublishPayload` preserves unmodelled
+property bytes a codec round-trip could not, and `touchConnTrack` before type
+dispatch closes the CR-02 reaper race for the keepalive values the fleet actually
+uses. The shipped test suite passes clean, including `-race`
+(`go test -race ./internal/app/server/` → ok, 1.5s), and its wire-byte assertion
+discipline is above average.
 
-What the phase did **not** do is carry the 3.1.1 path's *implicit* invariants across the seam. Three of the five criticals are behaviours the v4 loop got for free (ConnTrack refresh on every packet, CONNECT re-inspection, fail-closed parsing) that the v5 sibling loop silently lost — and one of them (CR-02) will drop live Android sessions on a timer. Two more criticals (CR-01, CR-05) live in the shared rewrite helpers touched by this phase and affect **both** codecs: one is a remote process-kill, one is silent mesh data loss.
+What it did **not** do is close the two criticals the previous review of v0.0.72
+already found in the *shared* rewrite helpers — a remote whole-process kill and
+silent mesh data loss. Both are still in the shipped binary, both are reachable
+from the new v5 path as well as the old 3.1.1 one, and both are re-proven by
+execution below (CR-01, CR-03). A third bypass the prior review under-classified
+as a warning is proven here to be a complete circumvention of the RF flood-radius
+control the phase's own comments call the reason `RewriteHopLimit` exists (CR-02).
 
-Four findings were proven by execution, not inspection, using a `go test -overlay` probe that added no files to the repo (working tree verified clean afterwards). Probe output is quoted inline.
+The new code also introduces defects of its own. The CR-04 fix built a second
+PUBLISH path that is documented as mirroring its sibling "decision for decision"
+and does not: it omits the topic-alias guard (WR-01, proven). The WR-04 fix relays
+an unparseable SUBSCRIBE uninspected, re-opening the same
+codec-dependent-inspection hole one layer up (WR-04). And both new relay paths
+hand mosquitto frames the proxy knows are malformed per MQTT 5.0 §2.2.2 — the
+phase's own e2e test asserts the broker responds by disconnecting the client
+(WR-03).
 
-## Critical Issues
+Finally, the telemetry this phase's verification leaned on (37/38, "real Android
+v5 sessions + ALLOW publishes in telemetry") is forgeable: client-controlled
+`client_id` / `username` / `auth_method` are written unescaped through
+`SimpleFormatter`, which does no quoting. One CONNECT produced two log lines in a
+probe (WR-05).
 
-### CR-01: Any client can kill the whole proxy process with one plaintext text message (nil cipher dereference)
+## Narrative Findings (AI reviewer)
 
-**File:** `internal/app/server/rules.go:150`, `internal/app/server/inspect.go:353`, reached from `internal/app/server/proxy_v5.go:236` and `internal/app/server/proxy.go:188`
+### Critical Issues
 
-**Issue:** `RewriteHelloGoodbye` matches any `TEXT_MESSAGE_APP` packet that is decoded and not PKI-encrypted, then calls `ip.RewritePayloadString()` **unconditionally** — including when the packet arrived *already decoded* (a plaintext `MeshPacket_Decoded` envelope, which any MQTT client may publish). For such a packet `inspectMeshtastic` never runs the decrypt path, so `ip.Meshtastic.Cipher` is `nil`, and `inspect.go:353` does `cipher.NewCTR(*ip.Meshtastic.Cipher, nonce)` → nil pointer dereference.
+#### CR-01: Any authenticated client kills the whole proxy process with one plaintext text message (nil cipher dereference) — BLOCKER
 
-`handleProxy` runs in a bare `go func(c net.Conn){ n.handleProxy(c) }(conn)` (`cmd.go:207-209`) with **no `recover()` anywhere in the package** — a panic in one connection terminates the entire broker-front process, i.e. the whole mesh backhaul at con.
+**File:** `apps/run.mqtt/meshtk/internal/app/server/rules.go:152-173`, `apps/run.mqtt/meshtk/internal/app/server/inspect.go:348-383` (crash at `inspect.go:368`)
 
-The e2e file even documents the hazard rather than fixing it (`proxy_v5_e2e_test.go:577-581`: *"a TEXT_MESSAGE payload reaches RewritePayloadString, which dereferences a nil cipher and panics on a non-encrypted packet"*) and then routes the fixture around it, so no test covers it.
+**Issue:** `RewriteHelloGoodbye` fires on any `TEXT_MESSAGE_APP` packet with a
+non-nil `Decoded` and no PKI flag, then calls `ip.RewritePayloadString()`
+unconditionally (`rules.go:170`) — the word-replacement is gated on
+`Username == "public"` but the rewrite call is not. `RewritePayloadString`
+dereferences `*ip.Meshtastic.Cipher` (`inspect.go:368`). `Cipher` is only set when
+`inspectMeshtastic` had to *decrypt* the packet (`inspect.go:217`); a packet that
+arrives with a **decoded** (unencrypted) payload leaves it nil. There is no
+`recover()` anywhere in the proxy path (`grep -rn "recover()"` across
+`internal/app`, `internal/credcache`, `pkg` → only `internal/app/fleet/otpsend.go`
+and two test files), so the panic kills the process, dropping every connected
+radio, not one connection.
 
-**Proven:**
+**PROVEN.** Driving one v5 PUBLISH carrying a decoded `TEXT_MESSAGE_APP`
+`ServiceEnvelope` through `handleV5PublishUplink`:
+
 ```
-PROBE-1 CONFIRMED: panic on plaintext TEXT_MESSAGE: runtime error: invalid memory address or nil pointer dereference
+panic: runtime error: invalid memory address or nil pointer dereference
+[signal SIGSEGV: segmentation violation code=0x2 addr=0x0]
+server.(*InspectorPacket).RewritePayloadString(...)  inspect.go:368
+server.LoadInspectorRules.rewriteRules.func2(...)    rules.go:170
+server.(*RuleBasedDecider).Decide(...)               decider.go:38
+server.(*ServerCmd).decideV5Publish(...)             proxy_v5.go:403
+server.(*ServerCmd).handleV5PublishUplink(...)       proxy_v5.go:374
 ```
-(driven through `handleV5PublishUplink` with a decoded `TEXT_MESSAGE_APP` envelope; identical on the v4 path via `PacketDecider.Decide`)
 
-**Fix:** Guard the matcher and make the helper defensive, and add a recover to the connection goroutine.
+The reachability was known to the authors and routed around rather than fixed —
+`proxy_v5_publish_test.go:66-68` picks NODEINFO because it is "unlike a
+TEXT_MESSAGE, one the rules engine judges without needing a channel cipher", and
+`proxy_v5_e2e_test.go:576-581` states outright that "a TEXT_MESSAGE payload
+reaches RewritePayloadString, which dereferences a nil cipher and panics on a
+non-encrypted packet". No test asserts the non-crash.
+
+**Fix** (three independent layers, all cheap):
+
 ```go
-// rules.go — RewriteHelloGoodbye matcher
-if ip.Meshtastic.Cipher == nil || !ip.Meshtastic.WasEncrypted {
-    return false // nothing to re-encrypt; a plaintext payload needs a plaintext rewrite path
+// rules.go — do not enter a rewrite that cannot be performed.
+Matcher: func(ip *InspectorPacket) bool {
+    if ip.Raw.Meshtastic == nil || ip.Raw.Meshtastic.Packet == nil ||
+        ip.Meshtastic.Decoded == nil ||
+        ip.Meshtastic.Decoded.Portnum != meshtastic.PortNum_TEXT_MESSAGE_APP ||
+        ip.Meshtastic.WasPKIEncrypted ||
+        !ip.Meshtastic.WasEncrypted || ip.Meshtastic.Cipher == nil { // NEW
+        return false
+    }
+    ...
+    if err := ip.RewritePayloadString(); err != nil { // see WR-08
+        ip.Log.Errorf("payload censor failed: %v", err)
+        return false
+    }
+    return true
 }
 
-// inspect.go — RewritePayloadString, before use
-if ip.Meshtastic.Cipher == nil {
-    return fmt.Errorf("cannot rewrite: no cipher (packet was not channel-encrypted)"), false
+// inspect.go — never dereference; report.
+func (ip *InspectorPacket) RewritePayloadString() error {
+    if ip.Meshtastic.WasPKIEncrypted {
+        return fmt.Errorf("cannot rewrite: packet is PKI encrypted")
+    }
+    if ip.Meshtastic.Cipher == nil {
+        return fmt.Errorf("cannot rewrite: no channel cipher for this packet")
+    }
+    ...
 }
 
-// cmd.go — accept loop
+// proxy.go / proxy_v5.go — a bug in one connection must not be fleet-wide.
 go func(c net.Conn) {
     defer func() {
         if r := recover(); r != nil {
-            n.Config.Log.Errorf("panic in connection handler: %v\n%s", r, debug.Stack())
-            _ = c.Close()
+            n.Config.Log.Errorf("panic serving %s: %v\n%s",
+                c.RemoteAddr(), r, debug.Stack())
+            c.Close()
         }
     }()
     n.handleProxy(c)
 }(conn)
 ```
 
----
-
-### CR-02: v5 connections are torn down on a timer — only PUBLISH refreshes ConnTrack, the reaper purges at 180s, and the next publish is Blocked
-
-**File:** `internal/app/server/proxy_v5.go:189-195` (non-PUBLISH frames relayed with no `SetConnTrack`), `internal/app/server/inspect.go:486-492` (reaper), `internal/app/server/rules.go:61-68` (`RequireMQTTUserName`)
-
-**Issue:** The 3.1.1 loop calls `n.SetConnTrack(ip)` on **every** packet type — PUBLISH, SUBSCRIBE, PINGREQ, PINGRESP and the `default:` branch (`inspect.go:145,160,166,169,173`) — so a keepalive PINGREQ refreshes `ConnectTime`. The v5 loop only reaches `SetConnTrack` through `inspectV5Publish` (`inspect_v5.go:147`); PINGREQ/SUBSCRIBE/PUBACK are written straight to the backend at `proxy_v5.go:192`.
-
-`SetupTracker`'s reaper (started in `NewServer`, `cmd.go:63`) deletes any entry with `now - ConnectTime > 180`. A v5 client that publishes less often than ~3 minutes — the normal Meshtastic cadence, position ~15 min, NodeInfo hours — loses its ConnTrack entry while its keepalive pings sail past untracked. Its next PUBLISH then builds `Track = &ConnectionInfo{SocketAddress: …}` with an empty `Username`, `RequireMQTTUserName` Blocks, `handleV5PublishUplink` returns false, and `handleProxyV5` closes the socket. The client reconnect-loops; the published packet is lost; `GatewayID` is lost so self-echo suppression silently degrades too.
-
-This is exactly the "42 CONNECTs in 30 minutes / device is flapping" failure the file header warns about, reintroduced for Android 2.8 only.
-
-**Proven:**
-```
-PROBE-2: after purge handleV5PublishUplink=false forwarded=0 bytes
-PROBE-2 CONFIRMED: connection dropped after ConnTrack purge
-```
-
-**Fix:** Refresh the tracker for every v5 frame, mirroring v4.
-```go
-// proxy_v5.go, in the uplink loop before the raw relay
-n.touchConnTrack(socketAddr) // ConnMutex.Lock; if e, ok := n.ConnTrack[socketAddr]; ok { e.ConnectTime = time.Now().Unix() }
-if _, err := backendConn.Write(frame); err != nil { … }
-```
-Belt-and-braces: make the purge a no-op for live sockets by keying eviction off connection close (the `handleProxy` defer already deletes the entry) rather than off a 180s idle timer.
+Add a regression test that publishes a decoded `TEXT_MESSAGE_APP` envelope on
+**both** codecs and asserts the connection survives.
 
 ---
 
-### CR-03: A second CONNECT (or an AUTH) on a v5 session is relayed verbatim — the client's own credentials are forwarded to the broker
+#### CR-02: A Last Will bypasses the entire inspection chain — unclamped hop_limit=7 broadcasts reach the mesh on demand — BLOCKER
 
-**File:** `internal/app/server/proxy_v5.go:189-195`
+**File:** `apps/run.mqtt/meshtk/internal/app/server/inspect_v5.go:23-114` (v5 CONNECT inspector), `apps/run.mqtt/meshtk/internal/app/server/proxy_v5.go:178-186` (CONNECT re-encode/forward); same hole on 3.1.1 at `inspect.go:98-149`
 
-**Issue:** `handleProxyV5` re-encodes the *first* CONNECT precisely so the captured frame — which *"still carries the client's own credentials"* (`proxy_v5.go:154-155`) — never reaches mosquitto. Every subsequent frame that is not a PUBLISH is relayed as captured bytes. `v5.CONNECT` is not a PUBLISH, so a second CONNECT is forwarded **with the client's plaintext username and password**, uninspected and unverified.
+**Issue:** `inspectV5Connect` inspects exactly three things on a CONNECT —
+`Properties.AuthMethod`, the credentials, and `Properties.TopicAliasMaximum`. The
+Will flag, Will topic, Will properties and **Will payload** are re-encoded into
+the CONNECT and handed to mosquitto untouched (`proxy_v5.go:178-186`). mosquitto
+publishes that payload on disconnect, so it never traverses
+`handleV5PublishUplink`, never reaches `inspectV5Publish`, never reaches
+`PacketDecider.Decide`, and is never touched by `RewriteHopLimit`,
+`BlockInvalidEncryption` or the payload censor. `RewriteHopLimit`'s own comment
+(`rules.go:119-127`) states the reason it exists: "every downlink-enabled radio is
+an MQTT→RF gateway that rebroadcasts broadcasts with the packet's hop budget, so
+one uplink with hop_limit 7 gets amplified across the whole con mesh." A Will is a
+client-chosen, uninspected uplink on any topic, replayable by reconnect-and-drop.
 
-The same branch also relays `AUTH` (the comment at `proxy_v5.go:189-191` lists it explicitly), directly contradicting the security invariant asserted in `inspect_v5.go:42-45`: *"an AUTH packet must never be relayed into an authenticated session."*
+**PROVEN.** A v5 CONNECT with `WillTopic = msh/US/2/e/dc.run/!435990e4` and a Will
+`ServiceEnvelope{HopLimit: 7, HopStart: 9, Decoded: TEXT_MESSAGE_APP "flood via
+will"}` driven through the real `handleProxyV5`:
 
-The 3.1.1 path has no such hole: a second CONNECT re-enters `inspectRawPacket`, is re-authenticated and cred-swapped (`inspect.go:90-142`).
+```
+bytes forwarded to broker: 140
+CONFIRMED: the Will ServiceEnvelope (hop_limit=7 / hop_start=9) reached the
+           broker inside the CONNECT, never inspected by the rules engine
+CONFIRMED: unencrypted Will text payload passed through with no censor and no
+           hop clamp
+```
 
-Practical blast radius is bounded by mosquitto closing on a duplicate CONNECT, but the credential material still crosses the proxy→broker socket and can land in broker-side captures/logs, and the divergence defeats the phase's own stated invariant.
+The prior review filed this as `WR-17` ("forwarded uninspected on both codecs").
+It is not a warning: it is a total bypass of the phase's stated RF-safety control,
+remotely triggerable by any credential holder, and cheap to repeat.
 
-**Fix:** Whitelist what may be relayed rather than blacklisting PUBLISH.
+**Fix:** strip or inspect the Will at CONNECT time. Stripping is one line and
+loses nothing the fleet uses (Meshtastic firmware and mqttastic do not rely on
+MQTT Wills):
+
 ```go
-switch pktType {
-case v5.PUBLISH:
-    if !n.handleV5PublishUplink(backendConn, socketAddr, frame) { return }
-    continue
-case v5.CONNECT, v5.AUTH:
-    n.InspectorLogger.Warnf("action=MQTT5_PROTOCOL_VIOLATION, ip=%s, mqtt_type=%d", socketAddr, pktType)
-    writeMqtt5Connack(conn, v5.ConnackProtocolError) // or just close
-    return
-case v5.SUBSCRIBE, v5.UNSUBSCRIBE, v5.PUBACK, v5.PUBREC, v5.PUBREL, v5.PUBCOMP, v5.PINGREQ, v5.DISCONNECT:
-    // relay
-default:
-    // relay or drop, but decide it explicitly
+// inspect_v5.go, before the CONNECT is forwarded:
+if c.WillFlag {
+    n.InspectorLogger.Warnf("action=MQTT5_WILL_STRIPPED, ip=%s, username=%s, will_topic=%s",
+        socketAddr, connInfo.Username, sanitize(c.WillTopic))
+    c.WillFlag, c.WillTopic, c.WillMessage, c.WillProperties = false, "", nil, nil
+    c.WillQOS, c.WillRetain = 0, false
+}
+```
+
+Mirror it in the 3.1.1 CONNECT branch (`inspect.go:98`, `p.WillFlag` et al.). If
+Wills must be supported later, route `WillMessage` through `inspectMeshtastic` +
+`PacketDecider` and refuse the CONNECT on a Block.
+
+---
+
+#### CR-03: Every rewritten TEXT_MESSAGE silently loses reply_id, emoji, dest, source, request_id and want_response — BLOCKER
+
+**File:** `apps/run.mqtt/meshtk/internal/app/server/inspect.go:356-361`
+
+**Issue:** `RewritePayloadString` rebuilds the `Data` message from three fields:
+
+```go
+rewritten := &meshtastic.Data{
+    Portnum:  ip.Meshtastic.PortNum,
+    Payload:  []byte(ip.Meshtastic.PayloadString),
+    Bitfield: ip.Meshtastic.Decoded.Bitfield,
+}
+```
+
+`proto.Marshal` of a fresh struct emits only what was set, so every other `Data`
+field on the original packet is dropped and re-encrypted away. Because
+`RewriteHelloGoodbye` calls this for **every** text message (see CR-01 — the call
+is not gated on the username), this is fleet-wide, not limited to censored
+messages: 2.8 tapbacks (`emoji`), threaded replies (`reply_id`), delivery-ACK
+requests (`want_response`), and the DM routing fields (`dest`, `source`,
+`request_id`) all vanish between the sender and the mesh.
+
+**PROVEN.** A `Data` carrying all six fields, run through `RewritePayloadString`
+with a real cipher and decrypted back off the wire:
+
+```
+wire Data: portnum=TEXT_MESSAGE_APP payload="hi there" bitfield=<set>
+           want_response=false dest=0x0 source=0x0 request_id=0x0
+           reply_id=0x0 emoji=0
+FIELD LOST across the rewrite: want_response, dest, source, request_id,
+                               reply_id, emoji
+```
+
+The `Bitfield:` line was added by *this* phase (to stop 2.8 radios dropping the
+packet), which shows the field-loss class was understood; the fix enumerated one
+field instead of preserving the message.
+
+**Fix:** mutate the decoded message in place instead of rebuilding it, so
+everything — including protobuf unknown fields — survives:
+
+```go
+d := ip.Meshtastic.Decoded
+d.Payload = []byte(ip.Meshtastic.PayloadString)
+dataBytes, err := proto.Marshal(d)
+if err != nil {
+    return fmt.Errorf("failed to marshal rewritten Data: %w", err)
+}
+```
+
+(The current code also discards `proto.Marshal`'s error with `_` on line 361.)
+Add a test that round-trips a `Data` with all optional fields set and asserts
+byte-level equality of everything but `payload`.
+
+---
+
+### Warnings
+
+#### WR-01: The hand-parsed PUBLISH path omits the topic-alias guard the codec path has — the documented "decision for decision" parity is false — WARNING
+
+**File:** `apps/run.mqtt/meshtk/internal/app/server/proxy_v5.go:332-335` vs `apps/run.mqtt/meshtk/internal/app/server/proxy_v5.go:368-371`
+
+**Issue:** The codec path Blocks on
+`(p.Properties != nil && p.Properties.TopicAlias != nil) || p.Topic == ""`. The
+hand-parsed path checks only `rp.Topic == ""` — `parseV5PublishFrame` skips the
+property block whole, so an alias property is invisible to it. `inspectV5RawPublish`
+claims it "mirrors its sibling decision for decision" (`inspect_v5.go:158-162`);
+it does not.
+
+**PROVEN.** A QoS0 PUBLISH with `TopicAlias=7` (id `0x23`) *plus* unmodelled id
+`0x7f` (to force the raw path), topic `a/b`:
+
+```
+action=MQTT5_PARSE_FAIL ... reason=invalid Prop type 127 for packet 3
+[proxy] ALLOW from=!435990e4 to=!ffffffff type=NODEINFO_APP topic=[a/b] user=publisher
+DIVERGENCE: a PUBLISH carrying a TopicAlias property was allowed on the
+hand-parsed path (the codec path Blocks it)
+```
+
+Blast radius is bounded today — a *blank* topic is still Blocked on both paths, and
+68-01 strips `TopicAliasMaximum` in both directions so mosquitto grants no alias
+budget — which is why this is a warning and not a blocker. But it is a security
+guard missing on one of two paths through the same control, and the asymmetry is
+exactly the shape of CR-04.
+
+**Fix:** have the parser report alias presence without reintroducing a property
+table — a single id comparison inside the block it already walks past:
+
+```go
+// parseV5PublishFrame, while skipping the property block:
+for q := pos; q < pos+propLen; { /* minimal id/len walk */ }
+// or, cheaper and sufficient given no alias budget is ever granted:
+rp.HasProperties = propLen > 0
+```
+
+then Block in `handleV5PublishUplink` on `rp.HasTopicAlias` (or, per WR-03, refuse
+frames carrying unmodelled properties outright, since the broker will anyway).
+
+---
+
+#### WR-02: An unparseable v5 CONNECT is dropped with no CONNACK — the client cannot tell why and hot-retries — WARNING
+
+**File:** `apps/run.mqtt/meshtk/internal/app/server/proxy_v5.go:135-146`
+
+**Issue:** `v5.ReadPacket` failing on the CONNECT logs `MQTT5_PARSE_FAIL` and
+`return`s. `handleProxy`'s deferred `conn.Close()` drops the socket with **no
+CONNACK at all**. Since `Properties.Unpack` hard-errors on any property id outside
+paho.golang's table (the premise of the whole CR-04 fix), a client that adds one
+unmodelled CONNECT property gets a silent TCP close. `proxy_v5_e2e_test.go:736-741`
+states the standard for this exact situation: mqttastic "retries every 5-25s
+forever". Answering nothing is the failure mode this phase was created to remove
+(0x84 retry-looping), reintroduced one layer down.
+
+**PROVEN.** A CONNECT with protocol level 5 and property id `0x7f` is refused by
+`v5.ReadPacket` while `peekConnectProtocolVersion` still returns `(5, true)` — so
+it routes to `handleProxyV5` and takes this branch.
+
+**Fix:** answer before returning, on all three CONNECT failure branches
+(`:125`, `:139`, `:144`):
+
+```go
+writeMqtt5Connack(conn, v5.ConnackMalformedPacket) // 0x81
+return
+```
+
+---
+
+#### WR-03: Both new relay paths hand mosquitto frames the proxy knows are malformed, and the broker kills the session — WARNING
+
+**File:** `apps/run.mqtt/meshtk/internal/app/server/proxy_v5.go:317-355` (raw PUBLISH), `apps/run.mqtt/meshtk/internal/app/server/proxy_v5.go:225-236` (SUBSCRIBE parse-fail)
+
+**Issue:** MQTT 5.0 §2.2.2 makes an unrecognised property id a **Malformed
+Packet**. The proxy inspects such a frame (good) and then relays it (bad). The
+phase's own e2e test documents the consequence and asserts it:
+
+```go
+// proxy_v5_e2e_test.go:1164-1165
+waitForLog(t, "mosquitto", h.broker.logs, brokerMark,
+    "Client "+rawPublishClientID+" disconnected due to malformed packet", ...)
+```
+
+So the client loses its whole session anyway — the proxy just makes the broker do
+the killing, with no v5 reason code reaching the client and an
+`action=ALLOW` line in the log for a packet that was never routed. The inspection
+value of CR-04's fix is real; the relay is not.
+
+**Fix:** after inspection, either strip the offending property bytes and forward a
+clean frame, or refuse locally with `writeMqtt5Disconnect(conn, 0x81)` and log
+`action=BLOCK, reason=malformed_properties`. Either way the client gets a reason
+code and the ALLOW log stops claiming a delivery that did not happen.
+
+---
+
+#### WR-04: An unparseable v5 SUBSCRIBE is relayed uninspected — the WR-04 hole is re-opened one layer up — WARNING
+
+**File:** `apps/run.mqtt/meshtk/internal/app/server/proxy_v5.go:225-236`, test `apps/run.mqtt/meshtk/internal/app/server/proxy_v5_parity_test.go:637-667`
+
+**Issue:** WR-04 was closed so that "topic rules" stopped meaning "topic rules for
+3.1.1 clients". But a SUBSCRIBE the codec cannot read is relayed to the broker
+without reaching `inspectV5Subscribe` or `PacketDecider` (accepted risk
+T-68-06-05). The exemption is bought with the same three client-chosen bytes as
+CR-04, and the property-agnostic walker that fixed CR-04 for PUBLISH was not
+extended to SUBSCRIBE — where the wire format is *even simpler* (packet id,
+property block, then a list of length-prefixed filters). The risk note is honest
+that no topic Block rule exists today; the defect is that the first one added will
+silently not apply to these frames.
+
+**Fix:** add `parseV5SubscribeFrame` alongside `parseV5PublishFrame` (same
+skip-the-property-block technique) so `MQTT.Topics` is always populated, and keep
+the relay. Failing that, log at a level that will actually be noticed and add a
+test asserting the decider is reached.
+
+---
+
+#### WR-05: Client-controlled strings are written unescaped into the security log — the phase's own verification telemetry is forgeable — WARNING
+
+**File:** `apps/run.mqtt/meshtk/internal/app/server/inspect_v5.go:52-53`, `apps/run.mqtt/meshtk/internal/app/server/inspect_v5.go:112-113`; formatter at `apps/run.mqtt/meshtk/internal/app/server/cmd.go:331-334`
+
+**Issue:** `client_id`, `username` and `auth_method` come straight off the wire and
+go straight into `InspectorLogger` format strings. Production uses
+`SimpleFormatter`, which is `fmt.Sprintf("%s %s\n", timestamp, entry.Message)` —
+no quoting, no escaping. A newline in a client id therefore forges arbitrary log
+lines in the file that is rotated to S3 and grepped for `action=AUTH_REJECT`,
+`action=MQTT5_CONNECT` and `action=ALLOW`. Phase 68's verification is literally
+"37/38 … ALLOW publishes in telemetry".
+
+**PROVEN.** One CONNECT with
+`ClientID = "evil\n2026-07-29 00:00:00.000 action=AUTH_REJECT, ip=10.0.0.1, username=admin, reason=invalid"`:
+
+```
+2026-07-29 17:24:20.461 action=MQTT5_CONNECT, ip=203.0.113.7:50000, username=victim, client_id=evil
+2026-07-29 00:00:00.000 action=AUTH_REJECT, ip=10.0.0.1, username=admin, reason=invalid
+LOG INJECTION: one CONNECT produced 2 log lines
+```
+
+(Tests use logrus' `TextFormatter`, which quotes — which is why no test caught it.)
+
+**Fix:** sanitize at the boundary and use it everywhere a client string is logged
+(both codecs):
+
+```go
+func logSafe(s string) string {
+    if len(s) > 128 { s = s[:128] }
+    return strconv.Quote(strings.Map(func(r rune) rune {
+        if r == '\n' || r == '\r' || r < 0x20 { return -1 }
+        return r
+    }, s))
 }
 ```
 
 ---
 
-### CR-04: One unmodeled property byte disables every inspection control on the v5 path
+#### WR-06: The CR-02 ConnTrack fix is incomplete — the reaper window is shorter than the client silence the proxy tolerates — WARNING
 
-**File:** `internal/app/server/proxy_v5.go:207-217`
+**File:** `apps/run.mqtt/meshtk/internal/app/server/inspect.go:500-507` (`touchConnTrack`), `apps/run.mqtt/meshtk/internal/app/server/inspect.go:509-530` (reaper), `apps/run.mqtt/meshtk/internal/app/server/proxy.go:45-54` (`proxyReadTimeout`)
 
-**Issue:** On a `v5.ReadPacket` failure the PUBLISH is relayed raw and the function returns true, skipping — in order — the topic-alias guard (`:229`), `inspectV5Publish`, `PacketDecider.Decide`, the hop clamp, the payload censor and every Block rule. `paho.golang`'s `Properties.Unpack` hard-errors on **any** property id outside its table, so a client only has to append `02 7f 00` to its properties block to become permanently uninspectable. This is fail-**open** on the exact control (`RewriteHopLimit`) that exists to stop fleet-wide RF flood amplification, plus `BlockInvalidEncryption` and any future ACL rule.
+**Issue:** `touchConnTrack` is deliberately update-if-exists, and the reaper
+deletes any entry idle `> 180s`. But the uplink loop tolerates
+`1.5 × keepalive` of client silence with **no upper bound**
+(`proxyReadTimeout`). For any negotiated keepalive above 120s the tolerated
+silence exceeds the reaper window: the entry is purged while the session is
+healthy, the next PUBLISH is judged with an empty `Track.Username`, and
+`RequireMQTTUserName` Blocks it and drops the socket — the precise CR-02 symptom,
+for a different reason. The fix holds for keepalive ≤ 120s (mqttastic's 60s
+included), which is why prod verification passed.
 
-The trade-off is documented as accepted risk T-68-02-06, but the accepted risk was framed as *"relaying an odd packet"*; what it actually buys an attacker is a total inspection bypass, and it is trivially discoverable (the repo's own test fixture `300a0003616263027f006869` demonstrates the technique).
+**Fix:** derive the two numbers from one place. Either cap the read timeout at the
+reaper window, or make the reaper window a function of it:
 
-**Proven:**
-```
-PROBE-4: forwarded=true identical=true
-PROBE-4 CONFIRMED: hop_limit=7 reached the broker unclamped via one unmodeled property.
-  action=MQTT5_PARSE_FAIL, ip=203.0.113.7:50000, mqtt_type=PUBLISH, reason=invalid Prop type 127 for packet 3
-```
-
-**Fix:** Do not let a properties-parse failure buy an inspection exemption. Minimum viable: hand-parse the PUBLISH variable header (topic + property-block length are trivially skippable without knowing any property id), then run the topic/alias guard and inspect the payload; relay raw only when even the fixed header/topic cannot be extracted. Alternative: keep the raw relay but count/alarm it and rate-limit it per connection, so a client that "cannot be parsed" more than N times in a window is dropped rather than exempted.
-
----
-
-### CR-05: Every rewritten TEXT_MESSAGE loses reply_id, emoji, dest, source, request_id and want_response
-
-**File:** `internal/app/server/inspect.go:341-345`, triggered from `internal/app/server/rules.go:150`
-
-**Issue:** `RewritePayloadString` rebuilds the inner `Data` from scratch with only three fields:
 ```go
-rewritten := &meshtastic.Data{Portnum: …, Payload: …, Bitfield: …}
-```
-`meshtastic.Data` also carries `WantResponse`, `Dest`, `Source`, `RequestId`, `ReplyId`, `Emoji` (mesh.pb.go:1810-1828) plus `unknownFields`. All are silently dropped on re-encrypt. Because `RewriteHelloGoodbye` calls the helper **unconditionally** (the word substitutions are gated on `Username == "public"`, the rewrite is not), this happens to *every* channel-encrypted text message traversing the proxy from any user — including reply threading (`reply_id`), emoji reactions (`emoji`), and multihop routing metadata (`dest`/`source`) on DMs.
-
-The commit that added `Bitfield` here fixed exactly this class of bug for one field (2.8 pre-hop drop); the other six are still gone.
-
-**Proven:**
-```
-PROBE-3 CONFIRMED: reply_id/emoji/dest/source/request_id/want_response dropped
- orig=portnum:TEXT_MESSAGE_APP payload:"hi" want_response:true dest:3735928559 source:4277009102 request_id:42 reply_id:99 emoji:1 bitfield:1
- new =portnum:TEXT_MESSAGE_APP payload:"hi" bitfield:1
+const connTrackIdleTTL = 2 * defaultProxyReadTimeout // 360s, > any tolerated silence
+// and in SetupTracker: if now-connInfo.ConnectTime > int64(connTrackIdleTTL/time.Second)
 ```
 
-**Fix:** Mutate the decoded message in place instead of rebuilding it — protobuf-go then preserves every modelled *and* unknown field, the same property `RemarshalEnvelope` already relies on:
+Better still: delete entries on connection close only (`handleProxy` already does
+this in its defer) and treat the reaper as a leak backstop, not a liveness gate.
+
+---
+
+#### WR-07: The v5 downlink loop dies silently and does not end the session; the `ctx.Done()` selects are dead code — WARNING
+
+**File:** `apps/run.mqtt/meshtk/internal/app/server/proxy_v5.go:443-454`, `apps/run.mqtt/meshtk/internal/app/server/proxy_v5.go:188-192`
+
+**Issue:** `handleBackendV5` returns on any `readFrame` error without calling
+`cancel()`, closing `conn`, or logging anything. `cancel` is only invoked by
+`handleProxyV5`'s own `defer`, so `case <-ctx.Done()` in **both** loops can never
+fire while the other is running — dead code in both. Consequence: if the backend
+read fails (or the fixed `defaultProxyReadTimeout` 180s deadline on
+`backendConn` expires while the client's tolerance is `1.5 × keepalive`, i.e. any
+keepalive > 120s), downlink stops permanently while the client keeps a session it
+believes is subscribed. Radios silently stop receiving DMs and ACKs with no log
+line. This mirrors the 3.1.1 `handleBackend`, so it is inherited rather than
+invented — but it is new code that copied it.
+
+**Fix:**
+
 ```go
-d := proto.Clone(ip.Meshtastic.Decoded).(*meshtastic.Data)
-d.Payload = []byte(ip.Meshtastic.PayloadString)
-dataBytes, err := proto.Marshal(d)
-if err != nil { return fmt.Errorf("marshal rewritten Data: %w", err), false }
+func (n *ServerCmd) handleBackendV5(ctx context.Context, cancel context.CancelFunc, ...) {
+    defer cancel()            // uplink's select now means something
+    ...
+    frame, pktType, err := readFrame(backendReader)
+    if err != nil {
+        n.Config.Log.Warnf("[proxy] downlink ended ip=%s err=%v", socketAddr, err)
+        return
+    }
 ```
-And skip the whole re-encrypt when nothing changed (`PayloadString` byte-equal to `Decoded.Payload`).
 
-## Warnings
-
-### WR-01: The payload censor swallows its own failure and still reports Rewrote
-
-**File:** `internal/app/server/rules.go:150-152`
-**Issue:** `ip.RewritePayloadString()` returns `(error, bool)` and both results are discarded; the matcher returns `true` regardless. If the rewrite fails (PKI guard, `setPublishPayload` type error, marshal error) `WireRewritten` stays false and the *original* bytes are forwarded while the rule reports `Rewrote` — the meshtk#22 silent-no-op the phase set out to eliminate, still live in the censor.
-**Fix:** `if err, _ := ip.RewritePayloadString(); err != nil { ip.Log.Errorf("censor rewrite failed: %v", err); return false }`. Also normalise the signature to `(bool, error)`; `(error, bool)` inverts Go convention and the bool is always `false`.
-
-### WR-02: `proto.Marshal` error discarded before encryption
-
-**File:** `internal/app/server/inspect.go:346`
-**Issue:** `dataBytes, _ := proto.Marshal(rewritten)` — on error this encrypts and publishes a zero-length payload, producing an undecodable packet with no log line.
-**Fix:** Check and return the error (see CR-05 fix).
-
-### WR-03: CONNACK re-encode failure silently restores the broker's topic-alias budget
-
-**File:** `internal/app/server/proxy_v5.go:318-328`
-**Issue:** `if _, werr := pk.WriteTo(&out); werr == nil { frame = out.Bytes() }` — when `werr != nil` the original CONNACK (still advertising `TopicAliasMaximum=10`) is forwarded with no log at all, re-arming the exact blinding the strip exists to prevent. Silent fallbacks on security controls are how the control quietly stops existing.
-**Fix:** Log at Warn (`action=MQTT5_CONNACK_REENCODE_FAIL`) and consider dropping the connection rather than granting the alias budget.
-
-### WR-04: v5 SUBSCRIBE and all non-PUBLISH control packets never reach the decider or any log
-
-**File:** `internal/app/server/proxy_v5.go:189-195`
-**Issue:** The 3.1.1 path runs `PacketDecider.Decide` on every packet and records `MQTT.Topics` for SUBSCRIBE (`inspect.go:159-163`). The v5 path relays them blind, so any topic-scoped subscribe rule added later silently applies to iOS/firmware only, and there is zero v5 subscribe observability (the e2e verifies the SUBACK from mosquitto's log, not the proxy's).
-**Fix:** Parse SUBSCRIBE (it round-trips cleanly), build an `InspectorPacket` with `MQTT.Type="SUBSCRIBE"` + topics, and run it through the decider; relay the captured frame unless a rule mutates it.
-
-### WR-05: Suppressing a QoS>0 downlink without acknowledging it stalls the broker's inflight window
-
-**File:** `internal/app/server/proxy.go:262-266`, `internal/app/server/proxy_v5.go:336-352`
-**Issue:** Self-echo suppression is implemented as "do not write the frame". For a QoS1/QoS2 downlink that means the broker never receives a PUBACK/PUBREC, keeps the message inflight and retransmits with DUP forever, and the proxy suppresses each retransmission — an unbounded retransmit loop per suppressed message. Harmless while every subscription is QoS0; a single QoS1 subscription (the v5 e2e already publishes at QoS1) makes it real.
-**Fix:** When suppressing a PUBLISH with QoS > 0, synthesise the acknowledgement to the broker (`PUBACK` with the packet id for QoS1) instead of dropping silently.
-
-### WR-06: Downlink loop exit leaves a half-open connection; the `ctx.Done()` selects are dead code
-
-**File:** `internal/app/server/proxy.go:150-154,242-247`, `internal/app/server/proxy_v5.go:166-170,293-298`
-**Issue:** `ctx` is cancelled only by the uplink function's own `defer cancel()`, so the `select { case <-ctx.Done(): … default: }` in both loops can never fire from the peer's side — it is unreachable in the downlink goroutines and pure noise in the uplink ones. When `handleBackend[V5]` returns (broker closed, oversize frame, read error) nothing closes `conn` or cancels `ctx`; the uplink loop keeps a client socket alive with no downlink path for up to `readTimeout` (180s), during which the radio believes it is connected and its publishes are one-way.
-**Fix:** `defer cancel()` + `defer conn.Close()` in the downlink goroutine, or a shared `ctx` cancelled by whichever side dies first. Then delete the `select` scaffolding or make it meaningful.
-
-### WR-07: Credential swap sets Username/Password but not the CONNECT flags
-
-**File:** `internal/app/server/inspect_v5.go:96-97` (and `inspect.go:139-140`)
-**Issue:** `paho.golang` encodes the password only `if c.PasswordFlag` (`vendor/.../packets/connect.go:73-78`). A CONNECT with `UsernameFlag=true, PasswordFlag=false` that authenticates (possible if a stored credential is empty) is forwarded as user `proxy` with **no** password; mosquitto rejects it and the proxy logs a successful `MQTT5_CONNECT` — an unfalsifiable "auth passed but the session dies" report.
-**Fix:** Set `c.UsernameFlag = true; c.PasswordFlag = true` alongside the swap on both codecs.
-
-### WR-08: The client's password is kept in memory for the life of the connection, hex-encoded, and a test asserts a false safety property
-
-**File:** `internal/app/server/inspect_v5.go:30-36`, `internal/app/server/inspect.go:95`, `internal/app/server/proxy_v5_test.go:609-615`
-**Issue:** `Password: fmt.Sprintf("%x", c.Password)` is not redaction — hex is a reversible encoding of the plaintext, retained in a long-lived process-wide map. Any future `%+v` of a `ConnectionInfo` (or an admin endpoint that dumps ConnTrack) leaks the credential. The comment *"the plaintext must not reach any log line"* and the test `if strings.Contains(info.Password, v5TestPassword)` create confidence the encoding does not earn.
-**Fix:** Do not store it. If a fingerprint is needed for debugging, store `sha256(password)[:8]` and rename the field `PasswordFingerprint`.
-
-### WR-09: Hardcoded client-ID inspection bypass (`kphkphkph`)
-
-**File:** `internal/app/server/proxy.go:180-184`
-**Issue:** `if strings.Contains(strings.ToLower(ip.Track.ClientID), "kphkphkph") { shouldInspect = false }` — the client ID is entirely client-controlled, so any authenticated (or passthrough) client that knows or guesses this string skips *all* rules, including the hop clamp and every Block. It is a shared-secret backdoor in a public-facing service, marked only by a `// TODO: Build this out as an actual ALLOW_LIST`.
-**Fix:** Key the exemption off the authenticated username against a configured allowlist (`Config.Server.InspectExempt`), never off a client-supplied identifier; or delete it.
-
-### WR-10: Stale comment claims the v5 PUBLISH path "fails closed" when it fails open
-
-**File:** `internal/app/server/proxy_v5.go:96`
-**Issue:** *"v5 PUBLISH inspection lands in plan 68-02 and fails closed until it does"* — 68-02 shipped and the parse-failure path fails **open** (CR-04). A reader auditing the security posture from the header comment reaches the opposite conclusion from the code 100 lines below.
-**Fix:** Update the header to state the actual posture and cross-reference T-68-02-06.
-
-### WR-11: Channel-key selection accepts the first key whose plaintext happens to parse as protobuf
-
-**File:** `internal/app/server/inspect.go:274-291`
-**Issue:** `DecryptMeshtastic` XORs with each configured key and accepts whichever yields bytes `proto.Unmarshal` does not reject. There is no MIC, and protobuf accepts many byte strings (including empty), so a wrong key can "succeed" — after which `BlockInvalidEncryption` does not fire, rules judge garbage fields, and if the censor path runs the packet is **re-encrypted under the wrong key**, corrupting it for its real recipients.
-**Fix:** Constrain acceptance: require `PortNum` to be a known enum value, require the decoded `Data` to re-marshal to the same byte length, and prefer the key implied by the topic's channel segment before brute-forcing the rest.
-
-### WR-12: Rate limiting is fully disabled and the v5 path has no limiter hook at all
-
-**File:** `internal/app/server/proxy.go:17-24,190-201`
-**Issue:** The `EnforceLimit` call is commented out (con-debug, 2026-07-19) and `rateLimiter`/`socketPenalty` are now dead; the v5 loop never had a limiter call to comment out, so re-enabling it post-con would restore throttling for 3.1.1 clients only. Combined with CR-04 and WR-14 that leaves the v5 path with no throughput or log-volume ceiling.
-**Fix:** When re-enabling, add the same enforcement to `handleProxyV5`/`handleV5PublishUplink`, and delete the commented block in favour of a config flag (`Config.Server.RateLimitEnabled`) so the dead code is not the toggle.
-
-### WR-13: `inspect.go` is not gofmt-clean
-
-**File:** `internal/app/server/inspect.go:48-50`
-**Issue:** `gofmt -l ./internal/app/server/` reports `inspect.go` (struct field alignment on `WasEncrypted`/`WasPKIEncrypted`/`HadEncryptedPayload`). A repo whose CI gate lets unformatted code merge will also let a diff-noise reformat mask a real change later.
-**Fix:** `gofmt -w internal/app/server/inspect.go` and add `gofmt -l` (fail on non-empty) to CI.
-
-### WR-14: Per-packet Warn logging on the parse-failure paths is attacker-triggerable amplification
-
-**File:** `internal/app/server/proxy_v5.go:215,340`
-**Issue:** Each unparseable PUBLISH emits a Warn line containing attacker-influenced content, uncapped and unthrottled (WR-12). A client publishing junk at line rate turns the proxy into a log pump against CloudWatch.
-**Fix:** Log the first N per connection then sample, or increment a counter and log once per interval.
-
-### WR-15: The `logDownlink*` self-echo check trusts a gateway id the publisher supplies
-
-**File:** `internal/app/server/inspect.go:153-155`, `internal/app/server/proxy.go:325-329`
-**Issue:** `rememberGateway` records whatever `GatewayId` string the client puts in its own uplink envelope, and downlink suppression compares against it. A client that claims another radio's gateway id causes *its own* downlink for that gateway to be suppressed — self-harm only today, but the same trusted value is used for correlation in logs and would become a spoofing primitive the moment anything authorises on it.
-**Fix:** Cross-check the claimed gateway id against the topic's trailing `!nodeid` segment (already parsed) and log/refuse a mismatch.
-
-### WR-16: `TrackConnection` trusts a PROXY-protocol header with no policy configured
-
-**File:** `internal/app/server/inspect.go:429-441` (with `cmd.go:176`, out of scope but load-bearing)
-**Issue:** `proxyproto.Listener{Listener: listener}` sets no `Policy`, so PROXY headers are honoured from **any** peer, and the resulting spoofable address becomes the `ConnTrack` key, the rate-limit key and the identity in every log line. Anyone able to reach the listener directly (bypassing the NLB — SG misconfiguration, in-VPC pivot) can collide with a victim's key: overwrite its `ConnectionInfo`, poison its `GatewayID`, or delete its entry on disconnect and get the victim Blocked (CR-02 mechanics).
-**Fix:** `proxyproto.Listener{Listener: listener, Policy: func(upstream net.Addr) (proxyproto.Policy, error) { … REQUIRE for the NLB subnet, REJECT otherwise }}`.
-
-### WR-17: Last Will and Testament is forwarded uninspected on both codecs
-
-**File:** `internal/app/server/proxy_v5.go:156-164`, `internal/app/server/inspect.go:90-142`
-**Issue:** The CONNECT's will topic/payload are re-encoded and forwarded verbatim. When the client drops, mosquitto publishes that payload under the swapped `public` identity — bypassing the hop clamp, the censor, `BlockInvalidEncryption` and every topic rule, with no proxy log line. It is the one publish path the proxy structurally cannot see.
-**Fix:** Inspect the will payload at CONNECT time (it is a `ServiceEnvelope` on the same topic space): run it through `inspectMeshtastic` + the decider, clamp/censor it in place, or strip the will and refuse the connection when it fails the rules.
-
-### WR-18: e2e harness has four flake/robustness defects
-
-**File:** `internal/app/server/proxy_v5_e2e_test.go:147-153,265,410,444-453`
-**Issue:** (a) `assertNoLog` proves "the broker never saw this" with a fixed 500 ms sleep — under CI load a slow broker log makes the strongest security assertions in the file (rejection happened *before* the dial) pass vacuously. (b) Readiness greps the bare substring `"running"` in mosquitto's log — matched by unrelated lines. (c) `freePort` closes the listener before the broker/proxy binds it (TOCTOU); two parallel packages can collide. (d) `StartProxyServer` calls `Config.Log.Fatal` on listen error, which `os.Exit`s the whole test binary with no diagnosis.
-**Fix:** (a) poll for a positive completion signal (proxy log line + broker connection count unchanged) instead of sleeping; (b) match `"mosquitto version ... running"`; (c) hold the listener and hand the `net.Listener` to the server, or retry-on-bind; (d) return the error from `StartProxyServer` instead of `Fatal`.
+and derive the backend deadline from the same keepalive the uplink uses.
 
 ---
 
-## Notes on what is genuinely solid
+#### WR-08: `RewritePayloadString`'s error is discarded by its only caller, and its second return value is a constant — WARNING
 
-Called out because a review that only lists defects invites the wrong fixes:
+**File:** `apps/run.mqtt/meshtk/internal/app/server/rules.go:170`, `apps/run.mqtt/meshtk/internal/app/server/inspect.go:348-383`
 
-- `readFrame` (`proxy_v5.go:37-76`) — varint termination at 4 bytes, size check strictly before `make`, and the back-to-back framing test are all correct. Do not "simplify" the capture-before-parse design; CR-04's fix must preserve it.
-- The v4 golden (`proxy_v4_golden_test.go`) pins forwarded bytes *and* the decision sequence, and deliberately includes a rule mutation. It is the right shape. Its one gap: it re-implements `handleProxy`'s inner loop rather than driving `handleProxy`, so a change to the preflight/dispatch (`proxy.go:113-130`) would not trip it.
-- `setPublishPayload` erroring instead of silently not-matching (`inspect.go:306-331`) is the correct treatment of the meshtk#22 class — WR-01 is a caller failing to honour it, not a flaw in the seam.
+**Issue:** The signature is `(error, bool)` — reversed from Go convention — and the
+`bool` is `false` on every return path, so it carries no information. The only
+caller ignores both (`ip.RewritePayloadString()` as a bare statement) and returns
+`true`/`Rewrote` regardless. So when `setPublishPayload` fails, the parsed
+envelope has been mutated and re-encrypted, the rule reports `Rewrote`, and the
+**original bytes go to the broker** — the meshtk#22 silent-no-op this phase's
+comments (`inspect.go:300-313`) say must never be possible again. `RewriteHopLimit`
+gets this right (`rules.go:142-145`); the censor does not.
+
+**Fix:** `func (ip *InspectorPacket) RewritePayloadString() error`, and at the call
+site `if err := ip.RewritePayloadString(); err != nil { ip.Log.Errorf(...); return false }`.
 
 ---
 
-_Reviewed: 2026-07-29_
+#### WR-09: Fail-open remnant and fabricated log fields on the PUBLISH paths — WARNING
+
+**File:** `apps/run.mqtt/meshtk/internal/app/server/proxy_v5.go:357-361`, `apps/run.mqtt/meshtk/internal/app/server/proxy_v5.go:323-326`
+
+**Issue:** Two smaller contradictions of the stated fail-closed posture:
+
+1. `:357-361` — if `cp.Content` is not a `*v5.Publish`, the frame is relayed with
+   **no inspection at all** (`return n.writeToBackend(backendConn, frame)`), two
+   lines after the hand-parse arm was added specifically to stop that. The arm is
+   effectively unreachable (the fixed header already said type 3), which is the
+   argument for making it `return false` rather than the one remaining
+   relay-an-uninspected-PUBLISH path in the file.
+2. `:324-325` — the header-fail BLOCK line hardcodes `from=!00000000
+   to=!00000000 user=""`. Those are the fields ops filter and aggregate on;
+   emitting synthetic zeros pollutes them. Log the real unknowns as absent
+   (`from=unknown`) or omit the mesh fields entirely, as `WriteDecisionLog` does
+   when `WasUnmarshalled` is false.
+
+**Fix:** make the `!ok` arm `return false` with a `MQTT5_PUBLISH_HEADER_FAIL`-style
+line, and drop the fake `0, 0, ""` arguments.
+
+---
+
+#### WR-10: Policy Blocks close the socket with no v5 DISCONNECT, while protocol violations get one — WARNING
+
+**File:** `apps/run.mqtt/meshtk/internal/app/server/proxy_v5.go:251`, `apps/run.mqtt/meshtk/internal/app/server/proxy_v5.go:334`, `apps/run.mqtt/meshtk/internal/app/server/proxy_v5.go:370`, `apps/run.mqtt/meshtk/internal/app/server/proxy_v5.go:419`
+
+**Issue:** CR-03's fix correctly answers illegal frames with
+`DISCONNECT 0x82`, but a Block decision (`BlockInvalidEncryption`,
+`RequireMQTTUserName`, the topic-alias guard) just returns and lets the deferred
+`conn.Close()` drop the socket. To a v5 client that is indistinguishable from a
+network fault, so mqttastic reconnects immediately and can loop — the flap
+signature this phase spent three plans chasing. v5 exists precisely to make this
+diagnosable.
+
+**Fix:** `writeMqtt5Disconnect(conn, v5.DisconnectNotAuthorized)` (0x87) or
+`DisconnectAdministrativeAction` (0x98) before returning on a Block, mirroring the
+violation path.
+
+---
+
+#### WR-11: Write-only `ProtocolVersion` with a doc contract the code never satisfies; `v5RawPublish.QoS` read only by tests — WARNING
+
+**File:** `apps/run.mqtt/meshtk/internal/app/server/inspect.go:83-86`, `apps/run.mqtt/meshtk/internal/app/server/inspect_v5.go:36`, `apps/run.mqtt/meshtk/internal/app/server/proxy_v5_rawpublish.go:23-25`
+
+**Issue:** `ConnectionInfo.ProtocolVersion` documents itself as "4 = 3.1.1, 5 = v5"
+and is set to `5` in exactly one place (`inspect_v5.go:36`). The 3.1.1 CONNECT
+branch never sets it, so it stays `0` for every 3.1.1 connection, and **no
+production code reads it at all** (`grep -rn ProtocolVersion *.go | grep -v _test`
+→ only the write and the comment; 19 references, all in tests). Any future
+consumer writing `if info.ProtocolVersion == 4` — the contract the comment
+promises — will mis-classify the entire 3.1.1 fleet. Same shape, lower stakes:
+`v5RawPublish.QoS` is populated but never read outside tests.
+
+**Fix:** set `ProtocolVersion: 4` in the 3.1.1 CONNECT branch (one line, makes the
+comment true), or delete the field until something reads it. Tests asserting a
+write-only field assert nothing.
+
+---
+
+#### WR-12: `inspect.go` is not gofmt-clean — WARNING
+
+**File:** `apps/run.mqtt/meshtk/internal/app/server/inspect.go:47-50`
+
+**Issue:** `gofmt -l internal/app/server/` lists `inspect.go` (along with
+pre-existing `cmd.go`, `inspect_auth_test.go`, `proxy_mqtt5_test.go`). The
+misalignment is in the `Meshtastic` struct fields this phase's predecessor added
+(`WasEncrypted` / `WasPKIEncrypted` / `HadEncryptedPayload`). CI runs
+`go build/vet/test` (per the vendor commit message) and would not catch it — which
+matters for a repo whose sync discipline is byte-parity with upstream, since any
+contributor's editor will reformat the file and create phantom diffs.
+
+**Fix:** `gofmt -w internal/app/server/` and add `gofmt -l . | tee /dev/stderr | wc -l | grep -qx 0` to the CI gate.
+
+---
+
+#### WR-13: Test-suite defects — an unreachable assertion, duplicated helpers, and no coverage of the known crash — WARNING
+
+**File:** `apps/run.mqtt/meshtk/internal/app/server/proxy_v5_parity_test.go:299-317`, `apps/run.mqtt/meshtk/internal/app/server/proxy_v5_parity_test.go:48-63`, `apps/run.mqtt/meshtk/internal/app/server/proxy_v5_e2e_test.go:91-116`, `apps/run.mqtt/meshtk/internal/app/server/proxy_v5_e2e_test.go:162-175`, `apps/run.mqtt/meshtk/internal/app/server/proxy_v5_e2e_test.go:147-153`
+
+**Issue:** Five items that weaken the safety net this phase relies on:
+
+1. **Dead assertion.** In `assertRefused`, `bytes.Equal(backend, establishing)`
+   already `t.Fatalf`s on mismatch, so the following
+   `if extra := backend[len(establishing):]; len(extra) != 0` can never be reached
+   with a non-empty slice. It reads like a second, stronger check and is not one.
+2. **Duplicated helper.** `syncBuf` (parity test) and `syncBuffer` (e2e test) are
+   the same mutex-wrapped `bytes.Buffer` in the same package, with divergent APIs
+   (`Bytes()` vs `String()/Len()/since()`).
+3. **Dead field.** `pairAuthenticator.calls` is incremented under a mutex and
+   never read — the assertion it was presumably for ("the authenticator was
+   consulted exactly once") is missing.
+4. **Fixed-sleep negative assertion.** `assertNoLog(..., 500*time.Millisecond)`
+   proves absence by sleeping; under a loaded CI box it can pass while the broker
+   line is still in flight. The positive assertions all poll (`waitForLog`) —
+   the negative ones should poll for a *subsequent* positive marker instead.
+5. **The crash is uncovered.** Two helper comments
+   (`proxy_v5_publish_test.go:66-68`, `proxy_v5_e2e_test.go:576-581`) document the
+   CR-01 nil-cipher panic and pick fixtures that avoid it. No test asserts a
+   plaintext `TEXT_MESSAGE_APP` publish is survivable on either codec, so the
+   suite is green with a remote process-kill in the shipped binary.
+
+**Fix:** delete (1) or replace it with a length assertion made *before* the
+equality check; unify (2) into one helper; assert or delete (3); make (4) poll for
+a happens-after marker; and add the missing case for (5) as part of the CR-01 fix.
+
+---
+
+## Verification notes
+
+- Files were read from `origin/main` (the shipped overlay). A working copy of the
+  upstream module at `5769031` was confirmed byte-identical for `rules.go`,
+  `inspect.go` and `proxy_v5.go` (`diff` → no output) before any probe was run.
+- The shipped suite is green and race-clean:
+  `go test ./internal/app/server/` → ok 0.37s;
+  `go test -race ./internal/app/server/` → ok 1.48s.
+- Probes were written as throwaway `_test.go` files in a **scratch copy** outside
+  the repository and removed before the suite was re-run. No repository file was
+  modified by this review.
+- Out-of-scope-but-adjacent, carried forward from the prior review and still
+  present in shipped code: the `kphkphkph` client-ID inspection bypass
+  (`proxy.go:182`), rate limiting fully disabled (`proxy.go:190-201`),
+  `maxV5PacketBytes` deliberately not applied to the 3.1.1 codec
+  (`proxy_v5.go:21-23` — the path the whole fleet uses is still an unbounded
+  allocation), channel-key selection accepting the first key whose plaintext
+  happens to parse as protobuf (`inspect.go:281-298`), and the self-echo check
+  trusting a publisher-supplied gateway id (`proxy.go:325`).
+
+---
+
+_Reviewed: 2026-07-29T17:40:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
-_Evidence: 4 findings reproduced via `go test -overlay` probes; meshtk working tree left unmodified (`git status --porcelain` empty)._
