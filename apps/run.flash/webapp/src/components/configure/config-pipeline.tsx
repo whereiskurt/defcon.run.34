@@ -39,11 +39,25 @@ interface DisplayStage {
   completeStages: ConfigStage[];
 }
 
-/** Display stages in push order: Radio first (region needed on fresh flash),
- *  then MQTT, Identity, Channels. Identity precedes channels because it
- *  un-licenses HAM-default boards (T-Beam BPF) — a licensed device strips
- *  channel PSKs on write. Committing is grouped with Ringtone. */
+/** Display stages in push order: Identity first — it un-licenses HAM-default
+ *  boards (T-Beam BPF) BEFORE the region write, which on a licensed device
+ *  triggers a node-number migration that orphans all later writes, and a
+ *  licensed device also strips channel PSKs on write. Then Radio (region
+ *  needed on fresh flash), MQTT, Channels. Committing is grouped with
+ *  Ringtone. */
 const DISPLAY_STAGES: DisplayStage[] = [
+  {
+    key: "identity",
+    icon: UserCircle2,
+    labelKey: "flash.configStage.identity.label",
+    activeKey: "flash.configStage.identity.active",
+    completeLabel: (t, s) =>
+      t("flash.configStage.identity.complete", {
+        summary: s.identity ?? t("flash.configStage.configuredFallback"),
+      }),
+    activeStages: ["identity"],
+    completeStages: ["identity"],
+  },
   {
     key: "radio",
     icon: Signal,
@@ -67,18 +81,6 @@ const DISPLAY_STAGES: DisplayStage[] = [
       }),
     activeStages: ["mqtt"],
     completeStages: ["mqtt"],
-  },
-  {
-    key: "identity",
-    icon: UserCircle2,
-    labelKey: "flash.configStage.identity.label",
-    activeKey: "flash.configStage.identity.active",
-    completeLabel: (t, s) =>
-      t("flash.configStage.identity.complete", {
-        summary: s.identity ?? t("flash.configStage.configuredFallback"),
-      }),
-    activeStages: ["identity"],
-    completeStages: ["identity"],
   },
   {
     key: "channels",

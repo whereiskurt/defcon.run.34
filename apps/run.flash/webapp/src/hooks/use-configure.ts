@@ -165,17 +165,19 @@ export function useConfigure(): UseConfigureReturn {
         // Stage 4: Push config with progress callbacks
         console.log("[configure] Starting config push to device...");
         const stages: ConfigStage[] = [
+          "identity",
           "radio",
           "mqtt",
           "channels",
-          "identity",
           "ringtone",
           "committing",
         ];
         let currentStageIndex = 0;
 
-        // Set first config push stage — radio first (region needed on fresh flash)
-        setProgress((prev) => ({ ...prev, stage: "radio" }));
+        // Set first config push stage — identity first (un-licenses HAM-default
+        // boards BEFORE the region write triggers the licensed node-number
+        // migration; see pushDeviceConfig)
+        setProgress((prev) => ({ ...prev, stage: "identity" }));
 
         const onStageComplete = (stage: string, summary: string) => {
           currentStageIndex++;
@@ -406,10 +408,10 @@ export function useConfigure(): UseConfigureReturn {
 
   const activeStages: ConfigStage[] = [
     "connecting",
-    "mqtt",
-    "channels",
     "identity",
     "radio",
+    "mqtt",
+    "channels",
     "committing",
   ];
 

@@ -409,9 +409,11 @@ export async function connectMeshtasticDeviceNrf52(): Promise<{
  * library's setConfig would internally `await beginEditSettings()` and stall
  * the whole push on ack-less firmware.
  *
- * Order: Radio (region FIRST) -> MQTT -> Channels -> Identity -> Commit
- * Region must be set first on a freshly flashed device -- the firmware
- * won't fully initialize without a valid region.
+ * Order: Identity FIRST -> Radio (region) -> MQTT -> Channels -> Commit.
+ * Identity must precede the region write: HAM-default boards (T-Beam BPF)
+ * boot licensed, and 2.8 firmware runs a licensed-identity migration on the
+ * first region set that changes my_node_num mid-session — orphaning every
+ * later admin write (see the identity step below).
  *
  * @param device - Connected MeshDevice from connectMeshtasticDevice()
  * @param config - DeviceConfigPayload from /api/config
@@ -435,9 +437,43 @@ export async function pushDeviceConfig(
     "beginEditSettings"
   );
 
-  // 1. Radio Config FIRST -- freshly flashed devices need region set before
-  // the firmware fully initializes. Without a region, other config may be ignored.
-  console.log("[meshtastic] Pushing radio config (region first)...");
+  // 1. Identity Config FIRST — before the region write. Two reasons, both
+  // HAM-band-only hardware (T-Beam BPF: HAS_HAM_2M_ONLY, boots with
+  // owner.is_licensed=true):
+  //   a) Node-number migration (observed live 2026-07-29, fresh-flashed BPF):
+  //      on a LICENSED device, the first region set (UNSET -> US) triggers
+  //      AdminModule's licensed-identity migration — generateCryptoKeyPair()
+  //      -> createNewIdentity() -> my_node_num = crc32(public_key) — changing
+  //      the node number MID-SESSION. Every admin write after that is
+  //      addressed to the stale node number, no longer "to us", gets routed
+  //      toward RF and dies MAX_RETRANSMIT; none of it applies. Flipping
+  //      isLicensed:false first keeps the device on the unlicensed
+  //      ensurePkiKeys path, where the node number stays stable.
+  //   b) A licensed device SANITIZES channel writes — PSKs stripped to
+  //      cleartext (ensureLicensedOperation). Observed live 2026-07-28: the
+  //      old channels-then-identity order left a BPF unlicensed AND PSK-less.
+  console.log("[meshtastic] Pushing identity config...");
+  // Byte-guard at the hardware boundary (server already clamps, but a stale or
+  // hand-crafted payload must not reach the radio over-length): long_name over
+  // 39 UTF-8 bytes fails nanopb decode on the device — the whole owner write is
+  // silently dropped — and a shortName sliced by UTF-16 code units can exceed
+  // the 4-byte limit and render as garbage.
+  const owner = create(Protobuf.Mesh.UserSchema, {
+    longName: clampLongName(config.identity.longName),
+    shortName: buildShortName(config.identity.shortName),
+    // Explicit, not proto-default: licensed mode is the operator's decision
+    // (flip in the app), never an accident of hardware defaults. Encrypted
+    // dc.run participation requires an unlicensed device.
+    isLicensed: false,
+  });
+  await awaitAckTolerant(device.setOwner(owner), "setOwner");
+  console.log("[meshtastic] Identity applied");
+  onStageComplete("identity", config.identity.longName);
+
+  // 2. Radio Config -- freshly flashed devices need region set before the
+  // firmware fully initializes (identity/owner above is devicestate, not
+  // Config, and is safe pre-region).
+  console.log("[meshtastic] Pushing radio config (region)...");
   const regionCode = mapRegionCode(config.radio.region);
   const modemPreset = mapModemPreset(config.radio.modemPreset);
 
@@ -542,32 +578,8 @@ export async function pushDeviceConfig(
   console.log("[meshtastic] MQTT config applied");
   onStageComplete("mqtt", mqttAddress);
 
-  // 3. Identity Config — MUST run BEFORE channels. HAM-band-only hardware
-  // (T-Beam BPF: HAS_HAM_2M_ONLY) boots with owner.is_licensed=true, and a
-  // licensed device SANITIZES every channel write on arrival — PSKs stripped
-  // to cleartext (ensureLicensedOperation). Pushing the owner first with an
-  // explicit isLicensed:false flips the device to normal operation, so the
-  // channel PSKs that follow actually persist. Observed live 2026-07-28: the
-  // old channels-then-identity order left a BPF unlicensed AND PSK-less.
-  console.log("[meshtastic] Pushing identity config...");
-  // Byte-guard at the hardware boundary (server already clamps, but a stale or
-  // hand-crafted payload must not reach the radio over-length): long_name over
-  // 39 UTF-8 bytes fails nanopb decode on the device — the whole owner write is
-  // silently dropped — and a shortName sliced by UTF-16 code units can exceed
-  // the 4-byte limit and render as garbage.
-  const owner = create(Protobuf.Mesh.UserSchema, {
-    longName: clampLongName(config.identity.longName),
-    shortName: buildShortName(config.identity.shortName),
-    // Explicit, not proto-default: licensed mode is the operator's decision
-    // (flip in the app), never an accident of hardware defaults. Encrypted
-    // dc.run participation requires an unlicensed device.
-    isLicensed: false,
-  });
-  await awaitAckTolerant(device.setOwner(owner), "setOwner");
-  console.log("[meshtastic] Identity applied");
-  onStageComplete("identity", config.identity.longName);
-
-  // 4. Channel Config
+  // 4. Channel Config — runs after identity (see step 1: a licensed device
+  // would strip these PSKs).
   console.log("[meshtastic] Pushing channel config...");
   for (let i = 0; i < config.channels.length; i++) {
     const ch = config.channels[i];
