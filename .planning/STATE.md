@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
 status: Milestone complete
-stopped_at: "Completed 68-05-PLAN.md — MQTT v5 dual codec LIVE in prod (meshtk v0.0.72, task def run-mqtt-use1-dc34:115). Phase 68 COMPLETE. Open gap: no Android v5 session in telemetry."
-last_updated: "2026-07-29T13:38:49.802Z"
+stopped_at: "Completed 68-06-PLAN.md — SC3 v5-parity gaps CR-02/CR-03/WR-04 closed upstream on branch fix/mqtt5-v5-parity (not pushed). Next: 68-07 (CR-04), then 68-08 vendor-sync + deploy."
+last_updated: "2026-07-29T17:59:08.385Z"
 last_activity: 2026-07-29
 progress:
   total_phases: 28
-  completed_phases: 18
-  total_plans: 72
-  completed_plans: 70
-  percent: 64
+  completed_phases: 17
+  total_plans: 75
+  completed_plans: 71
+  percent: 61
 current_phase: 56
 current_phase_name: ctf-flag-types-slice-3-wordlist-one-time-codes-ctfcode-entit
 ---
@@ -126,6 +126,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 68-04: monorepo meshtk overlay vendor-synced from upstream main @ c5341ce and MERGED to monorepo main @ 6bbe18c (PR #1072) — 11 files, internal/embedded/ byte-untouched, VERSION left at v0.0.71 for buildpub to bump
 - [Phase ?]: 68-04: the CI overlay composition (fresh upstream clone + tracked overlay untarred on top) is reproduced locally as the release gate — go build/vet/test all exit 0 in the composed tree
 - [Phase ?]: 68-05: MQTT v5 dual codec SHIPPED to prod — meshtk v0.0.72 on run-mqtt-use1-dc34:115. Decisive wire proof: identical bad-credential v5 CONNECT flipped 2003008400 (0x84) -> 2003008700 (0x87) across the deploy; enhanced auth 2003008c00; level 6 still 2003008400; valid-cred success 2006000003210014 with TopicAliasMaximum stripped; level-4 probe still returns the 4-byte 3.1.1 CONNACK 20020005 so the 3.1.1 path is untouched on the wire. MQTT5_PARSE_FAIL=0, panic=0, ALLOW never zero across the deploy. LANDMINE 1: during an ECS rolling replace BOTH images write to the same log group — attribute evidence by --log-stream-names (per task), NEVER by wall clock; two protocol_version=5 rejects after the new task startedAt were the OLD task draining. LANDMINE 2: 'aws ecs wait services-stable' is NOT a drain gate — it returned while v0.0.72 had served ZERO fleet packets (long-lived MQTT TCP stays pinned to the draining task); poll the old task to STOPPED before claiming the new image serves prod. LANDMINE 3: rollback.yml does not list run.mqtt as an app. UAT: Kurt reported messages flowing with goldstein via !435990e4, BUT proxy telemetry shows NO Android MQTT5_CONNECT and zero events for !435990e4 — ROADMAP criterion 1 met on HUMAN ATTESTATION ONLY; gap recorded in 68-05-SUMMARY. Fresh-radio note: a node with no NODEINFO has no cached pubkey, so PKI DMs are undecryptable and unACKable -> 'max retrans' (expected, identical on v0.0.71).
+- [Phase ?]: 68-06: SC3 v5-parity gap closure landed UPSTREAM (/Users/khundeck/working/meshtk, branch fix/mqtt5-v5-parity from main@d340f36; commits 9ebe867/ec63aa8/3a375ee/261152b; NOT pushed, PR'd, vendor-synced or deployed — that is 68-08). handleProxyV5's 'PUBLISH is special, everything else relays' branch is now an explicit inspect/refuse/relay switch. **CR-02 was the one silently degrading every live Android session**: the 3.1.1 loop refreshes ConnTrack in EVERY inspectRawPacket branch (keepalives included) but the v5 loop only reached SetConnTrack through inspectV5Publish, so the 180s reaper purged any session idle between publishes — and the Meshtastic position cadence is ~15 min — after which the next PUBLISH was Blocked with 'Username required for MQTT' and the socket torn down. New touchConnTrack is called immediately after readFrame BEFORE any type dispatch, and is deliberately **update-if-exists only**: an entry born without a CONNECT would carry an empty Username and manufacture the very RequireMQTTUserName Block the fix exists to prevent. CR-03: CONNECT and AUTH — plus the four server-only types (CONNACK/SUBACK/UNSUBACK/PINGRESP) — are refused with action=MQTT5_PROTOCOL_VIOLATION and a DISCONNECT reason 0x82 (measured wire e0028200; a second CONNACK is illegal on an established session) and contribute ZERO bytes to the broker socket — a relayed second CONNECT handed mosquitto the client's own plaintext password, breaking for the rest of the session the invariant that re-encoding the establishing CONNECT protects for its first packet. Everything else still relays byte-identically (locked 'unknown types forward raw' decision), pinned by PINGREQ + the zero-length DISCONNECT e000 that paho.golang cannot parse — which doubles as proof the switch dispatches on the fixed-header type, never on a parse. WR-04: inspectV5Subscribe records MQTT.Type + MQTT.Topics in filter order and calls SetConnTrack, handleProxyV5 runs PacketDecider.Decide on it INLINE (not extracted like handleV5PublishUplink, so the decider call is provably in the loop), and relays the CAPTURED frame — the parse is read-only for the same subscription-identifier round-trip hazard that keeps the downlink from re-encoding. AllowMQTTControl now dispatches on Raw.MQTT5 when Raw.MQTT is nil. **The parity assertion is on the matching rule NAME, not on 'not Blocked'**: LoadInspectorRules puts AllowMQTTControl FIRST among inspect rules, so once it matches a v5 SUBSCRIBE the decider short-circuits before RequireMQTTUserName is consulted and a Decision-only assertion would pass whether or not SetConnTrack ran (DecisionResult carries no rule identity, so the test reproduces Decide's selection). New proxy_v5_parity_test.go (722 lines, 14 tests) drives the REAL handleProxyV5 against a REAL dialled TCP backend and asserts on recorded byte streams on both sides; net.Pipe is unbuffered and the proxy writes on its own goroutine, so synchronization is by polling the backend stream for the next COMPLETE frame via the proxy's own readFrame — observing a relayed frame is a happens-after edge for everything the loop did before relaying it. Green under -count=5 and -race. 3.1.1 untouched: proxy.go empty diff, proxy_v4_golden_test.go byte-identical (sha256 e49ae2ed…) and green AFTER the rules.go edit, zero pre-existing test files edited. SHAPE NOTES (3, no behavior change): AllowMQTTControl's 3.1.1 branch is re-indented under an 'if Raw.MQTT != nil' wrapper (cases and order unchanged, reached first; identity proven by the golden AND a new matcher-level TestAllowMQTTControlV4Unchanged); rules.go also gains the one v5 import the type switch requires; the stale handleProxyV5 doc comment claiming 'v5 PUBLISH inspection lands in 68-02 and fails closed until it does' was corrected. DEFERRED (out of scope, logged): internal/credcache TestSingleflight_DeduplicatesConcurrentFetches is a PRE-EXISTING flake (3/12 isolated failures on clean main; the package has zero meshtk deps) so 'go test ./...' is not reliably green — use go test ./internal/app/server/ as the phase-68 gate. LEFT: 68-07 (CR-04 v5 PUBLISH parse-fail bypass, same branch), then 68-08 PR/vendor-sync/deploy + watch MQTT5_PROTOCOL_VIOLATION in prod for T-68-06-06.
 
 ### Pending Todos
 
@@ -138,8 +139,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-29T13:38:40.599Z
-Stopped at: Completed 68-05-PLAN.md — MQTT v5 dual codec LIVE in prod (meshtk v0.0.72, task def run-mqtt-use1-dc34:115). Phase 68 COMPLETE. Open gap: no Android v5 session in telemetry.
+Last session: 2026-07-29T17:59:08.378Z
+Stopped at: Completed 68-06-PLAN.md — SC3 v5-parity gaps CR-02/CR-03/WR-04 closed upstream on branch fix/mqtt5-v5-parity (not pushed). Next: 68-07 (CR-04), then 68-08 vendor-sync + deploy.
 Resume file: None
 
 ## Operator Next Steps
@@ -191,3 +192,4 @@ Resume file: None
 | Phase 68 P02 | 11min | 3 tasks | 6 files |
 | Phase 68 P03 | 20min | 3 tasks | 3 files |
 | Phase 68 P05 | ~35min | 3 tasks | 0 files |
+| Phase 68 P06 | 11min | 2 tasks | 5 files |
