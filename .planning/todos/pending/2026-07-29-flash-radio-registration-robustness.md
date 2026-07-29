@@ -25,6 +25,44 @@ Note: MeshRadio holds no MQTT username — creds live on RunUser and flash only 
 to build the device config (`apps/run.flash/webapp/src/app/api/config/route.ts:68-91`).
 Row key is `pk = "$run#nodeid_!xxxxxxxx"`, `sk = "$meshradio_1"`.
 
+## ⚠️ CONFIRMED IN PROD 2026-07-29 21:32Z — cross-user key overwrite (hole 0)
+
+Kurt flashed two radios; one registered, one "didn't register but didn't fail". Live DDB
+evidence from `run-human-electro` (scan of `$run#nodeid_*`, 23 rows):
+
+| nodeId | createdAt | touched | owner |
+|---|---|---|---|
+| `!174e59c8` | 2026-07-29T21:27:09Z | 21:27:09Z (new row) | `041287e3-…` (Kurt) |
+| `!4359d0cc` | **2026-07-21**T04:35:54Z | **2026-07-29T21:32:55Z** ← patched | `473d02cd-…` (**different user**) |
+
+Radio B is `!4359d0cc`. Its node num is MAC-derived, so re-flashing did **not** change it —
+and it was already registered on 07-21 by **another account** (a reused/loaner radio). The
+internal route found the existing row, took the `existing` branch
+(`api/internal/meshtastic-radios/route.ts:139`) and called
+`patchMeshRadio(canonicalNodeId, { publicKey, privateKey, verified: true })` — which
+**never checks `existing.userId === adapterUserId` and never sets `userId`**. Result:
+
+- HTTP **200 `{updated:true}`** → the wizard renders the teal "registered (updated)" line
+  (`components/done/done-step.tsx:202-212`), visually a success. Nothing fails. ✅ explains
+  "won't register and doesn't seem to fail".
+- No row is ever created for Kurt — the radio stays owned by the 07-21 account.
+- **Kurt's device keys were written onto another user's row and marked `verified: true`.**
+  Since phase 66 made MeshRadio the authoritative decrypt source
+  (`keycache/store.go:82`), that radio's traffic now decrypts/attributes to the wrong user,
+  and `impersonate` is preserved from the victim row.
+
+This is an **authz hole, not just a UX gap**: any authenticated user who submits a nodeId
+that already exists can overwrite that radio's `publicKey`/`privateKey` and flip
+`verified: true` on someone else's authoritative row. Two radios in the same batch have
+adjacent node nums (`!4358fdc0` / `!4359d0cc` both exist, different owners), so collisions
+here are not hypothetical — guessing is cheap.
+
+**Fixes required:** (a) reject or explicitly re-assign on owner mismatch — never silently
+patch another user's row; (b) distinguish "created" from "adopted an existing radio" in the
+UI instead of rendering both as success; (c) decide the re-flash-of-a-transferred-radio
+policy (ownership transfer needs the OTP device-verification path, not a bare flash POST).
+**Remediation for the live row `!4359d0cc` is pending Kurt's decision.**
+
 ## The four holes, worst first
 
 1. **No server-side reconciliation anywhere.** A configured-but-unregistered radio connects
