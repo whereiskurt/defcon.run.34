@@ -6,7 +6,7 @@
     import Map from '$lib/components/map/Map.svelte';
     import Menu from '$lib/components/Menu.svelte';
     import Toolbar from '$lib/components/toolbar/Toolbar.svelte';
-    import StreetViewControl from '$lib/components/map/street-view-control/StreetViewControl.svelte';
+    import SpotControl from '$lib/components/map/spot-control/SpotControl.svelte';
     import LayerControl from '$lib/components/map/layer-control/LayerControl.svelte';
     import GhostTrigger from '$lib/components/GhostTrigger.svelte';
     import ProfileMenu from '$lib/components/ProfileMenu.svelte';
@@ -133,7 +133,7 @@
                 <Toolbar />
             </div>
             <Map class="h-full {$treeFileView ? '' : 'horizontal'}" />
-            <StreetViewControl />
+            <SpotControl />
             <LayerControl />
             <GhostTrigger />
             <ProfileMenu />
