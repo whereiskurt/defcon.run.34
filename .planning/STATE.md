@@ -3,16 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
 status: Milestone complete
-stopped_at: Phase 39 context gathered
-last_updated: "2026-07-19T04:08:16.514Z"
-last_activity: 2026-07-15
-last_activity_desc: Phase 53 complete
+stopped_at: "Completed 68-01-PLAN.md (v5 codec seam: paho.golang v0.22.0 pinned+vendored, readFrame, handleProxyV5/handleBackendV5, inspectV5Connect, alias strip both directions, rules nil-guard, pre-change v4 golden) — upstream branch feat/mqtt5-dual-codec, NOT pushed/PR'd/deployed"
+last_updated: "2026-07-29T06:11:37.607Z"
+last_activity: 2026-07-29
 progress:
-  total_phases: 27
+  total_phases: 28
   completed_phases: 17
-  total_plans: 69
-  completed_plans: 65
-  percent: 63
+  total_plans: 72
+  completed_plans: 66
+  percent: 61
 current_phase: 56
 current_phase_name: ctf-flag-types-slice-3-wordlist-one-time-codes-ctfcode-entit
 ---
@@ -24,7 +23,7 @@ current_phase_name: ctf-flag-types-slice-3-wordlist-one-time-codes-ctfcode-entit
 See: .planning/PROJECT.md (updated 2026-07-05)
 
 **Core value:** Participants and organizers have a seamless digital experience for DCR34 -- from device setup to event discovery to route navigation. Milestone v2.2 brings back the DC33 leaderboard-as-activity-table in run.human, shipped hidden behind the admin group until perfected.
-**Current focus:** Phase 53 — ctf-flag-types-slice-1a-backend-answer-type-framework-rotati
+**Current focus:** Phase 68 — mqtt-v5-support-in-meshtk-proxy-dual-codec-android-2-8-compa
 
 ## Current Position
 
@@ -52,7 +51,7 @@ only us-east-1 was deployed for the copy-migrated apps, so there was no second l
 observe against. The per-region mechanism (master → Litestream worker → revalidate) is
 identical and will hold when a 2nd region deploys. Not counted as debt.
 
-Last activity: 2026-07-15 — Phase 53 complete
+Last activity: 2026-07-29
 
 ## Roadmap Summary (v1.9)
 
@@ -121,6 +120,7 @@ Recent decisions affecting current work:
 - [Phase 55]: 55-03: admin day/time/tz scoring-window picker (CTFT-11) — Phase 55 COMPLETE (3/3). Replaced the Phase-54 Slice-2 placeholder note in CtfForm §4 with the real picker: enable toggle ("Restrict scoring to a time window"), 7 Sun–Sat weekday chips (reusing cls.segment tokens, role=switch), Opens/Closes type="time" inputs, PT/ET/UTC `<select>` (stores the IANA id, resolved by the 55-01 bridge), and the accent "DEF CON run hours" quick-set chip (fills Thu–Sun 06:00–08:00 PT via scoreWindowToFormState(DEFCON_RUN_HOURS) then stays individually editable — presets pre-fill, never lock, mirroring applyPreset). Rehydrates on edit from initial.scoreWindow; onSave computes formStateToScoreWindow(...) and spreads `...(scoreWindow?{scoreWindow}:{})` so OFF ⇒ no key ⇒ no-clobber. Non-blocking "window-gated" chip on the live preview (window affects WHETHER it scores, not the value). NO player-facing window UI (covert-safe). qr-admin: scoreWindow added to CtfInput + ctfAttributes emits it verbatim only when provided (no-clobber), NOT part of the CTFT-06 flip guard — a window-only edit of a solved flag is never rejected (asserted by test: scoreWindow-only input emits no answerType/perPlayerMax/otp keys). Zero new deps; covert path untouched. Full webapp suite 591 green; touched files tsc-clean (2 pre-existing out-of-scope errors untouched).
 - [Phase 55]: 55-02: judge scoring-window gate (CTFT-10) inserted as step 3 in judgeSolve — AFTER unlock (1b), BEFORE attempt-cap (2) — so a closed window short-circuits before the state-mutating cap bump + answer validation. Reuses the shared NON_SOLVE + the identical ctfJudgeLog('no-solve') (structurally no guess param), so a closed/invalid-tz window is byte-identical to a wrong answer on BOTH channels (T-53-04-01 held with ZERO covert-file edit — grep-gated). Consumes 55-01's pure isWithinScoreWindow (DST/tz correctness in one seam). narrowCtf carries row.scoreWindow verbatim, fail-closed coerce. 7-case judge test (backward-compat/inside/outside+no-leak/DST/order/covert). Full suite 588 green; ctf-judge.ts tsc-clean.
 - [Phase 54]: 54-04: CtfForm design-A redesign (Phase 54 DONE, 4/4) — 7 ordered section cards (Name → challenge-type segmented presets → Answer type Static/Rotating-OTP → Scoring window & limits → Unlock & chaining → hand-rolled Advanced disclosure → live scoring preview). Dead standalone `Points` field REMOVED (grep-verified setPoints==0). Live preview binds previewPoints (54-01 adapter → computePoints; judge-parity, no duplicate scorer). Secrets write-only end-to-end: edit page routes getCtf row through redactCtfSecrets (raw `record as CtfRecord` cast GONE; no `secret` token on edit page); CtfForm's CtfRecord aliased to RedactedCtfRecord so the safe shape is the only accepted prop; answer/otp-secret/reward-otpauth/effect never prefilled, blank-on-save keeps stored (no-clobber). applyPreset pre-fills Advanced knobs via presetToAdvanced but never locks them. Static Reward → OTP enrollment configurator: write-only otpauth composes {kind:"otp-enroll",otpauth,nextFlag?} (precedence over raw Effect JSON), Reveal preview REUSES the 54-03 CtfOtpEnroll card. Wordlist NOT rendered; Slice-2 day/time/tz = placeholder note only (D5). New shared qr-ui tokens cls.segment/segmentActive/segmentIdle/chip/rewardCard (slices 55/56 inherit). Zero new deps. Full webapp suite 551 green; touched files tsc-clean (2 pre-existing out-of-scope errors in dropdown-user.tsx + checkin.test.ts untouched).
+- [Phase 68]: 68-01 — MQTT v5 dual-codec seam landed UPSTREAM (/Users/khundeck/working/meshtk, branch feat/mqtt5-dual-codec, commits ec96e8f/54ddfbb/3d1a152/8aa70ec; NOT pushed, PR'd, vendor-synced or deployed). Pinned paho.golang **v0.22.0 not latest**: it needs x/net v0.27.0, BELOW meshtk's existing v0.38.0, so the vendor diff is 18 added files and nothing else moves — v0.23.0 would have dragged a 62-file x/net+x/sys+x/crypto upgrade into a phase whose hard requirement is 'do not destabilize', and its only relevant fix (reason-only DISCONNECT parsing) is INERT here because the design never parses DISCONNECT. **Frame-capture relay** is the load-bearing call: readFrame reads only the version-independent fixed header and forwards captured bytes verbatim, so packets paho.golang cannot parse (zero-length DISCONNECT e000 = EOF) or would inflate (short PUBACK 40021234 -> 400412340000) never tear a connection down; ONLY CONNECT and CONNACK are ever parsed. Protocol version travels **by construction** (handleProxyV5 spawns handleBackendV5) because a ConnTrack lookup races the CONNACK — the entry does not exist until the CONNECT is inspected but the downlink goroutine starts before that. 3.1.1 blast radius: proxy.go +7/-2 (one branch: ver>5 keeps 0x84, ver==5 enters handleProxyV5), rules.go +7/-0 (nil-guard only), inspect.go additive fields only (RawPacket.MQTT5, ConnectionInfo.ProtocolVersion). **The v4 golden was committed at 54ddfbb BEFORE any source edit and git log shows that file has exactly ONE commit** — so '3.1.1 is byte-for-byte unchanged' is a checkable fact, not a claim; the fixture carries HopLimit 7/HopStart 9 so RewriteHopLimit+RemarshalEnvelope actually run and the pinned bytes hold the CLAMPED values (48 03 / 78 07), and it also pins the per-packet PacketDecider outcome so a silent rule-match flip cannot hide behind matching bytes. Removed a **process-killing panic**: AllowMQTTControl dereferenced ip.Raw.MQTT unconditionally and a v5 packet leaves it nil — a panic in the read loop takes the whole server, not one connection. Closed a live gap: mosquitto 2.0 advertises TopicAliasMaximum=10 by default, so a v5 client could publish with an EMPTY topic + Topic Alias, blinding every topic rule and msh/... log line while the broker resolved it and fanned out normally — stripped BOTH directions (200900000622000a210014 -> 2006000003210014). Reject codes now version-correct: 0x87 bad/empty creds, 0x8C enhanced auth refused BEFORE the backend dial (matches mosquitto's own answer), 0x84 reserved for levels >5 — answering 0x84 to a level-5 CONNECT is exactly what made mqttastic retry-loop. AUTH_REJECT grammar kept verbatim (2 lines); enhanced auth gets its own action=MQTT5_AUTH_METHOD so research assumption A3 is greppable alone; new action=MQTT5_CONNECT makes Android v5 adoption measurable. **Nothing ships from this plan alone by design** — uplink v5 PUBLISH fails closed (action=BLOCK, reason=v5_publish_inspection_pending) until 68-02. DEVIATIONS (2, both Rule 3 blocking): (1) 'go mod tidy'/'go mod vendor' DROP a module nothing imports, so an isolated dependency commit carrying no code is unachievable in Go — added a 1-line blank-import anchor (mqtt5_dep.go) in ec96e8f, deleted in 3d1a152 once proxy_v5.go imported the codec for real; (2) net.Pipe is unbuffered and ControlPacket.WriteTo emits several Writes, so a single peer.Read deadlocked the CONNACK tests — fixed with io.ReadFull under a deadline. 13 new v5 tests + the golden; full meshtk suite green; every plan grep and both numstat budgets satisfied literally. LANDMINE for 68-04: the monorepo vendored snapshot is stale — branch from origin/main, never from release/2026-07-26-230957, or the sync REVERTS meshtk#22/#23.
 
 ### Pending Todos
 
@@ -133,9 +133,9 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-19T04:08:07.028Z
-Stopped at: Completed 66-02-PLAN.md (register-radio MeshRadio write: pure canonicalization/base64→0x-hex lib + internal-route upsert, MRAD-02) — Phase 66 Plan 02, wave 2. Executed in the flashsettings worktree on branch feat/authoritative-pubkey-ddb. Builds on 66-01 (MeshRadio entity). Embedded-list dual-write intentionally retained (plan 66-03 retires it).
-Resume file: None — 66-02 done. Phase 66 remaining: 66-03 (reader hard-switch), 66-04 (backfill), 66-05 (flash Sync keys), 66-07 (meshtk decryptPKI swap). Do NOT deploy; monorepo = one PR on feat/authoritative-pubkey-ddb.
+Last session: 2026-07-29T06:10:30.651Z
+Stopped at: Completed 68-01-PLAN.md (v5 codec seam: paho.golang v0.22.0 pinned+vendored, readFrame, handleProxyV5/handleBackendV5, inspectV5Connect, alias strip both directions, rules nil-guard, pre-change v4 golden) — upstream branch feat/mqtt5-dual-codec, NOT pushed/PR'd/deployed
+Resume file: None — 68-01 done. Next: 68-02 (v5 PUBLISH parity) in /Users/khundeck/working/meshtk on feat/mqtt5-dual-codec; diff the golden against 54ddfbb
 
 ## Operator Next Steps
 
@@ -182,3 +182,4 @@ Resume file: None — 66-02 done. Phase 66 remaining: 66-03 (reader hard-switch)
 | Phase 56 P03 | ~8min | 3 tasks (TDD RED/GREEN + TDD + feat) | 7 files |
 | Phase 66 P02 | ~7min | 3 tasks (feat + test + feat) | 3 files |
 | Phase 66 P04 | 20 | 2 tasks | 2 files |
+| Phase 68 P01 | 17min | 3 tasks | 10 files |
