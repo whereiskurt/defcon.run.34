@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
 status: Milestone complete
-stopped_at: "Completed 68-04-PLAN.md (meshtk overlay vendor-synced; PR #1072 MERGED to monorepo main @ 6bbe18c). NOT built and NOT deployed — 68-05 owns buildpub/deploy/UAT."
-last_updated: "2026-07-29T07:04:09.320Z"
+stopped_at: "Completed 68-05-PLAN.md — MQTT v5 dual codec LIVE in prod (meshtk v0.0.72, task def run-mqtt-use1-dc34:115). Phase 68 COMPLETE. Open gap: no Android v5 session in telemetry."
+last_updated: "2026-07-29T13:38:49.802Z"
 last_activity: 2026-07-29
 progress:
   total_phases: 28
-  completed_phases: 17
+  completed_phases: 18
   total_plans: 72
-  completed_plans: 69
-  percent: 61
+  completed_plans: 70
+  percent: 64
 current_phase: 56
 current_phase_name: ctf-flag-types-slice-3-wordlist-one-time-codes-ctfcode-entit
 ---
@@ -125,6 +125,7 @@ Recent decisions affecting current work:
 - [Phase 68]: 68-03 — live-broker e2e + **MERGED UPSTREAM**: PR whereiskurt/meshtk#25 is MERGED at merge commit **c5341ce** on origin/main, carrying 68-01+68-02+68-03 (commits e534cf0/a9ab2d7/6062c7f this plan). The monorepo image build clones upstream main, so this is the hand-off to 68-04. New `TestE2EDualCodec` (internal/app/server/proxy_v5_e2e_test.go, 1053 lines) runs a REAL mosquitto behind the REAL StartProxyServer listener with a v5 client and a 3.1.1 client INTERLEAVED in one run — 11 subtests, all green on mosquitto **2.0.22 (Homebrew) AND 2.0.20 (alpine:3.21, the prod image base)**, plus `-race` and 3 consecutive runs. Env-gated on MESHTK_E2E=1 and SKIPs (never fails) with no broker, so `go test ./...` stays hermetic; zero dependency added because the root paho.mqtt.golang client was ALREADY vendored. Evidence the unit tests could not produce: mosquitto's own log line `New client connected … mqttastic-e2e-v5 (p5, c1, k60, u'public')` — `p5` proves the version survived the proxy, `u'public'` proves the client credential did NOT reach the broker (the test also asserts neither `runner` nor `meshpass` appears anywhere in the broker log). Both reject paths snapshot the broker log length first and assert NO `New client connected` was appended (2003008700 bad creds / 2003008c00 enhanced auth answered before the backend dial — a retry-looping mqttastic costs zero broker connections). CONNACK alias strip confirmed against the live default: 200900000622000a210014 -> 2006000003210014. **The hop clamp is proven cross-codec through a real broker**: the v5 client publishes hop 7/9 and the *3.1.1* subscriber decodes 3/7 out of what mosquitto fanned out (broker logs `q1, m4660` + `Sending PUBACK (m4660, rc0)`, client PUBACK keeps id 0x1234, proxy logs action=ALLOW). Zero-length DISCONNECT e000 → `Received DISCONNECT` (graceful) — the packet paho.golang returns EOF on, which is the whole justification for frame-capture. Self-echo suppression asserted implicitly: the v5 client is subscribed to the topic it publishes on and `expectFrame` is STRICT, so a regression would surface as an unexpected packet rather than be skipped. testdata/mosquitto.e2e.conf is a COMMITTED template (__PORT__/__BIND__/__PASSWORD_FILE__ rendered into t.TempDir()) with `max_topic_alias` DELIBERATELY absent — mosquitto's default TopicAliasMaximum=10 is what makes the strip assertion falsifiable. Operator docs went in internal/app/server/README.md (+72; that file IS the proxy document — the root README opens with a stale DEF CON 33 TODO): protocol-level table, log-action table incl. MQTT5_AUTH_METHOD, reason-code table with verified wire bytes, alias suppression, how to run the e2e. DEVIATIONS (4, all Rule 1 bugs, ALL in the test harness — the v5 codec itself needed no change): (1) dialV5/dialMQTT3 registered t.Cleanup on the SUBTEST's t, closing the shared connections one subtest early — lifetime is now the caller's, long-lived clients register on a root *testing.T; (2) the docker fallback LEAKED CONTAINERS (killing the `docker run` CLI does not stop the container — 3 orphans found, a direct hit on this plan's own threat T-68-03-03) — now `--name` + `docker rm -f`; (3) broker readiness was a TCP handshake, which docker-proxy completes while `apk add mosquitto` is still running — readiness is now the broker's own `running` log line; (4) **the plan/research expected mosquitto to log 3.1.1 as `p4`; it logs `p2`** — the marker is mosquitto's internal mosq_p_mqtt311 enum, not the wire protocol level, so the planned assertion could never have passed. MESHTK_E2E_DOCKER=1 was added so the fallback path is actually verifiable — and running it is what found bugs 2 and 3. All four gates (go build / go vet / go test ./... / gated e2e) green before the PR and RE-RUN GREEN FROM THE MERGED MAIN; the upstream repo has no CI, so those four are the entire gate. golang.org/x/net is still v0.38.0 on main — the zero-transitive-churn pin held to the merge. LEFT: 68-04 vendor-sync into apps/run.mqtt/meshtk/ (LANDMINES: branch from origin/main NEVER release/2026-07-26-230957 or the sync REVERTS meshtk#22/#23; vendor/ is git-tracked in both repos and Dockerfile.meshtk does COPY . . so a go.mod change without matching vendor/ fails the build with `inconsistent vendoring`; NEVER touch internal/embedded/gpx/embedded.go), then 68-05 buildpub/deploy use1 + prod verify + Kurt's Android 2.8.0 APK UAT.
 - [Phase ?]: 68-04: monorepo meshtk overlay vendor-synced from upstream main @ c5341ce and MERGED to monorepo main @ 6bbe18c (PR #1072) — 11 files, internal/embedded/ byte-untouched, VERSION left at v0.0.71 for buildpub to bump
 - [Phase ?]: 68-04: the CI overlay composition (fresh upstream clone + tracked overlay untarred on top) is reproduced locally as the release gate — go build/vet/test all exit 0 in the composed tree
+- [Phase ?]: 68-05: MQTT v5 dual codec SHIPPED to prod — meshtk v0.0.72 on run-mqtt-use1-dc34:115. Decisive wire proof: identical bad-credential v5 CONNECT flipped 2003008400 (0x84) -> 2003008700 (0x87) across the deploy; enhanced auth 2003008c00; level 6 still 2003008400; valid-cred success 2006000003210014 with TopicAliasMaximum stripped; level-4 probe still returns the 4-byte 3.1.1 CONNACK 20020005 so the 3.1.1 path is untouched on the wire. MQTT5_PARSE_FAIL=0, panic=0, ALLOW never zero across the deploy. LANDMINE 1: during an ECS rolling replace BOTH images write to the same log group — attribute evidence by --log-stream-names (per task), NEVER by wall clock; two protocol_version=5 rejects after the new task startedAt were the OLD task draining. LANDMINE 2: 'aws ecs wait services-stable' is NOT a drain gate — it returned while v0.0.72 had served ZERO fleet packets (long-lived MQTT TCP stays pinned to the draining task); poll the old task to STOPPED before claiming the new image serves prod. LANDMINE 3: rollback.yml does not list run.mqtt as an app. UAT: Kurt reported messages flowing with goldstein via !435990e4, BUT proxy telemetry shows NO Android MQTT5_CONNECT and zero events for !435990e4 — ROADMAP criterion 1 met on HUMAN ATTESTATION ONLY; gap recorded in 68-05-SUMMARY. Fresh-radio note: a node with no NODEINFO has no cached pubkey, so PKI DMs are undecryptable and unACKable -> 'max retrans' (expected, identical on v0.0.71).
 
 ### Pending Todos
 
@@ -137,8 +138,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-29T07:03:42.934Z
-Stopped at: Completed 68-04-PLAN.md (meshtk overlay vendor-synced; PR #1072 MERGED to monorepo main @ 6bbe18c). NOT built and NOT deployed — 68-05 owns buildpub/deploy/UAT.
+Last session: 2026-07-29T13:38:40.599Z
+Stopped at: Completed 68-05-PLAN.md — MQTT v5 dual codec LIVE in prod (meshtk v0.0.72, task def run-mqtt-use1-dc34:115). Phase 68 COMPLETE. Open gap: no Android v5 session in telemetry.
 Resume file: None
 
 ## Operator Next Steps
@@ -189,3 +190,4 @@ Resume file: None
 | Phase 68 P01 | 17min | 3 tasks | 10 files |
 | Phase 68 P02 | 11min | 3 tasks | 6 files |
 | Phase 68 P03 | 20min | 3 tasks | 3 files |
+| Phase 68 P05 | ~35min | 3 tasks | 0 files |
