@@ -761,7 +761,7 @@ Standing repo landmines apply: ECR repos are immutable so the Release PR's VERSI
 | Docker | prod-identical mosquitto e2e | ✓ | Server 29.6.1 | Homebrew mosquitto |
 | mosquitto (local) | e2e broker | ✓ | 2.0.22 (`/opt/homebrew/sbin/mosquitto`) | docker `alpine:3.21` → 2.0.20 |
 | `mosquitto_pub`/`mosquitto_sub`/`mosquitto_passwd` | e2e fixtures | ✓ | 2.0.22 | — |
-| meshtk upstream repo | code under change | ✓ | `~/working/meshtk` @ `5d08bb6` (#23), clean tree, `go build ./...` + `go test ./internal/app/server/...` green | — |
+| meshtk upstream repo | code under change | ✓ | `~/working/meshtk` @ `92bd986` (#24), clean tree, `go build ./...` + `go test ./internal/app/server/...` green | — |
 | `gh` CLI / AWS profile `dc34-application` | release + prod verify | assumed present per AGENTS.md | — | — |
 
 **Missing dependencies with no fallback:** none
