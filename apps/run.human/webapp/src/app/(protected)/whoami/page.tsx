@@ -259,7 +259,10 @@ export default function WhoAmIPage() {
     }
   };
 
-  if (!mounted || status === 'loading' || loading) {
+  // Skeleton only while bootstrapping. next-auth's update() flips status back
+  // to 'loading' during the on-focus claims refresh — once userData exists,
+  // keep the tree mounted so open dialogs survive the background refresh.
+  if (!mounted || ((status === 'loading' || loading) && !userData)) {
     return (
       <div className="max-w-2xl mx-auto space-y-4">
         <div className="h-7 w-48 rounded bg-content2 animate-pulse" />
@@ -289,6 +292,10 @@ export default function WhoAmIPage() {
   const displayName = userData?.displayname || userData?.displayName || user?.displayName || user?.name || 'Runner';
   const nameChangesLeft = userData?.quotas?.displayname_change?.remaining ?? 0;
   const services: string[] = user.services || [];
+  const authBase = isDev
+    ? `http://localhost:${LOCAL_AUTH_PORT}`
+    : `https://auth.${siteDomain}/${REGION_SHORT}`;
+  const stravaLinkUrl = `${authBase}/strava?autoLink`;
 
   return (
     <div className="max-w-[900px] mx-auto space-y-2.5 animate-fade-up">
@@ -366,10 +373,23 @@ export default function WhoAmIPage() {
               </p>
             )}
             </div>
-            <SocialQRRow
-              stravaUrl={stravaGroupUrl}
-              signalUrl={signalGroupUrl}
-            />
+            <div className="flex flex-col items-center sm:items-end gap-2.5 w-full sm:w-auto">
+              {!user.hasStrava && (
+                <a
+                  href={stravaLinkUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="strava-link-glow flex items-center gap-1.5 rounded-full font-semibold text-sm px-4 py-2"
+                >
+                  <SiStrava className="w-4 h-4" />
+                  Link Strava
+                </a>
+              )}
+              <SocialQRRow
+                stravaUrl={stravaGroupUrl}
+                signalUrl={signalGroupUrl}
+              />
+            </div>
           </div>
         </CardBody>
       </Card>
@@ -541,11 +561,8 @@ export default function WhoAmIPage() {
                   </Chip>
                 );
                 if (linkable) {
-                  const authBase = isDev
-                    ? `http://localhost:${LOCAL_AUTH_PORT}`
-                    : `https://auth.${siteDomain}/${REGION_SHORT}`;
                   return (
-                    <a key={name} href={`${authBase}/strava?autoLink`} target="_blank" rel="noopener noreferrer">
+                    <a key={name} href={stravaLinkUrl} target="_blank" rel="noopener noreferrer">
                       {chip}
                     </a>
                   );

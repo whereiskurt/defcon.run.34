@@ -217,3 +217,31 @@ html.dark .leaflet-popup-close-button:hover {
    suppress. Suppressing it would silently hide the payoff for anyone with
    Reduce Motion on (the documented prod cash-rain regression). The burst +
    fall stay on for everyone. */
+
+/* "Link Strava" — whoami's primary call-to-action when Strava isn't linked
+   yet: a Strava-orange pill with a soft pulsing glow (same treatment as
+   gpx.defcon.run's "Add run" button). */
+.strava-link-glow {
+  background: #fc4c02;
+  color: #fff;
+  animation: strava-link-pulse 2.1s ease-in-out infinite;
+}
+.strava-link-glow:hover {
+  background: #e04502;
+  filter: brightness(1.05);
+}
+@keyframes strava-link-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 6px 1px rgb(252 76 2 / 0.6);
+  }
+  50% {
+    box-shadow: 0 0 18px 5px rgb(252 76 2 / 0.95);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .strava-link-glow {
+    animation: none;
+    box-shadow: 0 0 10px 2px rgb(252 76 2 / 0.7);
+  }
+}

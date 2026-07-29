@@ -665,9 +665,9 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
               ) : (
                 radios.map((radio) => (
                   <div key={radio.nodeId} className="border border-default-200 rounded-lg p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Radio className="h-5 w-5 text-default-500" />
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 min-w-0 flex-1">
+                        <Radio className="h-5 w-5 text-default-500 shrink-0" />
                         <span className="font-mono text-lg font-semibold">{radio.nodeId}</span>
                         {radio.verified ? (
                           <Chip color="success" size="md" variant="flat" startContent={<Unlock className="h-4 w-4" />}>
@@ -688,7 +688,7 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
                               onValueChange={() => handleToggleImpersonate(radio.nodeId, radio.impersonate)}
                               thumbIcon={radio.impersonate ? <UserCheck className="h-3 w-3" /> : <UserX className="h-3 w-3" />}
                             />
-                            <span className="text-xs text-default-500">Impersonate</span>
+                            <span className="text-xs text-default-500 whitespace-nowrap">Impersonate</span>
                           </div>
                         )}
                         {radio.verified && radio.privateKey && (
@@ -700,7 +700,7 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
                               isDisabled={togglingShowOnMapId === radio.nodeId}
                               onValueChange={() => handleToggleShowOnMap(radio.nodeId, radio.showOnMap ?? false)}
                             />
-                            <span className="text-xs text-default-500">Show me on the map</span>
+                            <span className="text-xs text-default-500 whitespace-nowrap">Show me on the map</span>
                           </div>
                         )}
                       </div>
@@ -709,6 +709,7 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
                         variant="light"
                         color="danger"
                         size="sm"
+                        className="shrink-0"
                         isLoading={deletingRadioId === radio.nodeId}
                         onPress={() => confirmDeleteRadio(radio)}
                       >
