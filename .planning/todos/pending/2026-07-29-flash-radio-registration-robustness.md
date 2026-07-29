@@ -84,6 +84,55 @@ UI instead of rendering both as success; (c) decide the re-flash-of-a-transferre
 policy (ownership transfer needs the OTP device-verification path, not a bare flash POST).
 **Remediation for the live row `!4359d0cc` is pending Kurt's decision.**
 
+## Status 2026-07-29 22:0xZ — hole 0 FIXED in PR #1087 (open, not merged, not deployed)
+
+Branch `fix/mesh-radio-ownership-transfer`, based on `origin/main`. Same owner → unchanged
+`{updated:true}`, no quota charge. Different owner → **explicit audited transfer**: `userId`
+and the byUser GSI move atomically, the NEW owner's quota is charged (403 when out, victim's
+row untouched), `previousUserId`/`transferredAt` written, `verifiedAt` re-stamped, previous
+owner's verification secrets dropped, `{transferred:true}` returned, reassignment logged
+ids-only, and a distinct line renders on the Done step so it can never be silent again.
+run.human 1031 tests pass, run.flash 74 pass; non-vacuity proven by reverting the fix
+(2 entity + 5 route tests fail, all green again with it restored).
+
+⚠️ **ALSO FIXED — pre-existing key-material leak.** `apps/run.flash/webapp/src/app/api/register-radio/route.ts:59`
+logged `JSON.stringify(data)` of the whole run.human response. `safeRadio()` strips only
+`verificationCode`, so `privateKey`/`publicKey` rode along — **every radio registration was
+writing the device's X25519 private key into CloudWatch.** Now logs outcome only.
+**Open remediation question for Kurt: existing CloudWatch logs still contain those private
+keys** — decide whether to purge the affected log streams and/or treat the exposed device
+keys as compromised.
+
+Corrections to earlier analysis in this file, established while fixing:
+- The claim that `MeshRadio.patch()` **cannot** move `userId` because it is a byUser GSI
+  composite is **FALSE**. ElectroDB v3.7 `patch().set({ userId })` moves it and recomputes
+  `gsi1pk` in one atomic `UpdateItem`. The `PatchMeshRadioInput` exclusion was a *policy*
+  comment, not a capability limit — and plausibly what caused the original bug. The fix uses
+  `patch` (preserves every field by construction, carries `attribute_exists(pk)` so a
+  transfer can never create a row) rather than a full-item `put`.
+- A **third** stale file existed on the release branch beyond the two identified:
+  `apps/run.flash/webapp/src/lib/copy-snapshot.json` (+5/-2 on origin/main) — the exact file
+  the i18n work needed. Editing from the stale HEAD would have reverted it.
+
+Deliberately left alone: the old owner's quota is not restored on transfer (fairness nit —
+Kurt's call); `syncKeys` also transfers, consistent with the physical-possession rationale
+but not flash-only; the user-facing `/api/meshtastic-radios` POST/PATCH/resend routes were
+audited and **already** gate on `radio.userId !== session.user.id` — the internal route was
+the only hole.
+
+## Operational note — where the welcome/OTP poller actually logs
+
+The welcome + OTP poller is **not** in the proxy's log group. It logs to
+`/ecs/run-mqtt-ghosts-run-mqtt-use1-dc34` (the *ghosts* service), and its tick is **20s**.
+Searching `/ecs/run-mqtt-meshtk-*` for "welcome" returns nothing. Also: a single PKI DM fans
+out to **every** connected client socket for that node (observed: one message id delivered to
+three sockets for `!174e59c8`), so a human may see one welcome appear several times across
+their devices — that is fan-out, not a re-send. `enqueueWelcome` fires on *every* successful
+registration including re-flash, so a second DM after a re-Configure is by design. There IS a
+latent at-least-once window (send → best-effort delete; `attempts` only increments on send
+failure, so a successful-send-with-failed-delete is indistinguishable from never-attempted),
+but no evidence it has fired — no `delete sent welcome … failed` lines observed.
+
 ## The four holes, worst first
 
 1. **No server-side reconciliation anywhere.** A configured-but-unregistered radio connects
