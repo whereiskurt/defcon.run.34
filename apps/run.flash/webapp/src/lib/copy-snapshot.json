@@ -154,6 +154,7 @@
     "flash.done.configuredFallback": "Your device has been successfully configured.",
     "flash.done.registering": "Registering radio...",
     "flash.done.registeredUpdated": " — keys updated on your profile",
+    "flash.done.registeredTransferred": " — moved to your profile from its previous owner",
     "flash.done.registered": " — registered to your profile",
     "flash.done.regFailedPrefix": "Radio registration failed: ",
     "flash.done.regFailedHint": "You can manually add the radio on run.defcon.run",

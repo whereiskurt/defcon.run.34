@@ -206,7 +206,9 @@ export function DoneStep({ device, firmwareVersion, configPayload, registrationS
               <div className="text-sm">
                 <span className="text-primary font-mono">{registrationStatus.nodeId}</span>
                 <span className="text-default-400">
-                  {registrationStatus.updated
+                  {registrationStatus.transferred
+                    ? t("flash.done.registeredTransferred")
+                    : registrationStatus.updated
                     ? t("flash.done.registeredUpdated")
                     : t("flash.done.registered")}
                 </span>
