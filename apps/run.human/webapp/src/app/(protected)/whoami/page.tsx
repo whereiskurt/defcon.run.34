@@ -381,9 +381,9 @@ export default function WhoAmIPage() {
                 href={gpxAddRunUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="seg-addrun flex items-center gap-1.5 font-semibold text-xs px-2.5 py-1.5 whitespace-nowrap"
+                className="seg-addrun flex items-center gap-1 sm:gap-2 font-semibold text-[11px] sm:text-sm px-2 sm:px-4 py-1.5 sm:py-2.5 whitespace-nowrap"
               >
-                <Footprints className="w-3.5 h-3.5" />
+                <Footprints className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
                 Add Run
               </a>
               {!user.hasStrava && (
@@ -391,9 +391,9 @@ export default function WhoAmIPage() {
                   href={stravaLinkUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="seg-strava flex items-center gap-1.5 font-semibold text-xs px-2.5 py-1.5 whitespace-nowrap"
+                  className="seg-strava flex items-center gap-1 sm:gap-2 font-semibold text-[11px] sm:text-sm px-2 sm:px-4 py-1.5 sm:py-2.5 whitespace-nowrap"
                 >
-                  <SiStrava className="w-3.5 h-3.5" />
+                  <SiStrava className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
                   Link
                 </a>
               )}
@@ -401,18 +401,18 @@ export default function WhoAmIPage() {
                 href={stravaGroupUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="seg-strava flex items-center gap-1.5 font-semibold text-xs px-2.5 py-1.5 whitespace-nowrap"
+                className="seg-strava flex items-center gap-1 sm:gap-2 font-semibold text-[11px] sm:text-sm px-2 sm:px-4 py-1.5 sm:py-2.5 whitespace-nowrap"
               >
-                <ExternalLink className="w-3.5 h-3.5" />
+                <ExternalLink className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
                 Strava
               </a>
               <a
                 href={signalGroupUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="seg-signal flex items-center gap-1.5 font-semibold text-xs px-2.5 py-1.5 whitespace-nowrap"
+                className="seg-signal flex items-center gap-1 sm:gap-2 font-semibold text-[11px] sm:text-sm px-2 sm:px-4 py-1.5 sm:py-2.5 whitespace-nowrap"
               >
-                <SiSignal className="w-3.5 h-3.5" />
+                <SiSignal className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
                 Signal
               </a>
             </div>
