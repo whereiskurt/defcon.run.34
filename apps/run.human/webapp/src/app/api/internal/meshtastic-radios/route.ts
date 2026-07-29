@@ -5,6 +5,7 @@ import {
   getMeshRadio,
   upsertMeshRadio,
   patchMeshRadio,
+  transferMeshRadioOwner,
   type MeshRadioItem,
 } from "@/entities/mesh-radio";
 import {
@@ -28,6 +29,8 @@ const OIDC_PROVIDER = "run.defcon.run";
  *
  * - New radios are created as verified + impersonate enabled (no verification needed)
  * - Re-flashing the same radio updates the private key (idempotent)
+ * - Re-flashing a radio owned by ANOTHER user is an explicit, audited ownership
+ *   transfer (see transferMeshRadioOwner) — never a silent key overwrite
  */
 export async function POST(req: NextRequest) {
   // Verify internal secret
@@ -135,12 +138,65 @@ export async function POST(req: NextRequest) {
       }
     };
 
+    // A radio joining this account -- whether brand new or transferred in from
+    // another owner -- costs the requesting user one radio slot. Without this on
+    // the transfer path, re-flashing someone else's radio is a quota bypass.
+    const consumeRadioQuota = async () => {
+      const services = ["run"]; // Internal API, default tier
+      const tier = getUserTier(services);
+      const result = await consumeQuota(adapterUserId, "meshtastic_radio", 1, tier);
+      return result.success;
+    };
+
     // Check for an existing authoritative MeshRadio row with this nodeId.
     const existing = await getMeshRadio(canonicalNodeId);
 
+    if (existing && existing.userId !== adapterUserId) {
+      // TRANSFER: this radio is registered to a DIFFERENT account. Meshtastic
+      // derives myNodeNum from the ESP32 MAC, so a re-flashed radio keeps its
+      // "!id" -- a radio that changed hands lands here. Handle it EXPLICITLY:
+      // flashing proves physical USB possession (stronger than the manual-add
+      // OTP), so move ownership and audit it. This branch previously fell into
+      // the UPDATE patch below, which overwrote the other user's keys, flipped
+      // verified, and left `userId` behind -- so MeshRadio (the authoritative
+      // meshtk decrypt source) attributed the new radio's traffic to the old
+      // account, and the caller still saw a plain 200 {updated:true}.
+      if (!(await consumeRadioQuota())) {
+        return NextResponse.json(
+          { error: "Radio quota exceeded" },
+          { status: 403 }
+        );
+      }
+
+      const transferred = await transferMeshRadioOwner(existing, adapterUserId, {
+        ...(publicKeyHex ? { publicKey: publicKeyHex } : {}),
+        privateKey,
+      });
+
+      // Audit the reassignment. Ids only -- never key material.
+      console.log(
+        `[run.human] Transferred radio ${canonicalNodeId} from user ${existing.userId} to user ${adapterUserId}`
+      );
+      await queueWelcome();
+
+      // `transferred` (not `updated`) so the caller can tell a reassignment from
+      // an ordinary re-flash. `previousUserId` is an opaque id for internal
+      // server-to-server audit only -- the run.flash proxy strips it before the
+      // response reaches a browser.
+      return NextResponse.json(
+        {
+          radio: transferred ? safeRadio(transferred) : undefined,
+          transferred: true,
+          previousUserId: existing.userId,
+        },
+        { status: 200 }
+      );
+    }
+
     if (existing) {
-      // UPDATE: Re-flash -- update keys, keep verified; preserve createdAt /
-      // showOnMap / impersonate via a partial patch (not a full-item replace).
+      // UPDATE: Re-flash by the SAME owner -- update keys, keep verified;
+      // preserve createdAt / showOnMap / impersonate via a partial patch (not a
+      // full-item replace). No quota charge: the slot is already spent.
       const updated = await patchMeshRadio(canonicalNodeId, {
         ...(publicKeyHex ? { publicKey: publicKeyHex } : {}),
         privateKey,
@@ -157,10 +213,7 @@ export async function POST(req: NextRequest) {
     }
 
     // CREATE: New radio -- consume quota (auto-initializes on first use)
-    const services = ["run"]; // Internal API, default tier
-    const tier = getUserTier(services);
-    const consumeResult = await consumeQuota(adapterUserId, "meshtastic_radio", 1, tier);
-    if (!consumeResult.success) {
+    if (!(await consumeRadioQuota())) {
       return NextResponse.json(
         { error: "Radio quota exceeded" },
         { status: 403 }
