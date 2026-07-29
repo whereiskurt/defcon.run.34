@@ -319,6 +319,7 @@ Plans:
 | 55. CTF Flag Types — Slice 2 Scoring Windows (Day/Time/TZ Gating + DEF CON Run-Hours Quick Set) | v2.3 | 3/3 | Complete   | 2026-07-15 |
 | 56. CTF Flag Types — Slice 3 Wordlist One-Time Codes (CtfCode Entity + Atomic Single-Use Claim) | v2.3 | 3/3 | Complete   | 2026-07-15 |
 | 65. CTF Single-Use OTP Flag Option (Judge-Enforced First-Come Claim) | v2.3.1 | 3/3 | Built — 451 CTF/admin tests green | 2026-07-18 |
+| 68. MQTT v5 Support in meshtk Proxy (dual-codec — Android 2.8 compatibility) | v2.3.1 | 8/8 | Complete — meshtk v0.0.73 live on task def 116; all four v5 parity defects prod-verified with a pre/post contrast; Android idle UAT = qualified pass (9-min bar unmet) | 2026-07-29 |
 
 ### Phase 33: OIDC Silent SSO
 
@@ -732,7 +733,7 @@ Plans:
 - [x] 68-05-PLAN.md — Release via buildpub + deploy use1, prod wire verification (0x84 to 0x87 flip, MQTT5_CONNECT lines, 3.1.1 ALLOW continuity), then blocking Kurt UAT on the Android 2.8.0-open.6 APK (MQV5-07)
 - [x] 68-06-PLAN.md — [gap closure] v5 relay-branch parity: refresh ConnTrack on every frame (CR-02, idle sessions torn down on a timer), refuse mid-session CONNECT/AUTH with DISCONNECT 0x82 (CR-03, client creds relayed to mosquitto), run v5 SUBSCRIBE through PacketDecider + codec-independent AllowMQTTControl (WR-04) (MQV5-02/03/05) [wave 6]
 - [x] 68-07-PLAN.md — [gap closure] close the CR-04 inspection exemption: property-agnostic PUBLISH header parser + payload splicer, fail-closed decision path so an unmodelled property no longer skips the hop clamp and every Block rule, e2e subtests for all four defects (MQV5-04/05/06) [wave 7]
-- [ ] 68-08-PLAN.md — [gap closure] ship: upstream PR → vendor-sync (carrying PR #1075) → buildpub/deploy use1, one production probe per closed defect, blocking Kurt Android idle-survival UAT (MQV5-07) [wave 8]
+- [x] 68-08-PLAN.md — [gap closure] ship: upstream PR #27 (`5769031`) → vendor-sync #1078 carrying #1075 → buildpub/deploy use1 (**meshtk v0.0.73**, task def **116**); one production probe per closed defect with a recorded pre/post contrast — 4 of 5 FAIL against v0.0.72, all 5 PASS against v0.0.73; overlay parity 89/89 files, `MQTT5_PUBLISH_HEADER_FAIL`=0, ALLOW continuity 25/25 min. Kurt UAT = **QUALIFIED pass** (nine-minute bar unmet: longest real-client idle-then-publish 6m56s; app self-reconnects every ~1–5 min when idle). Deferred: proxy→mosquitto `broken pipe` reconnects (MQV5-07) [wave 8]
 
 ---
 
