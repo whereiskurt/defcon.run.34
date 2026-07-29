@@ -121,13 +121,25 @@ function boothSvg(number: string): string {
 export class PayPhone {
     map: mapboxgl.Map;
     private markers: mapboxgl.Marker[] = [];
+    private built = false;
 
-    /** All payphone locations (Strat, LV Sign, Rio). */
+    /** All payphone locations (ReBAR, LV Sign, Rio, Double Down). */
     static readonly locations = PAYPHONES.map((p) => p.location);
 
     constructor(map: mapboxgl.Map) {
         this.map = map;
-        this.build();
+        // Hidden by default — booths build on the first reveal (search
+        // 2600/phone/phones/1800 or press #-#-#; see stores/payphone.ts).
+    }
+
+    setVisible(visible: boolean) {
+        if (visible && !this.built) {
+            this.build();
+            this.built = true;
+        }
+        for (const m of this.markers) {
+            m.getElement().style.display = visible ? '' : 'none';
+        }
     }
 
     private build() {
@@ -155,5 +167,6 @@ export class PayPhone {
     remove() {
         for (const m of this.markers) m.remove();
         this.markers = [];
+        this.built = false;
     }
 }

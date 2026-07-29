@@ -14,10 +14,12 @@
     import { ghostMode, recordHit } from '$lib/stores/ghost';
     import { rainbowUnlocked, toggleForcedArch } from '$lib/stores/rainbow';
     import { toggleDeuce } from '$lib/stores/deuce';
+    import { togglePayphones } from '$lib/stores/payphone';
     import { ARCH_SEARCH_WORDS } from '$lib/components/map/rainbow-geometry';
 
     let keyBuf: number[] = [];
     let deuceBuf: number[] = [];
+    let phoneBuf: number[] = [];
     let themeBuf: number[] = [];
     let typed = '';
     let firstMode = true;
@@ -49,6 +51,15 @@
                 if (r2.hit) toggleDeuce();
             } else {
                 deuceBuf = [];
+            }
+            // PayPhones: press #-#-# quickly to toggle the hidden booths
+            // (# = the phone keypad key; same gesture family as 2-2-2).
+            if (e.key === '#') {
+                const rp = recordHit(phoneBuf, Date.now(), 1500, 3);
+                phoneBuf = rp.buf;
+                if (rp.hit) togglePayphones();
+            } else {
+                phoneBuf = [];
             }
             if (e.key !== '!') {
                 keyBuf = [];

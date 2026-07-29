@@ -8,6 +8,7 @@ import { rainbowUnlocked, toggleForcedArch } from '$lib/stores/rainbow';
 import { ARCH_SEARCH_WORDS } from './rainbow-geometry';
 import { coffeeUnlocked } from '$lib/stores/coffee';
 import { toggleDeuce } from '$lib/stores/deuce';
+import { togglePayphones } from '$lib/stores/payphone';
 
 const { treeFileView, elevationProfile, bottomPanelSize, rightPanelSize, distanceUnits } = settings;
 
@@ -104,6 +105,9 @@ export class MapboxGLMap {
                     // Strip transit: searching "deuce" or "monorail" toggles the
                     // bus+monorail layer (mobile-friendly twin of the 2-2-2 gesture).
                     if (/\b(deuce|monorail)\b/i.test(query)) toggleDeuce();
+                    // PayPhones: phreak keywords toggle the hidden booths
+                    // (mobile-friendly twin of the #-#-# gesture).
+                    if (/\b(2600|phones?|1800)\b/i.test(query)) togglePayphones();
                     // Per-arch shortcuts: searching a keyword *toggles* that
                     // arch on/off (weed→NuWu, dd→Double Down, vegas→LV sign).
                     for (const [word, archId] of Object.entries(ARCH_SEARCH_WORDS)) {
