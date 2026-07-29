@@ -123,9 +123,17 @@ Same Booth layout, parameterized. `payphone.ts` becomes spec-driven
 
 | eggId | Place | Number | Location (Nominatim) |
 |---|---|---|---|
-| `dc34-payphone` | The Strat | 725-404-3234 | `[-115.1561024, 36.1476992]` |
+| `dc34-payphone` | ReBAR, 1225 S Main St *(moved from The Strat 2026-07-29; photo file keeps the `strat.jpg` name)* | 725-404-3234 | `[-115.1535043, 36.1565826]` |
 | `dc34-payphone-sign` | Welcome to Fabulous Las Vegas Sign | 725-404-3283 | `[-115.1727735, 36.0820593]` |
 | `dc34-payphone-rio` | The Rio, 3700 W Flamingo Rd | 725-404-8283 | `[-115.1882831, 36.1175311]` |
+| `dc34-payphone-doubledown` | Double Down Saloon, 4640 Paradise Rd *(added 2026-07-29)* | 1-855-916-4636 | `[-115.1503087, 36.1055201]` |
+
+v5 addendum (2026-07-29): Double Down booth carries ghost-mode violet spray
+**"7425678"** on its popup photo (`tone: 'violet'` added to the coverGraffiti
+union + `.dc34-graf-violet` CSS); its photo is the CC0 Wikimedia
+"Payphone near Richmond, Virginia, 2024" (blue kiosk on rusty post,
+EXIF-stripped) at `public/payphones/doubledown.jpg`. Long toll-free numbers
+shrink the taped-note font (`boothSvg` steps 4.8 → 4.1 above 12 chars).
 
 Each gets its own `DEFAULT_EGGS` entry ("Call me! <number>", same eyebrow/
 accent); `EXPECTED_IDS` extended. LayerControl unchanged (same class name and

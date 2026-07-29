@@ -28,7 +28,7 @@ export type EggModal = {
   coverImageUrl?: string;
   coverImageDisplayUrl?: string;
   // Ghost-mode spray tag over the cover photo (hardcoded-only, never from CMS).
-  coverGraffiti?: { text: string; tone: "pink" | "green" };
+  coverGraffiti?: { text: string; tone: "pink" | "green" | "violet" };
   links?: EggLink[];
   accent?: string; // left-tab / link color (hex; hardcoded-only, never from CMS)
 };
@@ -161,11 +161,11 @@ const DEFAULT_EGGS: EggModal[] = [
     title: "☎️ PayPhone",
     descriptionHtml:
       '<p><strong>Call me!</strong> <a href="tel:+17254043234">725-404-3234</a></p>',
-    address: "The Strat, 2000 Las Vegas Blvd S",
+    address: "ReBAR, 1225 S Main St",
     accent: "#F2A900",
     coverImageUrl: payphonePhoto("strat.jpg"),
     coverImageDisplayUrl: payphonePhoto("strat.jpg"),
-    links: [mapLink(36.1476992, -115.1561024)],
+    links: [mapLink(36.1565826, -115.1535043)],
   },
   {
     id: "dc34-payphone-sign",
@@ -192,6 +192,19 @@ const DEFAULT_EGGS: EggModal[] = [
     coverImageDisplayUrl: payphonePhoto("rio.jpg"),
     coverGraffiti: { text: "696969", tone: "green" },
     links: [mapLink(36.1175311, -115.1882831)],
+  },
+  {
+    id: "dc34-payphone-doubledown",
+    eyebrow: "Public Utility",
+    title: "☎️ PayPhone",
+    descriptionHtml:
+      '<p><strong>Call me!</strong> <a href="tel:+18559164636">1-855-916-4636</a></p>',
+    address: "Double Down Saloon, 4640 Paradise Rd",
+    accent: "#F2A900",
+    coverImageUrl: payphonePhoto("doubledown.jpg"),
+    coverImageDisplayUrl: payphonePhoto("doubledown.jpg"),
+    coverGraffiti: { text: "7425678", tone: "violet" },
+    links: [mapLink(36.1055201, -115.1503087)],
   },
 ];
 
