@@ -721,7 +721,7 @@ Plans:
   3. Every proxy security/inspection feature works identically on v5 connections: cred verify + swap (no client creds ever reach mosquitto), topic rules, hop-clamp actually lands on the v5 wire (properties preserved through RemarshalEnvelope), payload rewrites, downlink self-echo suppression.
   4. Version-correct failure modes: bad creds on v5 → CONNACK 0x87; enhanced-auth attempt → 0x8C; the 0x84 unsupported-version reject remains only for protocol levels the proxy genuinely does not speak (>5).
 
-**Plans:** 5 plans (waves 1-5, strictly sequential — each builds on the previous)
+**Plans:** 8 plans (waves 1-8, strictly sequential — each builds on the previous; 68-06..68-08 are gap closure for the SC3 v5-parity failure found in verification)
 
 Plans:
 
@@ -730,6 +730,9 @@ Plans:
 - [x] 68-03-PLAN.md — Live-mosquitto end-to-end with a v5 and a 3.1.1 client in one run, then upstream PR merged to whereiskurt/meshtk main (MQV5-06, MQV5-07 upstream half)
 - [x] 68-04-PLAN.md — Monorepo vendor-sync from origin/main (overlay mirrors upstream, `internal/embedded/` untouched, CI overlay reproduced and built), PR merged to main (MQV5-07 monorepo half)
 - [x] 68-05-PLAN.md — Release via buildpub + deploy use1, prod wire verification (0x84 to 0x87 flip, MQTT5_CONNECT lines, 3.1.1 ALLOW continuity), then blocking Kurt UAT on the Android 2.8.0-open.6 APK (MQV5-07)
+- [ ] 68-06-PLAN.md — [gap closure] v5 relay-branch parity: refresh ConnTrack on every frame (CR-02, idle sessions torn down on a timer), refuse mid-session CONNECT/AUTH with DISCONNECT 0x82 (CR-03, client creds relayed to mosquitto), run v5 SUBSCRIBE through PacketDecider + codec-independent AllowMQTTControl (WR-04) (MQV5-02/03/05) [wave 6]
+- [ ] 68-07-PLAN.md — [gap closure] close the CR-04 inspection exemption: property-agnostic PUBLISH header parser + payload splicer, fail-closed decision path so an unmodelled property no longer skips the hop clamp and every Block rule, e2e subtests for all four defects (MQV5-04/05/06) [wave 7]
+- [ ] 68-08-PLAN.md — [gap closure] ship: upstream PR → vendor-sync (carrying PR #1075) → buildpub/deploy use1, one production probe per closed defect, blocking Kurt Android idle-survival UAT (MQV5-07) [wave 8]
 
 ---
 
