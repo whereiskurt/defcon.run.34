@@ -26,6 +26,7 @@
     import { fileStateCollection } from '$lib/logic/file-state';
     import { openShareAcceptDialog } from '$lib/components/cloud/utils.svelte';
     import { autoSaveManager } from '$lib/auto-save';
+    import { quickStartOpen } from '$lib/stores/quickstart';
 
     const {
         autoSaveEnabled,
@@ -65,6 +66,12 @@
                 openShareAcceptDialog(shareToken);
             }
         });
+
+        // Deep link from run.defcon.run's profile button bar: ?addrun opens
+        // the QuickStart hub, same as the menu-bar "Add run" button.
+        if (page.url.searchParams.has('addrun')) {
+            quickStartOpen.set(true);
+        }
 
         // Wire up auto-save setting to manager
         const unsubscribeAutoSave = autoSaveEnabled.subscribe((enabled) => {

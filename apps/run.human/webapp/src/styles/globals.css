@@ -217,3 +217,46 @@ html.dark .leaflet-popup-close-button:hover {
    suppress. Suppressing it would silently hide the payoff for anyone with
    Reduce Motion on (the documented prod cash-rain regression). The burst +
    fall stay on for everyone. */
+
+/* whoami CTA button bar — one segmented pill: Add Run (gpx green), the
+   Strava pair (orange), Signal (blue). The bar pulses a soft neutral glow
+   (per-segment colored glows bleed into their neighbours when joined). */
+.cta-bar {
+  animation: cta-bar-pulse 2.6s ease-in-out infinite;
+}
+@keyframes cta-bar-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 8px 1px rgb(255 255 255 / 0.12);
+  }
+  50% {
+    box-shadow: 0 0 16px 4px rgb(255 255 255 / 0.3);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cta-bar {
+    animation: none;
+    box-shadow: 0 0 10px 2px rgb(255 255 255 / 0.18);
+  }
+}
+.seg-addrun {
+  background: #22c55e; /* same green as gpx's "Add run" pill */
+  color: #fff;
+}
+.seg-addrun:hover {
+  background: #16a34a;
+}
+.seg-strava {
+  background: #fc4c02;
+  color: #fff;
+}
+.seg-strava:hover {
+  background: #e04502;
+}
+.seg-signal {
+  background: #3a76f0;
+  color: #fff;
+}
+.seg-signal:hover {
+  background: #2f63d4;
+}

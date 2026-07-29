@@ -5,12 +5,11 @@ import { useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { useLogout } from '@/hooks/useLogout';
 import { Card, CardBody, Divider, Button, Chip, Avatar, Skeleton, Input } from '@heroui/react';
-import { LogOut, ChevronRight, ChevronDown, RefreshCw, Pencil, Check, X, Download, Camera } from 'lucide-react';
-import { SiStrava, SiDiscord, SiGithub } from 'react-icons/si';
+import { LogOut, ChevronRight, ChevronDown, RefreshCw, Pencil, Check, X, Download, Camera, ExternalLink, Footprints } from 'lucide-react';
+import { SiStrava, SiDiscord, SiGithub, SiSignal } from 'react-icons/si';
 import MeshtasticRadios from '@/components/profile/MeshtasticRadios';
 import CheckInHistory from '@/components/profile/CheckInHistory';
 import CheckInPinCard from '@/components/profile/CheckInPinCard';
-import SocialQRRow from '@/components/profile/SocialQRRow';
 import StyledRunnerQr from '@/components/qr/StyledRunnerQr';
 import SocialQrFlair, { type SocialInfo } from '@/components/qr/SocialQrFlair';
 import QrCardModal from '@/components/qr/QrCardModal';
@@ -18,16 +17,10 @@ import QrScannerModal from '@/components/qr/QrScannerModal';
 import { useCopy } from '@/components/CopyProvider';
 import { usePersistedDisclosure } from '@/hooks/usePersistedDisclosure';
 import { apiUrl } from '@/lib/api';
+import { DEFAULT_STRAVA_GROUP_URL, DEFAULT_SIGNAL_GROUP_URL } from '@/lib/social-groups';
 
 const homeUrl = '/';
 const isDev = process.env.NODE_ENV !== 'production';
-
-// Default social group URLs (the DEF CON run Strava club + Signal group). These
-// are a code-level FLOOR only — the CMS copy keys `socials.strava_group_url` /
-// `socials.signal_group_url` override them at runtime with no redeploy (see the
-// `asUrl(...) || DEFAULT` reads below). Empty a default to hide that tile.
-const DEFAULT_STRAVA_GROUP_URL = 'https://www.strava.com/clubs/1071823';
-const DEFAULT_SIGNAL_GROUP_URL = 'https://signal.group/#CjQKIPWdGurSgpzV8xcut1PWo_at1L6hUEFJtHhxLnlAxErEEhB5h5oWXv68P7cgGAGVZ26I';
 const siteDomain = process.env.NEXT_PUBLIC_SITE_DOMAIN || 'defcon.run';
 const LOCAL_AUTH_PORT = process.env.NEXT_PUBLIC_LOCAL_AUTH_PORT || '3002';
 const REGION_SHORT = process.env.NEXT_PUBLIC_REGION_SHORT || 'use1';
@@ -259,7 +252,10 @@ export default function WhoAmIPage() {
     }
   };
 
-  if (!mounted || status === 'loading' || loading) {
+  // Skeleton only while bootstrapping. next-auth's update() flips status back
+  // to 'loading' during the on-focus claims refresh — once userData exists,
+  // keep the tree mounted so open dialogs survive the background refresh.
+  if (!mounted || ((status === 'loading' || loading) && !userData)) {
     return (
       <div className="max-w-2xl mx-auto space-y-4">
         <div className="h-7 w-48 rounded bg-content2 animate-pulse" />
@@ -289,6 +285,19 @@ export default function WhoAmIPage() {
   const displayName = userData?.displayname || userData?.displayName || user?.displayName || user?.name || 'Runner';
   const nameChangesLeft = userData?.quotas?.displayname_change?.remaining ?? 0;
   const services: string[] = user.services || [];
+  const authBase = isDev
+    ? `http://localhost:${LOCAL_AUTH_PORT}`
+    : `https://auth.${siteDomain}/${REGION_SHORT}`;
+  const stravaLinkUrl = `${authBase}/strava?autoLink`;
+  // Raw <img> under the hood — the region basePath must be prefixed by hand
+  // (same idiom as the landing page's asset() helper).
+  const bunnyHeadUrl = isDev
+    ? '/header/bunny-head-alpha.png'
+    : `/${REGION_SHORT}/header/bunny-head-alpha.png`;
+  // ?addrun opens gpx's QuickStart hub (handled in the studio app page).
+  const gpxAddRunUrl = isDev
+    ? 'http://localhost:3003/studio/app?addrun'
+    : `https://gpx.${siteDomain}/${REGION_SHORT}/studio/app?addrun`;
 
   return (
     <div className="max-w-[900px] mx-auto space-y-2.5 animate-fade-up">
@@ -299,12 +308,15 @@ export default function WhoAmIPage() {
             <div className="flex flex-col gap-4 min-w-0 flex-1">
             <div className="flex items-center gap-3 min-w-0">
             <Avatar
-              src={user?.image || undefined}
-              name={displayName}
+              src={bunnyHeadUrl}
+              alt="defcon.run bunny"
               size="lg"
               isBordered
               color="primary"
-              classNames={{ base: "ring-2 ring-primary/20" }}
+              classNames={{
+                base: 'ring-2 ring-primary/20 bg-black shrink-0',
+                img: 'object-contain p-1',
+              }}
             />
             <div className="flex flex-col min-w-0 flex-1">
               {isEditingName ? (
@@ -360,16 +372,56 @@ export default function WhoAmIPage() {
               )}
             </div>
             </div>
+            {/* CTA button bar — one segmented pill under the runner name:
+                Add Run (green, deep-links gpx's QuickStart via ?addrun) ·
+                Link + Strava (orange pair) · Signal (blue). QR tiles live on
+                the landing page. */}
+            <div className="cta-bar inline-flex self-start rounded-full overflow-hidden divide-x divide-black/25">
+              <a
+                href={gpxAddRunUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="seg-addrun flex items-center gap-1 sm:gap-2 font-semibold text-[11px] sm:text-sm px-2 sm:px-4 py-1.5 sm:py-2.5 whitespace-nowrap"
+              >
+                <Footprints className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
+                Add Run
+              </a>
+              {!user.hasStrava && (
+                <a
+                  href={stravaLinkUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="seg-strava flex items-center gap-1 sm:gap-2 font-semibold text-[11px] sm:text-sm px-2 sm:px-4 py-1.5 sm:py-2.5 whitespace-nowrap"
+                >
+                  <SiStrava className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
+                  Link
+                </a>
+              )}
+              <a
+                href={stravaGroupUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="seg-strava flex items-center gap-1 sm:gap-2 font-semibold text-[11px] sm:text-sm px-2 sm:px-4 py-1.5 sm:py-2.5 whitespace-nowrap"
+              >
+                <ExternalLink className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
+                Strava
+              </a>
+              <a
+                href={signalGroupUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="seg-signal flex items-center gap-1 sm:gap-2 font-semibold text-[11px] sm:text-sm px-2 sm:px-4 py-1.5 sm:py-2.5 whitespace-nowrap"
+              >
+                <SiSignal className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
+                Signal
+              </a>
+            </div>
             {session.expires && (
               <p className="font-mono text-xs text-default-400">
                 Session: {relativeExpiry(session.expires)} remaining
               </p>
             )}
             </div>
-            <SocialQRRow
-              stravaUrl={stravaGroupUrl}
-              signalUrl={signalGroupUrl}
-            />
           </div>
         </CardBody>
       </Card>
@@ -541,11 +593,8 @@ export default function WhoAmIPage() {
                   </Chip>
                 );
                 if (linkable) {
-                  const authBase = isDev
-                    ? `http://localhost:${LOCAL_AUTH_PORT}`
-                    : `https://auth.${siteDomain}/${REGION_SHORT}`;
                   return (
-                    <a key={name} href={`${authBase}/strava?autoLink`} target="_blank" rel="noopener noreferrer">
+                    <a key={name} href={stravaLinkUrl} target="_blank" rel="noopener noreferrer">
                       {chip}
                     </a>
                   );
