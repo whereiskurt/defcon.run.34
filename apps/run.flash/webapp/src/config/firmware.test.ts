@@ -33,13 +33,9 @@ describe("firmware filename helpers", () => {
 });
 
 describe("slot-locked devices", () => {
-  it("locks t-beam-bpf to the nightly slot's pinned version", async () => {
+  it("t-beam-bpf is unlocked — all offered slots are 2.8 nightlies carrying it", async () => {
     const { lockedVersionForDevice } = await import("./firmware");
-    const manifest = (await import("@/../public/data/firmware-manifest.json"))
-      .default;
-    const nightly = manifest.versions.find((v) => v.slot === "nightly");
-    expect(nightly).toBeDefined();
-    expect(lockedVersionForDevice("t-beam-bpf")).toBe(nightly?.version);
+    expect(lockedVersionForDevice("t-beam-bpf")).toBeNull();
   });
 
   it("returns null for unlocked devices", async () => {

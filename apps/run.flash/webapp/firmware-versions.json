@@ -1,7 +1,6 @@
 {
   "versions": [
-    { "slot": "stable", "pin": "2.7.26.54e0d8d", "label": "2.7.26 — recommended", "default": true },
-    { "slot": "previous", "pin": "2.7.25.104df5f", "label": "2.7.25 — previous release" },
-    { "slot": "nightly", "pin": "2.8.0.dafa583", "ref": "869f193161a1d03460d901ad827483871d74f692", "label": "2.8.0 — DC34 event firmware base", "experimental": true }
+    { "slot": "stable", "pin": "2.8.0.b4ff1df", "source": "nightly", "ref": "a5f4b0dfb881e0ff7c99b63f18476fa894b7253c", "label": "2.8.0.b4ff1df — DC34 event firmware base", "default": true },
+    { "slot": "previous", "pin": "2.8.0.dafa583", "source": "nightly", "ref": "869f193161a1d03460d901ad827483871d74f692", "label": "2.8.0.dafa583 — previous event base" }
   ]
 }

@@ -22,13 +22,12 @@ export const FIRMWARE_VERSIONS: FirmwareVersionEntry[] =
 export const DEFAULT_FIRMWARE_VERSION: string =
   FIRMWARE_VERSIONS.find((v) => v.default)?.version ?? FIRMWARE_VERSION;
 
-/** Boards whose firmware target only exists in one manifest slot — e.g. the
- *  T-Beam BPF merged upstream 2026-07-27, present in 2.8 nightlies but in no
- *  2.7 release zip. Selecting such a device locks the version picker to that
- *  slot's version (slot-keyed so a future nightly re-pin follows along). */
-export const TARGET_VERSION_SLOT_LOCKS: Record<string, string> = {
-  "t-beam-bpf": "nightly",
-};
+/** Boards whose firmware target only exists in one manifest slot. Selecting
+ *  such a device locks the version picker to that slot's version (slot-keyed
+ *  so a future re-pin follows along). Currently empty: every offered slot is
+ *  a 2.8 nightly, which carries all listed targets (incl. t-beam-bpf — the
+ *  board this lock existed for while a 2.7 release slot was offered). */
+export const TARGET_VERSION_SLOT_LOCKS: Record<string, string> = {};
 
 /** Resolve the locked firmware version for a device, or null when the device
  *  may use any listed version. Falls back to the default version if the
