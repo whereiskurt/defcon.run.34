@@ -48,8 +48,29 @@ internal route found the existing row, took the `existing` branch
 - No row is ever created for Kurt — the radio stays owned by the 07-21 account.
 - **Kurt's device keys were written onto another user's row and marked `verified: true`.**
   Since phase 66 made MeshRadio the authoritative decrypt source
-  (`keycache/store.go:82`), that radio's traffic now decrypts/attributes to the wrong user,
-  and `impersonate` is preserved from the victim row.
+  (`keycache/store.go:82`), that radio's traffic now decrypts and attributes to the other
+  account, not to Kurt.
+- The mismatch propagated to a **second table**: the queued welcome DM for `!4359d0cc`
+  (`$meshwelcomepending`, created 21:32:55Z) carries `userId=041287e3` (Kurt) and reads
+  "Welcome to defcon.run, KPH!" — addressed to a node the authoritative row says is not his.
+  It has **not fired yet** (liveness gate holds it in the waiting pool).
+
+Row state after the patch (no key material read): `userId=473d02cd`, `source=flash`,
+`verified=true`, `verifiedAt=2026-07-21` (stale — patch sets `verified` but not `verifiedAt`),
+`impersonate=true`, `showOnMap=false`, `updatedAt=2026-07-29T21:32:55Z`.
+
+Two earlier inferences CORRECTED after checking:
+- `impersonate: true` is **not** rabbit-specific — it is the flash create-path default
+  (`route.ts` upsert sets `impersonate: true`), so it says nothing about the victim row's kind.
+- `!4359d0cc` is **not** in the ghost/rabbit fleet config (the only repo hit is a doc-comment
+  example at `apps/run.gpx/webapp/src/lib/mesh-nodes.ts:83`), so **no live ghost was re-keyed** —
+  the `NEVER re-key ghosts without rotating node IDs` landmine was not tripped.
+
+The other account's displayName is `rabbit_473d` — an auto-generated
+`rabbit_<first4-of-userId>` pattern, and the row's `source=flash` means someone ran the
+wizard under that account on 07-21. So it is most likely a **real runner's account** (or a
+loaner radio previously issued to one), not a fleet identity. Whose radio it is determines
+the remediation and needs Kurt's knowledge.
 
 This is an **authz hole, not just a UX gap**: any authenticated user who submits a nodeId
 that already exists can overwrite that radio's `publicKey`/`privateKey` and flip
