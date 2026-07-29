@@ -239,6 +239,7 @@
 .dc34-egg-graffiti.dc34-graf-pink { color: #ff2ec4; text-shadow: 0 0 8px rgba(255, 46, 196, 0.95), 0 0 20px rgba(255, 46, 196, 0.6), 2px 2px 0 #7a0057; }
 .dc34-egg-graffiti.dc34-graf-green { color: #39ff14; font-size: 28px; text-shadow: 0 0 8px rgba(57, 255, 20, 0.95), 0 0 20px rgba(57, 255, 20, 0.55), 2px 2px 0 #0a5c00; }
 .dc34-egg-graffiti.dc34-graf-violet { color: #c77dff; font-size: 26px; text-shadow: 0 0 8px rgba(199, 125, 255, 0.95), 0 0 20px rgba(199, 125, 255, 0.55), 2px 2px 0 #4a1a70; }
+.dc34-egg-graffiti.dc34-graf-blue { color: #38bdf8; font-size: 28px; text-shadow: 0 0 8px rgba(56, 189, 248, 0.95), 0 0 20px rgba(56, 189, 248, 0.55), 2px 2px 0 #0c4a6e; }
 
 /* Goldstein's gold treatment + published unlock-seed clue box. */
 .dc34-ghost-gold .dc34-ghost-name { color: #ffd700; }

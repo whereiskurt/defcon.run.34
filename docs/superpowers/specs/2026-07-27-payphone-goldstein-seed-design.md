@@ -135,6 +135,11 @@ union + `.dc34-graf-violet` CSS); its photo is the CC0 Wikimedia
 EXIF-stripped) at `public/payphones/doubledown.jpg`. Long toll-free numbers
 shrink the taped-note font (`boothSvg` steps 4.8 → 4.1 above 12 chars).
 
+v6 addendum (2026-07-29, Kurt wording pass): ghost-mode graffiti is now
+ReBAR = blue **"DEFCON"** (`tone: 'blue'` added, `.dc34-graf-blue` sky-blue
+neon — no booth is "clean" anymore), Sign = pink **"leet"** (was 1337),
+Rio = green **"69x3"** (was 696969), Double Down = violet **"7425678"**.
+
 Each gets its own `DEFAULT_EGGS` entry ("Call me! <number>", same eyebrow/
 accent); `EXPECTED_IDS` extended. LayerControl unchanged (same class name and
 constructor). Ship: run.gpx only, same CI flow.

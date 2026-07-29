@@ -75,9 +75,9 @@ describe("GET /api/gpx/public/eggs", () => {
     expect(strat.coverImageDisplayUrl).toBe("/use1/payphones/strat.jpg");
     expect(sign.coverImageDisplayUrl).toBe("/use1/payphones/sign.jpg");
     expect(rio.coverImageDisplayUrl).toBe("/use1/payphones/rio.jpg");
-    expect((strat as Graf).coverGraffiti).toBeUndefined();
-    expect((sign as Graf).coverGraffiti).toEqual({ text: "1337", tone: "pink" });
-    expect((rio as Graf).coverGraffiti).toEqual({ text: "696969", tone: "green" });
+    expect((strat as Graf).coverGraffiti).toEqual({ text: "DEFCON", tone: "blue" });
+    expect((sign as Graf).coverGraffiti).toEqual({ text: "leet", tone: "pink" });
+    expect((rio as Graf).coverGraffiti).toEqual({ text: "69x3", tone: "green" });
     const dd = body.eggs.find((e) => e.id === "dc34-payphone-doubledown")!;
     expect(dd.coverImageDisplayUrl).toBe("/use1/payphones/doubledown.jpg");
     expect((dd as Graf).coverGraffiti).toEqual({ text: "7425678", tone: "violet" });

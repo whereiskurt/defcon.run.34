@@ -28,7 +28,7 @@ export type EggModal = {
   coverImageUrl?: string;
   coverImageDisplayUrl?: string;
   // Ghost-mode spray tag over the cover photo (hardcoded-only, never from CMS).
-  coverGraffiti?: { text: string; tone: "pink" | "green" | "violet" };
+  coverGraffiti?: { text: string; tone: "pink" | "green" | "violet" | "blue" };
   links?: EggLink[];
   accent?: string; // left-tab / link color (hex; hardcoded-only, never from CMS)
 };
@@ -165,6 +165,7 @@ const DEFAULT_EGGS: EggModal[] = [
     accent: "#F2A900",
     coverImageUrl: payphonePhoto("strat.jpg"),
     coverImageDisplayUrl: payphonePhoto("strat.jpg"),
+    coverGraffiti: { text: "DEFCON", tone: "blue" },
     links: [mapLink(36.1565826, -115.1535043)],
   },
   {
@@ -177,7 +178,7 @@ const DEFAULT_EGGS: EggModal[] = [
     accent: "#F2A900",
     coverImageUrl: payphonePhoto("sign.jpg"),
     coverImageDisplayUrl: payphonePhoto("sign.jpg"),
-    coverGraffiti: { text: "1337", tone: "pink" },
+    coverGraffiti: { text: "leet", tone: "pink" },
     links: [mapLink(36.0820593, -115.1727735)],
   },
   {
@@ -190,7 +191,7 @@ const DEFAULT_EGGS: EggModal[] = [
     accent: "#F2A900",
     coverImageUrl: payphonePhoto("rio.jpg"),
     coverImageDisplayUrl: payphonePhoto("rio.jpg"),
-    coverGraffiti: { text: "696969", tone: "green" },
+    coverGraffiti: { text: "69x3", tone: "green" },
     links: [mapLink(36.1175311, -115.1882831)],
   },
   {
