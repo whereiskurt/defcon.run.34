@@ -39,7 +39,7 @@ export type EggModal = {
     coverImageUrl?: string;
     coverImageDisplayUrl?: string;
     // Ghost-mode spray tag over the cover photo (hardcoded-only, server-set).
-    coverGraffiti?: { text: string; tone: 'pink' | 'green' | 'violet' };
+    coverGraffiti?: { text: string; tone: 'pink' | 'green' | 'violet' | 'blue' };
     links?: EggLink[];
     accent?: string;
 };
@@ -96,7 +96,7 @@ function eggPopupHtml(egg: EggModal): string {
     // Cover image — click opens the full-size original in a new tab. Eggs with
     // a coverGraffiti always carry the (CSS-hidden) spray span; ghost mode
     // toggles its visibility live via the module subscription above.
-    const tone = ['pink', 'green', 'violet'].includes(egg.coverGraffiti?.tone ?? '')
+    const tone = ['pink', 'green', 'violet', 'blue'].includes(egg.coverGraffiti?.tone ?? '')
         ? egg.coverGraffiti!.tone
         : 'pink';
     const graffiti = egg.coverGraffiti
