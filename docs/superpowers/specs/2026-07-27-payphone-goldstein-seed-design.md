@@ -135,6 +135,13 @@ union + `.dc34-graf-violet` CSS); its photo is the CC0 Wikimedia
 EXIF-stripped) at `public/payphones/doubledown.jpg`. Long toll-free numbers
 shrink the taped-note font (`boothSvg` steps 4.8 → 4.1 above 12 chars).
 
+v6.1 photo swap (2026-07-29, "Double Down needs urban grunge, not greenery"):
+`sign.jpg` and `doubledown.jpg` CONTENTS swapped (URLs stable, CF invalidated
+on deploy): Double Down now shows the chain-link-fence graffiti phone
+(CC0 "Payphone (Unsplash WtZqMLOEwlI)"), LV Sign shows the Richmond blue
+kiosk (outdoorsy — fits the landscaped landmark). Provenance table above is
+superseded accordingly.
+
 v6 addendum (2026-07-29, Kurt wording pass): ghost-mode graffiti is now
 ReBAR = blue **"DEFCON"** (`tone: 'blue'` added, `.dc34-graf-blue` sky-blue
 neon — no booth is "clean" anymore), Sign = pink **"leet"** (was 1337),
