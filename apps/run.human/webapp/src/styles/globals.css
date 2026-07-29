@@ -245,3 +245,30 @@ html.dark .leaflet-popup-close-button:hover {
     box-shadow: 0 0 10px 2px rgb(252 76 2 / 0.7);
   }
 }
+
+/* "Join Signal" — same glowing-pill treatment in Signal blue; mirrors the
+   Signal group QR tile's link. */
+.signal-link-glow {
+  background: #3a76f0;
+  color: #fff;
+  animation: signal-link-pulse 2.1s ease-in-out infinite;
+}
+.signal-link-glow:hover {
+  background: #2f63d4;
+  filter: brightness(1.05);
+}
+@keyframes signal-link-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 6px 1px rgb(58 118 240 / 0.6);
+  }
+  50% {
+    box-shadow: 0 0 18px 5px rgb(58 118 240 / 0.95);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .signal-link-glow {
+    animation: none;
+    box-shadow: 0 0 10px 2px rgb(58 118 240 / 0.7);
+  }
+}

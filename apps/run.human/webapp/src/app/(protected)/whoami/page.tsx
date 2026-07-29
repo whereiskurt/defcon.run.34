@@ -6,7 +6,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { useLogout } from '@/hooks/useLogout';
 import { Card, CardBody, Divider, Button, Chip, Avatar, Skeleton, Input } from '@heroui/react';
 import { LogOut, ChevronRight, ChevronDown, RefreshCw, Pencil, Check, X, Download, Camera } from 'lucide-react';
-import { SiStrava, SiDiscord, SiGithub } from 'react-icons/si';
+import { SiStrava, SiDiscord, SiGithub, SiSignal } from 'react-icons/si';
 import MeshtasticRadios from '@/components/profile/MeshtasticRadios';
 import CheckInHistory from '@/components/profile/CheckInHistory';
 import CheckInPinCard from '@/components/profile/CheckInPinCard';
@@ -367,13 +367,9 @@ export default function WhoAmIPage() {
               )}
             </div>
             </div>
-            {session.expires && (
-              <p className="font-mono text-xs text-default-400">
-                Session: {relativeExpiry(session.expires)} remaining
-              </p>
-            )}
-            </div>
-            <div className="flex flex-col items-center sm:items-end gap-2.5 w-full sm:w-auto">
+            {/* Group CTAs — left-aligned under the runner name. Strava only
+                while unlinked; Signal mirrors the QR tile's join link. */}
+            <div className="flex flex-wrap gap-2">
               {!user.hasStrava && (
                 <a
                   href={stravaLinkUrl}
@@ -385,11 +381,26 @@ export default function WhoAmIPage() {
                   Link Strava
                 </a>
               )}
-              <SocialQRRow
-                stravaUrl={stravaGroupUrl}
-                signalUrl={signalGroupUrl}
-              />
+              <a
+                href={signalGroupUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="signal-link-glow flex items-center gap-1.5 rounded-full font-semibold text-sm px-4 py-2"
+              >
+                <SiSignal className="w-4 h-4" />
+                Join Signal
+              </a>
             </div>
+            {session.expires && (
+              <p className="font-mono text-xs text-default-400">
+                Session: {relativeExpiry(session.expires)} remaining
+              </p>
+            )}
+            </div>
+            <SocialQRRow
+              stravaUrl={stravaGroupUrl}
+              signalUrl={signalGroupUrl}
+            />
           </div>
         </CardBody>
       </Card>
