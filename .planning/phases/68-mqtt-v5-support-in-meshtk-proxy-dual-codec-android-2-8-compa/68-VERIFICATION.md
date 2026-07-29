@@ -2,7 +2,7 @@
 phase: 68-mqtt-v5-support-in-meshtk-proxy-dual-codec-android-2-8-compa
 verified: 2026-07-29T14:15:00Z
 status: gaps_found
-score: 36/38 must-haves verified
+score: 37/38 must-haves verified  # SC1 resolved 2026-07-29T16:10Z with machine evidence; SC3 (v5 parity) still open
 behavior_unverified: 0
 overrides_applied: 0
 gaps:
@@ -24,8 +24,9 @@ gaps:
       - "Whitelist what may be relayed on v5 instead of blacklisting PUBLISH: reject CONNECT/AUTH mid-session with a protocol-error CONNACK or a close"
       - "Parse v5 SUBSCRIBE, populate MQTT.Type/MQTT.Topics, and run it through PacketDecider so topic rules are codec-independent"
   - truth: "ROADMAP SC1 — An Android 2.8.0 (mqttastic, MQTT v5) phone-proxy connects through mqtt.defcon.run:4433 with per-user creds, subscribes, and receives the ghost/sim fleet; publishes uplink packets that pass the PacketDecider rules"
-    status: failed
-    reason: "No machine evidence that any Android v5 client has ever completed a session on the deployed image, AND a reproduced defect (CR-02) breaks the sustained-session path this criterion asserts. The criterion is currently marked MET in ROADMAP.md on human attestation alone, with the attestation's own telemetry pointing at a different transport."
+    status: resolved
+    resolved: 2026-07-29T16:10:00Z
+    reason: "RESOLVED with machine evidence (orchestrator CloudWatch query 16:03Z + Kurt confirmation): repeated action=MQTT5_CONNECT from client_id=MeshtasticAndroidMqttProxy-!aed94d05 (14:25Z-16:03Z, username b84cf62c402c) plus an independent second Android user MeshtasticAndroidMqttProxy-!84b2fcb5 (15:55Z, username 49c83c904836). Both produced action=ALLOW v5 PUBLISHes (NODEINFO_APP from !aed94d05 14:26:34Z; POSITION_APP from !84b2fcb5 15:55:50Z), and !aed94d05 received the fleet welcome DM at 14:26:42Z — uplink→ingest→downlink proven end-to-end. Reconnect churn in the connect timeline (e.g., 14:59Z→15:01Z) is consistent with CR-02 session-longevity flap, which remains tracked under the SC3 gap above."
     artifacts:
       - path: "CloudWatch /ecs/run-mqtt-meshtk-run-mqtt-use1-dc34"
         issue: "VERIFIER QUERY (14h window, all streams): exactly two action=MQTT5_CONNECT lines exist for the entire lifetime of rev :115, client_id=mqttastic-prod-verify-68-05 and mqttastic-confirm-68-05 — both synthetic 68-05 verification probes. Zero organic v5 sessions. Kurt's username e9ced815b0ee appears only on the iOS 3.1.1 proxy MeshtasticAppleMqttProxy-!174e59c8."
