@@ -387,13 +387,22 @@ def establish(client_id, username, password, keepalive=60):
 # ------------------------------------------------------------ CloudWatch logs
 
 
-def fetch_logs(pattern, start_ms, stream=None, wait=150, want=1):
-    """Poll CloudWatch until `want` matching events appear or `wait` elapses.
+def fetch_logs(pattern, start_ms, stream=None, wait=150, require=None):
+    """Poll CloudWatch until the line the caller actually needs appears, or
+    `wait` elapses.
 
     Correlation is by a client id unique to this run, so a match cannot be
     attributed to another task, another probe or a real client -- which is what
     makes it safe to run this during a rolling replace, when two images write to
     the same log group.
+
+    `require` is load-bearing, not a convenience. Polling until "any event
+    matches" is wrong: the session's own MQTT5_CONNECT line is ingested within
+    seconds, so a bare any-match poll returns immediately and the decision line
+    emitted eight minutes later -- the one the probe exists to observe -- has not
+    been ingested yet. That produced a spurious cr02 FAIL against an image whose
+    ALLOW line was already in CloudWatch. Callers pass the substring that
+    identifies the line they are actually waiting for.
     """
     deadline = time.time() + wait
     events = []
@@ -417,7 +426,10 @@ def fetch_logs(pattern, start_ms, stream=None, wait=150, want=1):
             time.sleep(5)
             continue
         events = json.loads(out.stdout or "{}").get("events", [])
-        if len(events) >= want:
+        if require is None:
+            if events:
+                break
+        elif any(require in e["message"] for e in events):
             break
         time.sleep(8)
     for e in events:
@@ -518,12 +530,14 @@ def probe_cr03(args):
           f"reason={'None' if reason is None else hex(reason)}")
 
     print("  [logs] correlating...")
-    events = fetch_logs(cid, t0, stream=args.log_stream)
+    events = fetch_logs(cid, t0, stream=args.log_stream,
+                        require="action=MQTT5_CONNECT")
     addr = socket_addr_of(events, cid)
     viol = []
     if addr:
         print(f"  [logs] session socket addr recovered: {addr}")
-        viol = grep(fetch_logs(addr, t0, stream=args.log_stream, wait=60),
+        viol = grep(fetch_logs(addr, t0, stream=args.log_stream, wait=90,
+                               require="action=MQTT5_PROTOCOL_VIOLATION"),
                     "action=MQTT5_PROTOCOL_VIOLATION")
 
     ok_wire = reason == 0x82
@@ -561,13 +575,14 @@ def probe_cr04(args):
     print(f"  wire: closed={closed} trailing_frames={len(frames)}")
 
     print("  [logs] correlating...")
-    events = fetch_logs(cid, t0, stream=args.log_stream)
+    events = fetch_logs(cid, t0, stream=args.log_stream, require="action=BLOCK")
     parse_fail_addr = socket_addr_of(events, cid)
     blocks = grep(events, "action=BLOCK")
     proxy_blocks = []
     if parse_fail_addr:
         proxy_blocks = grep(
-            fetch_logs(parse_fail_addr, t0, stream=args.log_stream, wait=60),
+            fetch_logs(parse_fail_addr, t0, stream=args.log_stream, wait=90,
+                       require="[proxy] BLOCK"),
             "[proxy] BLOCK")
 
     if not blocks:
@@ -608,7 +623,8 @@ def probe_wr04(args):
     print(f"  wire: suback={suback.hex() if suback else None}")
 
     print("  [logs] correlating...")
-    events = fetch_logs(cid, t0, stream=args.log_stream)
+    events = fetch_logs(cid, t0, stream=args.log_stream,
+                        require="mqtt_type=SUBSCRIBE")
     subs = grep(events, "mqtt_type=SUBSCRIBE")
     with_filter = grep(subs, filt)
 
@@ -676,14 +692,16 @@ def probe_cr02(args):
     print(f"  wire: session alive after post-idle publish = {alive}")
 
     print("  [logs] correlating...")
-    events = fetch_logs(cid, t0, stream=args.log_stream)
+    events = fetch_logs(cid, t0, stream=args.log_stream,
+                        require="mqtt_type=PUBLISH")
     allows = [e for e in events
               if "action=ALLOW" in e["message"] and "mqtt_type=PUBLISH" in e["message"]]
     addr = socket_addr_of(events, cid)
     user_blocks = []
     if addr:
         user_blocks = grep(
-            fetch_logs(addr, t0, stream=args.log_stream, wait=45),
+            fetch_logs(addr, t0, stream=args.log_stream, wait=45,
+                       require="Username required for MQTT"),
             "Username required for MQTT")
 
     if user_blocks:
