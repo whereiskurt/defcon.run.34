@@ -728,7 +728,7 @@ Plans:
 - [x] 68-01-PLAN.md — Upstream codec core: pin + vendor paho.golang v0.22.0, version-independent `readFrame`, v5 dispatch at the preflight, v5 CONNECT auth/cred-swap/0x87/0x8C, topic-alias strip both directions, `rules.go` nil-guard, 3.1.1 byte-identity golden (MQV5-01/02/03/05)
 - [x] 68-02-PLAN.md — Upstream PUBLISH parity: `setPublishPayload` codec dispatch so hop-clamp and payload rewrites reach the v5 wire, `logDownlinkEnvelope` extraction, uplink inspection through the unchanged PacketDecider, topic-alias BLOCK guard, downlink self-echo suppression (MQV5-02/04/05)
 - [x] 68-03-PLAN.md — Live-mosquitto end-to-end with a v5 and a 3.1.1 client in one run, then upstream PR merged to whereiskurt/meshtk main (MQV5-06, MQV5-07 upstream half)
-- [ ] 68-04-PLAN.md — Monorepo vendor-sync from origin/main (overlay mirrors upstream, `internal/embedded/` untouched, CI overlay reproduced and built), PR merged to main (MQV5-07 monorepo half)
+- [x] 68-04-PLAN.md — Monorepo vendor-sync from origin/main (overlay mirrors upstream, `internal/embedded/` untouched, CI overlay reproduced and built), PR merged to main (MQV5-07 monorepo half)
 - [ ] 68-05-PLAN.md — Release via buildpub + deploy use1, prod wire verification (0x84 to 0x87 flip, MQTT5_CONNECT lines, 3.1.1 ALLOW continuity), then blocking Kurt UAT on the Android 2.8.0-open.6 APK (MQV5-07)
 
 ---
