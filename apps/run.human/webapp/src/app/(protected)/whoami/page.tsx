@@ -5,12 +5,11 @@ import { useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { useLogout } from '@/hooks/useLogout';
 import { Card, CardBody, Divider, Button, Chip, Avatar, Skeleton, Input } from '@heroui/react';
-import { LogOut, ChevronRight, ChevronDown, RefreshCw, Pencil, Check, X, Download, Camera } from 'lucide-react';
+import { LogOut, ChevronRight, ChevronDown, RefreshCw, Pencil, Check, X, Download, Camera, ExternalLink } from 'lucide-react';
 import { SiStrava, SiDiscord, SiGithub, SiSignal } from 'react-icons/si';
 import MeshtasticRadios from '@/components/profile/MeshtasticRadios';
 import CheckInHistory from '@/components/profile/CheckInHistory';
 import CheckInPinCard from '@/components/profile/CheckInPinCard';
-import SocialQRRow from '@/components/profile/SocialQRRow';
 import StyledRunnerQr from '@/components/qr/StyledRunnerQr';
 import SocialQrFlair, { type SocialInfo } from '@/components/qr/SocialQrFlair';
 import QrCardModal from '@/components/qr/QrCardModal';
@@ -18,16 +17,10 @@ import QrScannerModal from '@/components/qr/QrScannerModal';
 import { useCopy } from '@/components/CopyProvider';
 import { usePersistedDisclosure } from '@/hooks/usePersistedDisclosure';
 import { apiUrl } from '@/lib/api';
+import { DEFAULT_STRAVA_GROUP_URL, DEFAULT_SIGNAL_GROUP_URL } from '@/lib/social-groups';
 
 const homeUrl = '/';
 const isDev = process.env.NODE_ENV !== 'production';
-
-// Default social group URLs (the DEF CON run Strava club + Signal group). These
-// are a code-level FLOOR only — the CMS copy keys `socials.strava_group_url` /
-// `socials.signal_group_url` override them at runtime with no redeploy (see the
-// `asUrl(...) || DEFAULT` reads below). Empty a default to hide that tile.
-const DEFAULT_STRAVA_GROUP_URL = 'https://www.strava.com/clubs/1071823';
-const DEFAULT_SIGNAL_GROUP_URL = 'https://signal.group/#CjQKIPWdGurSgpzV8xcut1PWo_at1L6hUEFJtHhxLnlAxErEEhB5h5oWXv68P7cgGAGVZ26I';
 const siteDomain = process.env.NEXT_PUBLIC_SITE_DOMAIN || 'defcon.run';
 const LOCAL_AUTH_PORT = process.env.NEXT_PUBLIC_LOCAL_AUTH_PORT || '3002';
 const REGION_SHORT = process.env.NEXT_PUBLIC_REGION_SHORT || 'use1';
@@ -367,28 +360,38 @@ export default function WhoAmIPage() {
               )}
             </div>
             </div>
-            {/* Group CTAs — left-aligned under the runner name. Strava only
-                while unlinked; Signal mirrors the QR tile's join link. */}
+            {/* Group CTAs — left-aligned under the runner name: link your
+                Strava (only while unlinked), open the Strava group, join the
+                Signal group. QR tiles for the groups live on the landing page. */}
             <div className="flex flex-wrap gap-2">
               {!user.hasStrava && (
                 <a
                   href={stravaLinkUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="strava-link-glow flex items-center gap-1.5 rounded-full font-semibold text-sm px-4 py-2"
+                  className="strava-link-glow flex items-center gap-1.5 rounded-full font-semibold text-xs px-3 py-1.5"
                 >
-                  <SiStrava className="w-4 h-4" />
+                  <SiStrava className="w-3.5 h-3.5" />
                   Link Strava
                 </a>
               )}
               <a
+                href={stravaGroupUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="strava-link-glow flex items-center gap-1.5 rounded-full font-semibold text-xs px-3 py-1.5"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                Strava Group
+              </a>
+              <a
                 href={signalGroupUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="signal-link-glow flex items-center gap-1.5 rounded-full font-semibold text-sm px-4 py-2"
+                className="signal-link-glow flex items-center gap-1.5 rounded-full font-semibold text-xs px-3 py-1.5"
               >
-                <SiSignal className="w-4 h-4" />
-                Join Signal
+                <SiSignal className="w-3.5 h-3.5" />
+                Signal Group
               </a>
             </div>
             {session.expires && (
@@ -397,10 +400,6 @@ export default function WhoAmIPage() {
               </p>
             )}
             </div>
-            <SocialQRRow
-              stravaUrl={stravaGroupUrl}
-              signalUrl={signalGroupUrl}
-            />
           </div>
         </CardBody>
       </Card>

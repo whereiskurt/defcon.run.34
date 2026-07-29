@@ -2,6 +2,7 @@
 
 import {
   Card,
+  CardBody,
   CardFooter,
   Button,
   Image,
@@ -14,6 +15,9 @@ import { signIn, useSession } from "next-auth/react";
 import { ChevronRight } from "lucide-react";
 
 import { EggTrigger } from "@/components/EggTrigger";
+import SocialQRRow from "@/components/profile/SocialQRRow";
+import { useCopy } from "@/components/CopyProvider";
+import { DEFAULT_STRAVA_GROUP_URL, DEFAULT_SIGNAL_GROUP_URL } from "@/lib/social-groups";
 
 const isDev = process.env.NODE_ENV !== "production";
 const region = process.env.NEXT_PUBLIC_REGION_SHORT || "use1";
@@ -210,6 +214,16 @@ function NeonSignBanner() {
 }
 
 function WelcomeContent({ userName }: { userName: string }) {
+  const { t } = useCopy();
+  // CMS copy overrides the group URLs at runtime; `t` echoes the raw key when
+  // unset, so only accept a real http(s) URL (same idiom as whoami).
+  const asUrl = (key: string) => {
+    const v = t(key);
+    return v.startsWith('http') ? v : '';
+  };
+  const stravaGroupUrl = asUrl('socials.strava_group_url') || DEFAULT_STRAVA_GROUP_URL;
+  const signalGroupUrl = asUrl('socials.signal_group_url') || DEFAULT_SIGNAL_GROUP_URL;
+
   return (
     <div className="flex flex-col gap-2.5 py-4 animate-slide-up">
       {/* Full-bleed hero - DC33 group photo, welcome + CTAs inside. */}
@@ -294,6 +308,22 @@ function WelcomeContent({ userName }: { userName: string }) {
         />
         <NeonSignBanner />
       </div>
+
+      {/* Group QR tiles — parked here from whoami for now (the profile keeps
+          button CTAs; the scannable codes live on the landing page). */}
+      <Card className="glass-card overflow-hidden">
+        <CardBody className="flex flex-row flex-wrap items-center justify-between gap-3 px-5 py-4">
+          <div className="flex flex-col min-w-0">
+            <span className="font-museo text-base font-bold text-foreground">
+              Run with us
+            </span>
+            <span className="text-xs text-default-500">
+              Scan or tap to join the Strava club and the Signal group
+            </span>
+          </div>
+          <SocialQRRow stravaUrl={stravaGroupUrl} signalUrl={signalGroupUrl} />
+        </CardBody>
+      </Card>
     </div>
   );
 }
