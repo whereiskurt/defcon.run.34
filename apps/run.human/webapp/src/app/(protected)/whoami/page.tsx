@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { useLogout } from '@/hooks/useLogout';
 import { Card, CardBody, Divider, Button, Chip, Avatar, Skeleton, Input } from '@heroui/react';
-import { LogOut, ChevronRight, ChevronDown, RefreshCw, Pencil, Check, X, Download, Camera, ExternalLink } from 'lucide-react';
+import { LogOut, ChevronRight, ChevronDown, RefreshCw, Pencil, Check, X, Download, Camera, ExternalLink, Footprints } from 'lucide-react';
 import { SiStrava, SiDiscord, SiGithub, SiSignal } from 'react-icons/si';
 import MeshtasticRadios from '@/components/profile/MeshtasticRadios';
 import CheckInHistory from '@/components/profile/CheckInHistory';
@@ -294,6 +294,10 @@ export default function WhoAmIPage() {
   const bunnyHeadUrl = isDev
     ? '/header/bunny-head-alpha.png'
     : `/${REGION_SHORT}/header/bunny-head-alpha.png`;
+  // ?addrun opens gpx's QuickStart hub (handled in the studio app page).
+  const gpxAddRunUrl = isDev
+    ? 'http://localhost:3003/studio/app?addrun'
+    : `https://gpx.${siteDomain}/${REGION_SHORT}/studio/app?addrun`;
 
   return (
     <div className="max-w-[900px] mx-auto space-y-2.5 animate-fade-up">
@@ -368,41 +372,49 @@ export default function WhoAmIPage() {
               )}
             </div>
             </div>
-            {/* Group CTAs — left-aligned under the runner name: Signal group
-                on top, then the Strava pair (link your Strava only while
-                unlinked, open the club). QR tiles live on the landing page. */}
-            <div className="flex flex-col items-start gap-2">
+            {/* CTA button bar — one segmented pill under the runner name:
+                Add Run (green, deep-links gpx's QuickStart via ?addrun) ·
+                Link + Strava (orange pair) · Signal (blue). QR tiles live on
+                the landing page. */}
+            <div className="cta-bar inline-flex self-start rounded-full overflow-hidden divide-x divide-black/25">
+              <a
+                href={gpxAddRunUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="seg-addrun flex items-center gap-1.5 font-semibold text-xs px-2.5 py-1.5 whitespace-nowrap"
+              >
+                <Footprints className="w-3.5 h-3.5" />
+                Add Run
+              </a>
+              {!user.hasStrava && (
+                <a
+                  href={stravaLinkUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="seg-strava flex items-center gap-1.5 font-semibold text-xs px-2.5 py-1.5 whitespace-nowrap"
+                >
+                  <SiStrava className="w-3.5 h-3.5" />
+                  Link
+                </a>
+              )}
+              <a
+                href={stravaGroupUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="seg-strava flex items-center gap-1.5 font-semibold text-xs px-2.5 py-1.5 whitespace-nowrap"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                Strava
+              </a>
               <a
                 href={signalGroupUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="signal-link-glow flex items-center gap-1.5 rounded-full font-semibold text-xs px-3 py-1.5"
+                className="seg-signal flex items-center gap-1.5 font-semibold text-xs px-2.5 py-1.5 whitespace-nowrap"
               >
                 <SiSignal className="w-3.5 h-3.5" />
-                Signal Group
+                Signal
               </a>
-              <div className="flex flex-wrap gap-2">
-                {!user.hasStrava && (
-                  <a
-                    href={stravaLinkUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="strava-link-glow flex items-center gap-1.5 rounded-full font-semibold text-xs px-3 py-1.5"
-                  >
-                    <SiStrava className="w-3.5 h-3.5" />
-                    Link Strava
-                  </a>
-                )}
-                <a
-                  href={stravaGroupUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="strava-link-glow flex items-center gap-1.5 rounded-full font-semibold text-xs px-3 py-1.5"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  Strava Group
-                </a>
-              </div>
             </div>
             {session.expires && (
               <p className="font-mono text-xs text-default-400">

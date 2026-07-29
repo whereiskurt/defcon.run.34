@@ -218,57 +218,45 @@ html.dark .leaflet-popup-close-button:hover {
    Reduce Motion on (the documented prod cash-rain regression). The burst +
    fall stay on for everyone. */
 
-/* "Link Strava" — whoami's primary call-to-action when Strava isn't linked
-   yet: a Strava-orange pill with a soft pulsing glow (same treatment as
-   gpx.defcon.run's "Add run" button). */
-.strava-link-glow {
+/* whoami CTA button bar — one segmented pill: Add Run (gpx green), the
+   Strava pair (orange), Signal (blue). The bar pulses a soft neutral glow
+   (per-segment colored glows bleed into their neighbours when joined). */
+.cta-bar {
+  animation: cta-bar-pulse 2.6s ease-in-out infinite;
+}
+@keyframes cta-bar-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 8px 1px rgb(255 255 255 / 0.12);
+  }
+  50% {
+    box-shadow: 0 0 16px 4px rgb(255 255 255 / 0.3);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cta-bar {
+    animation: none;
+    box-shadow: 0 0 10px 2px rgb(255 255 255 / 0.18);
+  }
+}
+.seg-addrun {
+  background: #22c55e; /* same green as gpx's "Add run" pill */
+  color: #fff;
+}
+.seg-addrun:hover {
+  background: #16a34a;
+}
+.seg-strava {
   background: #fc4c02;
   color: #fff;
-  animation: strava-link-pulse 2.1s ease-in-out infinite;
 }
-.strava-link-glow:hover {
+.seg-strava:hover {
   background: #e04502;
-  filter: brightness(1.05);
 }
-@keyframes strava-link-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 6px 1px rgb(252 76 2 / 0.6);
-  }
-  50% {
-    box-shadow: 0 0 18px 5px rgb(252 76 2 / 0.95);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .strava-link-glow {
-    animation: none;
-    box-shadow: 0 0 10px 2px rgb(252 76 2 / 0.7);
-  }
-}
-
-/* "Join Signal" — same glowing-pill treatment in Signal blue; mirrors the
-   Signal group QR tile's link. */
-.signal-link-glow {
+.seg-signal {
   background: #3a76f0;
   color: #fff;
-  animation: signal-link-pulse 2.1s ease-in-out infinite;
 }
-.signal-link-glow:hover {
+.seg-signal:hover {
   background: #2f63d4;
-  filter: brightness(1.05);
-}
-@keyframes signal-link-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 6px 1px rgb(58 118 240 / 0.6);
-  }
-  50% {
-    box-shadow: 0 0 18px 5px rgb(58 118 240 / 0.95);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .signal-link-glow {
-    animation: none;
-    box-shadow: 0 0 10px 2px rgb(58 118 240 / 0.7);
-  }
 }
