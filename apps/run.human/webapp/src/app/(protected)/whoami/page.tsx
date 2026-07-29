@@ -289,6 +289,11 @@ export default function WhoAmIPage() {
     ? `http://localhost:${LOCAL_AUTH_PORT}`
     : `https://auth.${siteDomain}/${REGION_SHORT}`;
   const stravaLinkUrl = `${authBase}/strava?autoLink`;
+  // Raw <img> under the hood — the region basePath must be prefixed by hand
+  // (same idiom as the landing page's asset() helper).
+  const bunnyHeadUrl = isDev
+    ? '/header/bunny-head-alpha.png'
+    : `/${REGION_SHORT}/header/bunny-head-alpha.png`;
 
   return (
     <div className="max-w-[900px] mx-auto space-y-2.5 animate-fade-up">
@@ -299,12 +304,15 @@ export default function WhoAmIPage() {
             <div className="flex flex-col gap-4 min-w-0 flex-1">
             <div className="flex items-center gap-3 min-w-0">
             <Avatar
-              src={user?.image || undefined}
-              name={displayName}
+              src={bunnyHeadUrl}
+              alt="defcon.run bunny"
               size="lg"
               isBordered
               color="primary"
-              classNames={{ base: "ring-2 ring-primary/20" }}
+              classNames={{
+                base: 'ring-2 ring-primary/20 bg-black shrink-0',
+                img: 'object-contain p-1',
+              }}
             />
             <div className="flex flex-col min-w-0 flex-1">
               {isEditingName ? (
@@ -360,30 +368,10 @@ export default function WhoAmIPage() {
               )}
             </div>
             </div>
-            {/* Group CTAs — left-aligned under the runner name: link your
-                Strava (only while unlinked), open the Strava group, join the
-                Signal group. QR tiles for the groups live on the landing page. */}
-            <div className="flex flex-wrap gap-2">
-              {!user.hasStrava && (
-                <a
-                  href={stravaLinkUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="strava-link-glow flex items-center gap-1.5 rounded-full font-semibold text-xs px-3 py-1.5"
-                >
-                  <SiStrava className="w-3.5 h-3.5" />
-                  Link Strava
-                </a>
-              )}
-              <a
-                href={stravaGroupUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="strava-link-glow flex items-center gap-1.5 rounded-full font-semibold text-xs px-3 py-1.5"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                Strava Group
-              </a>
+            {/* Group CTAs — left-aligned under the runner name: Signal group
+                on top, then the Strava pair (link your Strava only while
+                unlinked, open the club). QR tiles live on the landing page. */}
+            <div className="flex flex-col items-start gap-2">
               <a
                 href={signalGroupUrl}
                 target="_blank"
@@ -393,6 +381,28 @@ export default function WhoAmIPage() {
                 <SiSignal className="w-3.5 h-3.5" />
                 Signal Group
               </a>
+              <div className="flex flex-wrap gap-2">
+                {!user.hasStrava && (
+                  <a
+                    href={stravaLinkUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="strava-link-glow flex items-center gap-1.5 rounded-full font-semibold text-xs px-3 py-1.5"
+                  >
+                    <SiStrava className="w-3.5 h-3.5" />
+                    Link Strava
+                  </a>
+                )}
+                <a
+                  href={stravaGroupUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="strava-link-glow flex items-center gap-1.5 rounded-full font-semibold text-xs px-3 py-1.5"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Strava Group
+                </a>
+              </div>
             </div>
             {session.expires && (
               <p className="font-mono text-xs text-default-400">
