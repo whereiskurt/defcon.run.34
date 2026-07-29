@@ -135,6 +135,15 @@ union + `.dc34-graf-violet` CSS); its photo is the CC0 Wikimedia
 EXIF-stripped) at `public/payphones/doubledown.jpg`. Long toll-free numbers
 shrink the taped-note font (`boothSvg` steps 4.8 → 4.1 above 12 chars).
 
+v7 hidden reveal (2026-07-29): the four booths are HIDDEN by default and
+toggle via the deuce pattern — geocoder search matching
+`\b(2600|phones?|1800)\b` (map.ts) or pressing **#-#-#** quickly
+(GhostTrigger.svelte, `recordHit` 1500ms/3). New `payphonesShown` store +
+`togglePayphones()` (`stores/payphone.ts`); `PayPhone.setVisible()` builds
+markers lazily on first reveal and toggles element display. LayerControl
+subscribes (single-subscription convention). No covert egg on reveal.
+The deuce keeps its existing 2-2-2 + deuce/monorail search unchanged.
+
 v6.1 photo swap (2026-07-29, "Double Down needs urban grunge, not greenery"):
 `sign.jpg` and `doubledown.jpg` CONTENTS swapped (URLs stable, CF invalidated
 on deploy): Double Down now shows the chain-link-fence graffiti phone

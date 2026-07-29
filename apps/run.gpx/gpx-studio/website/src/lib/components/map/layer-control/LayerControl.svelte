@@ -23,6 +23,7 @@
     import { DeuceLayer } from '$lib/components/map/deuce-layer';
     import { fireDeuceEgg } from '$lib/components/map/deuce-egg';
     import { deuceShown } from '$lib/stores/deuce';
+    import { payphonesShown } from '$lib/stores/payphone';
     import { ghostMode } from '$lib/stores/ghost';
     import { rainbowUnlocked, forcedArchIds } from '$lib/stores/rainbow';
     import { coffeeUnlocked } from '$lib/stores/coffee';
@@ -311,9 +312,12 @@
         // click -> dc34-spot modal. No unlock/CTF wiring.
         if (theSpot) theSpot.remove();
         theSpot = new TheSpot(_map);
-        // PayPhone at The Strat: click -> dc34-payphone modal. Pure CTF clue.
+        // PayPhones: hidden by default; revealed by searching 2600/phone/
+        // phones/1800 or pressing #-#-# (payphonesShown store, deuce pattern).
+        // Click -> per-booth dc34-payphone* modal. No covert egg.
         if (payPhone) payPhone.remove();
         payPhone = new PayPhone(_map);
+        payphonesShown.subscribe((on) => payPhone?.setVisible(on));
         coffeeUnlocked.subscribe((on) => {
             void coffeeCup?.setUnlocked(on);
             if (on) fireCoffeeEgg();
