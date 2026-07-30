@@ -739,6 +739,29 @@ Plans:
 - [ ] 70-05-PLAN.md — LayerControl click-only dialog host + flat basemap radio rows; hover-open deleted (DLGS-02, DLGS-04)
 - [ ] 70-06-PLAN.md — Autonomous ship: gates → PR → squash-merge → buildpub.yml → deploy.yml → Playwright prod probe (DLGS-06)
 
+### Phase 71: Heat Map Layers — DC33 + DC34 Flame Stacks (gpx-studio)
+
+**Goal:** Toggleable per-year heat-map layers in the gpx studio built from runners' submitted runs, DC33-faithful "stacked flame" style: every run rendered as a translucent line (DC34 flame red `#ff0000`, DC33 ember orange `#ff8c00`, ~25% opacity, width ~3) so overlap = heat. A scheduled builder precomputes a per-year S3 artifact (bare non-attributable LineStrings + `meta {generatedAt, runCount, totalKm}`) hourly during the con from EVERY con-day-assigned run with geometry (GpxFile tracks + Strava polylines — **no opt-in gate, Kurt's explicit decision 2026-07-30**, consciously superseding the aggregate route's opt-in-only compliance comment, which must be updated to tell one story). DC33's artifact is built ONCE by a one-off script from the DynamoDB export at `s3://defcon.run.33.backup/AWSDynamoDB/01755225714347-c2695bcb/` (730 items, ~200 runs w/ polylines verified; `generatedAt` = the honest Aug-2025 export date). Served via `/api/gpx/public/heatmap/{dc33|dc34}` with CDN caching. UI = a HEAT MAP section in the Phase 70 Map Layers dialog (shared Section kit): rows `🔥 DC34 — live` / `🔥 DC33 — the classic`, "last calculated" relative stamp in the section's trailing slot, exact timestamp + run count via the hint bar. Layer class follows the rabbit/deuce lazy setVisible pattern, default OFF, fetch on first toggle.
+**Depends on:** Phase 70 (Section + hint-bar kit, Map Layers dialog).
+**Out of scope:** Konami/matrix-rain page, standalone /heatmap route, stats overlays, per-day heat filtering, true heatmap-kernel rendering (artifact format must not preclude these).
+**Requirements:**
+
+  - **HEAT-01** — Per-year artifact format + public serve route `/api/gpx/public/heatmap/{year}`: GeoJSON FeatureCollection of bare LineStrings (NO properties — non-attributable) + `meta {generatedAt, runCount, totalKm}`; CDN-cacheable.
+  - **HEAT-02** — Scheduled DC34 builder (EventBridge pattern per existing Strava sync): hourly during con window; sources = every con-day-assigned run with geometry (GpxFile S3 tracks + accomplishment/Strava `summary_polyline`s), deduped per run; writes artifact + meta to S3.
+  - **HEAT-03** — DC33 one-off backfill script: read the DynamoDB export from `defcon.run.33.backup`, decode `summary_polyline`s (see DC33 `api/heatmap/route.ts` in `~/working/defcon.run.33` for shapes incl. JSON-array manual uploads), emit the same artifact format; frozen thereafter.
+  - **HEAT-04** — gpx-studio `heatmap-layer.ts` (rabbit/deuce pattern): two line layers w/ the locked colors/opacity/width, lazy-load on first enable, both may be visible simultaneously.
+  - **HEAT-05** — HEAT MAP section in the Map Layers dialog using the Phase 70 Section component: two toggle rows, trailing "last calculated" relative stamp, hint-bar detail (exact timestamp + run count); default OFF.
+  - **HEAT-06** — Compliance-note reconciliation: update the aggregate route's "only public surface / opt-in" comment to record the superseding decision; ship via the standard autonomous flow (gates → PR → buildpub → deploy → prod probe extension).
+
+**Success Criteria** (what must be TRUE):
+
+  1. Toggling `🔥 DC34` renders every submitted run as stacked translucent red lines whose overlap visibly intensifies on popular paths; `🔥 DC33` does the same in orange from last year's data; both simultaneously legible.
+  2. The DC34 artifact regenerates on schedule — submitting a new run changes the artifact within ~an hour during the con — and the "last calculated" stamp reflects the real `generatedAt`.
+  3. No feature in either artifact carries any attributable property; the aggregate route's compliance comment matches the shipped reality.
+  4. Layers default off, cost nothing until toggled, and live artifact fetches are CDN-cached.
+
+**Plans:** TBD (run /gsd-plan-phase 71 after Phase 70 executes)
+
 ---
 
 <details>
