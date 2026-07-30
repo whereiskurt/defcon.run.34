@@ -1,0 +1,36 @@
+==============================================================================
+Phase 70 DLGS-06 — shared dialog shell production probe
+==============================================================================
+timestamp   : 2026-07-30T16:12:24.077Z
+git sha     : 096d7dc3
+target      : https://gpx.defcon.run/use1/studio/app
+phase       : 70.1 footer-gate + version-history fix
+run purpose : PRE-DEPLOY discriminator — prod still serves the BUGGY bundle, so
+              assertion 13 is EXPECTED to FAIL here. That failure is what proves
+              assertion 13 discriminates; it is not a probe defect.
+chunk digest: 668dc46704c3e2952c7501e48fff7d10599bfed4dd8b21f55345a762f170b4ba (pre-deploy, 108 chunks)
+note        : attempt 2. Attempt 1 additionally hit the known assertion-6 flake
+              (recorded in transcript-post-deploy-run1-11of12.txt): when the layer
+              manifest has not painted, the dialog holds no un-hinted focusable
+              element and the mouse never entered the body, so no mouseleave fires
+              to restore the default hint. Environmental, unrelated to this fix.
+              The probe was NOT edited between attempts.
+bundle etag : W/"3974-19fb1a3dcf0"
+bundle date : Thu, 30 Jul 2026 06:08:54 GMT
+entry chunks: /use1/studio/_app/immutable/entry/start.DeP0ljnw.js /use1/studio/_app/immutable/chunks/B2DdM-4L.js /use1/studio/_app/immutable/chunks/wi-Nb4rh.js /use1/studio/_app/immutable/chunks/C1W43yX3.js
+------------------------------------------------------------------------------
+PASS  1. Layers control button is present
+PASS  2. Hovering the layers button does NOT open the dialog
+PASS  3. Clicking the layers button opens a visible role=dialog
+PASS  4. Zero native hover-tooltip attributes inside layer rows — 15 rows inspected
+PASS  5. Map Layers section order follows the spec — order ok [Basemap | DEF CON 34 Routes | Rabbit Routes] — PASS (skipped: no User Check-ins / My DEF CON Runs / Community Routes in prod data)
+PASS  6. Hint bar shows its default copy once nothing hinted is hovered or focused — "Hover a row for details" (on open it read "Choose the background map style.")
+PASS  7. Hint bar text changes when a hinted row is hovered — "All four classics - North, East, South, West - stitched into one 20K epic."
+PASS  8. Escape closes the Map Layers dialog
+PASS  9. Ctrl+O opens the My Maps dialog
+PASS  10. My Maps puts MY FILES before SHARED WITH YOU — [My files | Other maps | Shared with you]
+PASS  11. My Maps footer carries the Add run button
+PASS  12. Zero native hover-tooltip attributes inside file rows — 2 rows inspected
+FAIL  13. My Maps hides the Add run footer on the access-denied gate screen — 1 "Add run" button(s) on the gate screen
+------------------------------------------------------------------------------
+RESULT: 12/13 assertions passed
