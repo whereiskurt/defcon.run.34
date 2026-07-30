@@ -40,6 +40,11 @@ NodeInfo:
 
   BroadcastToAll: false
   BroadcastOnLoad: false
+  # The meshmap collector (!dc340001) runs `nodeinfo announce`, whose ticker
+  # beacons every BroadcastIntervalSec forever. Empty = NodeInfo + Position
+  # only, no chat. Pinned explicitly rather than inherited: pkg/config is NOT
+  # part of build.sh's overlay, so this file is the only default we control.
+  BroadcastMessage: ""
   BroadcastIntervalSec: 300
 
   PKI:

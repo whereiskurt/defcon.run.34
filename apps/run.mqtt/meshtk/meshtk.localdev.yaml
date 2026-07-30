@@ -39,6 +39,7 @@ NodeInfo:
 
   BroadcastToAll: false
   BroadcastOnLoad: false
+  BroadcastMessage: ""
   BroadcastIntervalSec: 300
 
   PKI:
