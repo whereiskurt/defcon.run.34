@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
-status: Ready to plan
-stopped_at: "Completed 70-05-PLAN.md; 70-06 in flight — quality gates green, prod probe authored, phase PR merging."
-last_updated: "2026-07-30T04:57:33.263Z"
+status: Phase complete
+stopped_at: Completed 70-06-PLAN.md — Phase 70 COMPLETE (6/6). run.gpx v0.0.104 live on use1; 12/12 Playwright prod probe green after roll-verification sentinel hit on attempt 1/12. Evidence PR docs/70-post-deploy-probe left OPEN for the user.
+last_updated: "2026-07-30T13:37:51.221Z"
 last_activity: 2026-07-30
-last_activity_desc: Phase 70 waves 1-3 complete; 70-06 ship plan executing
+last_activity_desc: Phase 68 complete (Phase 69 planned, not started); Phase 70 shared dialog shell shipped
 progress:
-  total_phases: 29
-  completed_phases: 18
-  total_plans: 75
-  completed_plans: 73
-  percent: 62
+  total_phases: 31
+  completed_phases: 19
+  total_plans: 81
+  completed_plans: 79
+  percent: 61
 current_phase: 70
 current_phase_name: gpx-studio-shared-dialog-shell-map-layers-my-maps
 ---
@@ -137,6 +137,10 @@ Recent decisions affecting current work:
 - [Phase ?]: Phase 70 P04: the footer is a DialogShell prop snippet, which renders unconditionally — so Add run and the helper text are now visible on the unauthenticated and access-denied gate screens too (openAddRun only closes the dialog and opens the QuickStart hub, so nothing privileged is exposed)
 - [Phase ?]: 70-05: Map Layers opens on click only — hover-open, mouseleave-close and the hand-rolled window containment check are deleted (DLGS-04 stutter fix)
 - [Phase ?]: 70-05: basemaps render as a flat radio list via flattenLayerTree, so the Map Layers dialog has exactly one collapse affordance per section
+- [Phase ?]: 70-06: Phase 70 SHIPPED and prod-verified — run.gpx v0.0.104 live on use1 (phase PR #1098 squash-merged as db85b258, buildpub run 30518519521, deploy run 30518808844 with pr_number=skip + cache invalidation; deploy via GitHub Actions ONLY, zero local terragrunt). A 12/12 headless Playwright probe against https://gpx.defcon.run proves click-to-open, NO hover-open, zero native tooltip attributes across 15 layer rows and 2 file rows, section order Basemap | User Check-ins | DEF CON 34 Routes | Rabbit Routes, hint-bar default AND update-on-hover, Esc close, Ctrl+O My Maps, My files before Shared with you, and the Add run footer. The SAME probe scored 4/12 against the old bundle pre-deploy (committed to main BEFORE the merge), so the green run cannot be a probe that asserts nothing.
+- [Phase ?]: 70-06: CI green is NOT proof the new bundle is serving. A roll-verification gate (12 attempts x 30s, cache-busted, walking JS chunks to depth 2 following both static from-quote-dot-slash and dynamic import forms) greps live chunk bodies for a new-bundle-only STRING LITERAL — literals survive minification where function names do not, so a hit cannot be a false positive from a cached old asset. Hit on attempt 1/12: chunks/Cj35SVFZ.js served data-dc34-layers-btn. NEVER pass --max-time to those chunk fetches; a truncated body drops the sentinel and manufactures a phantom not-deployed verdict.
+- [Phase ?]: 70-06: the post-deploy probe first scored 11/12 — assertion 6 read the Basemap hint instead of the hint-bar default on open. Diagnosis (layers button at 1241,574 vs dialog at x430-850 y126-774, so hover was impossible; activeElement was a button inside the dialog whose closest data-hint is the Basemap section) proved the UI was CORRECT: UI-SPEC section 7 requires the hint bar to answer focusin as well as hover, and the dialog focus trap lands focus inside on open. The PROBE was repaired (neutralise hover AND focus, then assert the exact default literal — strictly stronger, since it now also proves the bar RETURNS to default), NOT the source; suppressing focusin hinting would have regressed a stated requirement. Run 1 is committed as transcript-post-deploy-run1-11of12.txt so the repair is auditable.
+- [Phase ?]: 70-06: because the phase branch is squash-merged mid-plan, any artifact that cannot exist until after the deploy (post-deploy transcript, SUMMARY, state updates) must travel on the follow-up branch docs/70-post-deploy-probe or it is stranded off main. That branch is pushed with its PR OPEN and deliberately NOT merged — the standing authorization covered exactly one --admin merge and it was spent on the phase PR.
 
 ### Pending Todos
 
@@ -149,13 +153,23 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-30T05:45:11.368Z
-Stopped at: Completed 70-05-PLAN.md (Map Layers dialog host, wave 3)
+Last session: 2026-07-30T13:36:00Z
+Stopped at: Completed 70-06-PLAN.md — Phase 70 COMPLETE. Shared dialog shell live on
+https://gpx.defcon.run (run.gpx v0.0.104, phase PR #1098, buildpub 30518519521,
+deploy 30518808844), 12/12 prod probe green.
 Resume file: None
 
 ## Operator Next Steps
 
-- Plan the first v1.9 phase with `/gsd-plan-phase 35`
+- **Review and merge the OPEN evidence PR** for `docs/70-post-deploy-probe` (post-deploy
+  12/12 transcript + 70-06-SUMMARY.md). It is the one thing Phase 70 deliberately left
+  unmerged — the standing authorization covered a single `--admin` merge, spent on #1098.
+
+- Kurt UAT on https://gpx.defcon.run: Map Layers click-open + section collapse, My Maps
+  row actions, and the two sections the probe could not exercise without a real signed-in
+  session (My DEF CON Runs, Community Routes).
+
+- Phase 71 (heat-map layers) is planned-ready and depends on this Phase 70 kit.
 
 ## Performance Metrics
 
@@ -210,3 +224,4 @@ Resume file: None
 | Phase 70 P03 | ~20m | 3 tasks | 3 files |
 | Phase 70 P04 | 35m | 3 tasks | 1 files |
 | Phase 70 P05 | ~25m | 2 tasks | 3 files |
+| Phase 70 P06 | ~2h10m | 3 tasks | 9 files |
