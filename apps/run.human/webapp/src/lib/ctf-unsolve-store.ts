@@ -1,30 +1,26 @@
 import { CtfSolve, CtfScoreEvent, CtfAttempt } from "@/entities/ctf";
 import { Ctf } from "@/entities/qr";
-import { RunUser, getRunUser } from "@/entities/run-user";
+import { getRunUser } from "@/entities/run-user";
 import { normalizeChallenge } from "@/lib/qr-admin";
-import {
-  computeCounterUpdate,
-  soleSolverChallenges,
-  sumPoints,
-  type UnsolveMode,
-} from "@/lib/ctf-unsolve";
+import { rescoreUser } from "@/lib/rescore";
+import { soleSolverChallenges, type UnsolveMode } from "@/lib/ctf-unsolve";
 
 /**
  * ctf-unsolve-store.ts — the ElectroDB orchestration behind the admin
  * "unsolve / zero" board actions. Server-only; never import into a client
- * component. The risky decisions (floored counter math, sole-solver solveCount
- * guard) live in the pure ctf-unsolve.ts; this module only reads the target's
- * rows, applies the plan, and reports what it did.
+ * component. The risky decision (sole-solver solveCount guard) lives in the
+ * pure ctf-unsolve.ts; this module deletes the target's rows, then hands off
+ * to `rescoreUser` (points-consistency's SOLE writer of RunUser score fields)
+ * to re-derive the post-delete truth — no manual counter math here.
  *
  * Two operations, both mirroring scripts/reset-ctf-user.mts through the webapp
  * entity path (not the raw-SDK script trick):
  *
  *   unsolveUser(userId)              — full reset: delete every CtfSolve +
  *                                      CtfScoreEvent + CtfAttempt row for the
- *                                      user, set ctfScore/ctfSolves to 0.
- *   unsolveChallenge(userId, slug)   — delete just that challenge's rows and
- *                                      decrement the counters by exactly what
- *                                      was removed (floored at 0).
+ *                                      user, then rescore.
+ *   unsolveChallenge(userId, slug)   — delete just that challenge's rows,
+ *                                      then rescore.
  *
  * In BOTH, Ctf.solveCount is reset to 0 ONLY on challenges where the target was
  * the SOLE solver (so a re-solve replays ordinal #1); a challenge others still
@@ -41,7 +37,9 @@ export interface UnsolveResult {
   removedSolves: number;
   removedScoreEvents: number;
   removedAttempts: number;
+  /** RunUser.score after rescoring (0 if the RunUser row doesn't exist). */
   nextScore: number;
+  /** RunUser.ctfSolves after rescoring (0 if the RunUser row doesn't exist). */
   nextSolves: number;
   /** Challenges whose Ctf.solveCount was reset to 0 (target was sole solver). */
   solveCountReset: string[];
@@ -91,20 +89,6 @@ async function applyPlan(
   // Counts BEFORE any delete — the sole-solver test must see the pre-delete world.
   const counts = await solverCounts(touched);
 
-  const user = await getRunUser(userId);
-  const { nextScore, nextSolves } = computeCounterUpdate({
-    mode,
-    removedPoints: sumPoints([...solves, ...scoreEvents]),
-    // The judge's accrue() does `.add({ ctfScore, ctfSolves: 1 })` for EACH
-    // scoring write — one per CtfSolve (static flags) AND one per CtfScoreEvent
-    // (repeatable/OTP/wordlist flags). So the ctfSolves decrement must count both
-    // ledgers, else a repeatable challenge (0 CtfSolve rows, N score events)
-    // leaves ctfSolves inflated by N after an unsolve.
-    removedSolves: solves.length + scoreEvents.length,
-    currentScore: user?.ctfScore ?? 0,
-    currentSolves: user?.ctfSolves ?? 0,
-  });
-
   // Delete rows: CtfSolve, then CtfScoreEvent, then CtfAttempt.
   for (const s of solves) {
     await CtfSolve.delete({ challenge: s.challenge, user: userId }).go();
@@ -114,9 +98,16 @@ async function applyPlan(
   }
   const removedAttempts = await deleteAttempts(userId, touched);
 
-  // Counters. RunUser may not exist for a phantom id — skip rather than create one.
-  if (user) {
-    await RunUser.patch({ userId }).set({ ctfScore: nextScore, ctfSolves: nextSolves }).go();
+  // Re-derive RunUser's score fields from the post-delete ledger. rescoreUser
+  // is the ONLY writer of these fields (points-consistency); it patches, which
+  // ElectroDB asserts requires the item to exist — RunUser may not exist for a
+  // phantom id, so skip rather than throw (mirrors the old counter-patch guard).
+  let nextScore = 0;
+  let nextSolves = 0;
+  if (await getRunUser(userId)) {
+    const rescored = await rescoreUser(userId);
+    nextScore = rescored.score;
+    nextSolves = rescored.counts.solves;
   }
 
   // Sole-solver solveCount reset (guarded; never rewinds a shared challenge).
@@ -132,8 +123,6 @@ async function applyPlan(
     solveCountReset.push(challenge);
   }
 
-  // If the RunUser row is absent, no counter patch ran — but currentScore was
-  // read as 0 above, so nextScore/nextSolves are already 0 and honest to report.
   return {
     mode,
     userId,
