@@ -20,7 +20,13 @@ const basePath = process.env.NODE_ENV === 'production'
 export type RegistrationStatus =
   | { state: "idle" }
   | { state: "pending" }
-  | { state: "success"; nodeId: string; updated: boolean }
+  /**
+   * `updated` = re-flash of a radio already on this account.
+   * `transferred` = the radio was registered to ANOTHER account and ownership
+   * moved here (same physical radio keeps its "!id" across re-flashes, so event
+   * loaners land in this case). Mutually exclusive with `updated`.
+   */
+  | { state: "success"; nodeId: string; updated: boolean; transferred: boolean }
   | { state: "skipped"; reason: string }
   | { state: "failed"; error: string };
 
@@ -227,6 +233,7 @@ export function useConfigure(): UseConfigureReturn {
                 state: "success",
                 nodeId: registrationInfo.nodeId,
                 updated: regData.updated === true,
+                transferred: regData.transferred === true,
               });
             } else {
               const reason = regData.error || `HTTP ${regResponse.status}`;
@@ -293,6 +300,7 @@ export function useConfigure(): UseConfigureReturn {
           state: "success",
           nodeId: info.nodeId,
           updated: regData.updated === true,
+          transferred: regData.transferred === true,
         });
       } else {
         const reason = regData.error || `HTTP ${regResponse.status}`;
@@ -366,6 +374,7 @@ export function useConfigure(): UseConfigureReturn {
             state: "success",
             nodeId: registrationInfo.nodeId,
             updated: regData.updated === true,
+            transferred: regData.transferred === true,
           });
         } else {
           const reason = regData.error || `HTTP ${regResponse.status}`;

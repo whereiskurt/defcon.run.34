@@ -68,6 +68,18 @@ export const MeshRadio = new Entity(
         type: "string",
         required: true,
       },
+      // ── Ownership-transfer audit trail (see transferMeshRadioOwner) ─────────
+      // Set when a re-flash moved this radio to a different account. Meshtastic
+      // derives myNodeNum from the ESP32 MAC, so re-flashing NEVER changes the
+      // "!id" — the same physical radio handed to a new runner (event loaners)
+      // arrives at an existing row owned by someone else. Absent on rows that
+      // have never changed hands.
+      previousUserId: {
+        type: "string",
+      },
+      transferredAt: {
+        type: "number",
+      },
       // Authoritative X25519 public key as "0x" + 64 hex chars (converted from the
       // device's base64 once at the register-radio write boundary — plan 66-02).
       publicKey: {
@@ -205,6 +217,11 @@ export async function upsertMeshRadio(input: UpsertMeshRadioInput) {
  * (nodeId/nodeNum/userId) and the create-only `source`/`createdAt` — those are
  * set once at upsert time. Used by the user-facing PATCH (verify/keys/
  * impersonate/showOnMap) and resend flows (plan 66-03).
+ *
+ * `userId` is excluded as POLICY, not capability: ownership must never move as a
+ * side effect of a routine field update. ElectroDB is perfectly willing to move it
+ * (and the GSI with it) — moving an owner is therefore a deliberate, audited call to
+ * `transferMeshRadioOwner` below, and nothing else.
  */
 export interface PatchMeshRadioInput {
   publicKey?: string;
@@ -231,6 +248,78 @@ export interface PatchMeshRadioInput {
 export async function patchMeshRadio(nodeId: string, fields: PatchMeshRadioInput) {
   await MeshRadio.patch({ nodeId }).set(fields).go();
   return getMeshRadio(nodeId);
+}
+
+/**
+ * Key material the transferring flash read off the device, if any.
+ * `publicKey` is the "0x" hex form (converted at the write boundary, plan 66-02).
+ */
+export interface TransferMeshRadioKeys {
+  publicKey?: string;
+  privateKey?: string;
+}
+
+/**
+ * Move an existing radio row to a NEW owner (SERVER-ONLY, sole transfer funnel — L10).
+ *
+ * ── Why this helper exists ─────────────────────────────────────────────────
+ * Meshtastic derives `myNodeNum` from the ESP32 MAC, so re-flashing a radio never
+ * changes its "!id". When a physical radio changes hands (event loaners are
+ * routinely reassigned) the new owner's flash lands on a row owned by the PREVIOUS
+ * user. The register write boundary used to blind-`patchMeshRadio` that row, which
+ * overwrote the previous owner's keys and flipped `verified` while leaving `userId`
+ * untouched — an authorization hole that also mis-attributed the new radio's mesh
+ * traffic to the old account. Transfer is now EXPLICIT and audited, never implied.
+ *
+ * A transfer is allowed on purpose: flashing proves physical USB possession and the
+ * client reads the device's own private key straight off the hardware — strictly
+ * stronger proof than the OTP path behind the manual add. The CALLER is responsible
+ * for consuming the new owner's radio quota before calling this.
+ *
+ * ── Why `patch` and not `put` ──────────────────────────────────────────────
+ * `userId` is the `byUser` GSI partition composite (gsi1pk), so it is tempting to
+ * assume only a full-item `put` can move it. It can NOT be assumed — and `put` is
+ * the wrong tool here: a full-item replace silently drops every field the caller
+ * forgets to carry forward (createdAt / showOnMap / impersonate / source / nodeNum /
+ * the verification counters), and would re-break as soon as this entity grows an
+ * attribute. ElectroDB v3.7 `patch().set({ userId })` DOES recompute the GSI keys —
+ * it emits a single atomic UpdateItem containing
+ *
+ *   SET #userId = :userId_u0, ..., #gsi1pk = :gsi1pk_u0   with  :gsi1pk_u0 = "$run#userid_<new>"
+ *
+ * so the byUser index moves to the new owner and goes stale for the old one in one
+ * write, while every untouched attribute is preserved by construction. Locked by
+ * test ("moves the byUser GSI partition to the new owner") — that GSI is what "my
+ * radios" actually queries, so a userId-only write would leave the index lying.
+ * `patch` also carries `attribute_exists(pk)`, so a transfer can never create a row.
+ *
+ * The previous owner's verification secrets are dropped rather than inherited: the
+ * row comes out `verified: true`, and a stale code belonging to another account has
+ * no business sitting on this one.
+ *
+ * Returns the re-read row. NEVER logs key material.
+ */
+export async function transferMeshRadioOwner(
+  existing: MeshRadioItem,
+  newUserId: string,
+  keys: TransferMeshRadioKeys = {}
+) {
+  const now = Date.now();
+  await MeshRadio.patch({ nodeId: existing.nodeId })
+    .set({
+      userId: newUserId,
+      previousUserId: existing.userId,
+      transferredAt: now,
+      ...(keys.publicKey ? { publicKey: keys.publicKey } : {}),
+      ...(keys.privateKey !== undefined ? { privateKey: keys.privateKey } : {}),
+      // Physical possession re-proves the radio; `verifiedAt` must stop pointing at
+      // the PREVIOUS owner's verification event.
+      verified: true,
+      verifiedAt: now,
+    })
+    .remove(["verificationCode", "codeSentAt"])
+    .go();
+  return getMeshRadio(existing.nodeId);
 }
 
 /**

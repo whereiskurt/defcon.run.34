@@ -65,6 +65,7 @@ v1.9 CMS-Driven UI Copy Catalog is **complete and live** (phases 35-39, 21 plans
 - ✓ ECR repos + build/deploy pipeline for 3 mqtt images — v1.3
 - ✓ Both-region deployment (us-east-1 + ca-central-1) — v1.3
 - ✓ DC34 branding on meshmap — v1.3
+- ✓ MQTT v5 dual codec in meshtk proxy (Meshtastic-Android 2.8 phone-proxies) with full v5 inspection parity, 3.1.1 path byte-identical — v2.3.1 Phase 68, meshtk v0.0.73 prod-verified
 
 ### Active
 
@@ -126,6 +127,8 @@ v1.9 CMS-Driven UI Copy Catalog is **complete and live** (phases 35-39, 21 plans
 | Route53 latency routing for NLB | mqtt.defcon.run → nearest regional NLB via latency-based alias records | ✓ Good — new nlb-dns module, shipped v1.3 |
 | PP2 only on meshtk ports | Proxy Protocol v2 enabled on 1883/8883, disabled on nginx/websocket ports | ✓ Good — per-LB toggle in ecs-service |
 | Defer Phase 18 fleet simulator | Non-essential easter egg; prioritize v1.4 flash refresh | — Deferred to backlog |
+| Frame-capture relay for MQTT v5 codec | Parse only CONNECT/CONNACK; relay captured bytes so unparseable v5 frames never tear a connection down | ✓ Good — shipped v0.0.73, 64/64 truths prod-verified |
+| Fix (not defer) the three pre-existing shared-chain defects before DEF CON 34 | Nil-cipher panic is a remotely-triggerable whole-process kill; Data field loss and Will bypass are live risks | — Phase 69 (decided 2026-07-29) |
 
 ## Evolution
 
@@ -145,4 +148,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-05 — v1.9 CMS-Driven UI Copy Catalog milestone started*
+*Last updated: 2026-07-30 after Phase 68 (MQTT v5 dual codec verified complete)*

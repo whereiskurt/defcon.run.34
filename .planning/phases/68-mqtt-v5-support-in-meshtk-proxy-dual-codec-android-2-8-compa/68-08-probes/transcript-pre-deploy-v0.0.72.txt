@@ -1,0 +1,140 @@
+########## PRE-DEPLOY regression-connacks ##########
+=== regression-connacks against mqtt.defcon.run:4433 at 2026-07-29T18:36:44Z ===
+
+[v5 bad credentials] expect 2003008700
+  -> CONNECT (108B) 106a00044d51545405c2003c24110000271021001422000a2700100000260006636c69656e7400096d7174746173746963001364633334702d726567312d3363...
+  <- type=2 (5B) 2003008700
+  captured: 2003008700
+
+[protocol level 6] expect 2003008400
+  -> CONNECT (108B) 106a00044d51545406c2003c24110000271021001422000a2700100000260006636c69656e7400096d7174746173746963001364633334702d726567322d6638...
+  <- type=2 (5B) 2003008400
+  captured: 2003008400
+
+[v5 enhanced auth] expect 2003008c00
+  -> CONNECT (122B) 107800044d51545405c2003c32110000271021001422000a2700100000260006636c69656e7400096d717474617374696315000b534352414d2d5348412d3100...
+  <- type=2 (5B) 2003008c00
+  captured: 2003008c00
+
+[3.1.1 bad credentials] expect 20020005
+  -> CONNECT (71B) 104500044d51545404c2003c001364633334702d726567342d6537313832316164000f6e6f742d612d7265616c2d7573657200136e6f742d612d7265616c2d70...
+  <- type=2 (4B) 20020005
+  captured: 20020005
+VERDICT PASS all four CONNACK captures byte-identical to the 68-05 record
+EXIT=0
+########## PRE-DEPLOY cr03-second-connect ##########
+=== cr03-second-connect against mqtt.defcon.run:4433 at 2026-07-29T18:36:45Z ===
+[creds] username shape ok (12 hex); password length 12
+
+[cr03] client_id=dc34p-cr03-3aeef667
+  -> CONNECT (98B) 106000044d51545405c2003c24110000271021001422000a2700100000260006636c69656e7400096d7174746173746963001364633334702d637230332d3361...
+  <- type=2 (8B) 2006000003210014
+  [session] established, CONNACK 2006000003210014
+  -> second CONNECT (bogus creds) (123B) 107900044d51545405c2003c24110000271021001422000a2700100000260006636c69656e7400096d717474617374696300186d71747461737469632d736563...
+  wire: closed=False disconnect_frames=0 reason=None
+  [logs] correlating...
+  [log:meshtk/run-mqtt-meshtk/3473b1a842eb4a39914de53150bfbca9] 2026-07-29 18:36:45.144 action=MQTT5_CONNECT, ip=10.0.2.246:34398, username=0a487d6affa5, client_id=dc34p-cr03-3aeef667
+  [logs] session socket addr recovered: 10.0.2.246:34398
+  [log:meshtk/run-mqtt-meshtk/3473b1a842eb4a39914de53150bfbca9] 2026-07-29 18:36:45.144 action=MQTT5_CONNECT, ip=10.0.2.246:34398, username=0a487d6affa5, client_id=dc34p-cr03-3aeef667
+VERDICT FAIL no DISCONNECT 0x82 from the proxy (reason=None)
+EXIT=0
+########## PRE-DEPLOY cr04-unmodelled-block ##########
+=== cr04-unmodelled-block against mqtt.defcon.run:4433 at 2026-07-29T18:37:06Z ===
+[creds] username shape ok (12 hex); password length 12
+
+[cr04] client_id=dc34p-cr04-efe29c1a
+  -> CONNECT (98B) 106000044d51545405c2003c24110000271021001422000a2700100000260006636c69656e7400096d7174746173746963001364633334702d637230342d6566...
+  <- type=2 (8B) 2006000003210014
+  [session] established, CONNACK 2006000003210014
+  -> PUBLISH with unmodelled property 0x7f + undecryptable envelope (124B) 307a001b6d73682f55532f322f652f64632e72756e2f213433353939306534027f000a450de490594315ffffffff2a30a283e0c1260764455abb98f9de3f1c7d...
+  <- type=14 (3B) e00181
+  wire: closed=False trailing_frames=1
+  [logs] correlating...
+  [log:meshtk/run-mqtt-meshtk/3473b1a842eb4a39914de53150bfbca9] 2026-07-29 18:37:06.939 action=MQTT5_CONNECT, ip=10.0.2.246:40564, username=0a487d6affa5, client_id=dc34p-cr04-efe29c1a
+  [log:meshtk/run-mqtt-meshtk/3473b1a842eb4a39914de53150bfbca9] 2026-07-29 18:37:06.939 action=MQTT5_CONNECT, ip=10.0.2.246:40564, username=0a487d6affa5, client_id=dc34p-cr04-efe29c1a
+  [log:meshtk/run-mqtt-meshtk/3473b1a842eb4a39914de53150bfbca9] 2026-07-29 18:37:06.966 action=MQTT5_PARSE_FAIL, ip=10.0.2.246:40564, mqtt_type=PUBLISH, reason=invalid Prop type 127 for packet 3
+VERDICT FAIL no action=BLOCK decision for the unmodelled-property PUBLISH -- the frame bypassed inspection (CR-04 open)
+EXIT=0
+########## PRE-DEPLOY wr04-subscribe ##########
+=== wr04-subscribe against mqtt.defcon.run:4433 at 2026-07-29T18:37:28Z ===
+[creds] username shape ok (12 hex); password length 12
+
+[wr04] client_id=dc34p-wr04-f096b42e filter=msh/US/2/e/dc.run/probe-dc34p-wr04-f096b42e/#
+  -> CONNECT (98B) 106000044d51545405c2003c24110000271021001422000a2700100000260006636c69656e7400096d7174746173746963001364633334702d777230342d6630...
+  <- type=2 (8B) 2006000003210014
+  [session] established, CONNACK 2006000003210014
+  -> SUBSCRIBE (53B) 8233001500002d6d73682f55532f322f652f64632e72756e2f70726f62652d64633334702d777230342d66303936623432652f2300
+  <- type=9 (6B) 900400150000
+  wire: suback=900400150000
+  [logs] correlating...
+  [log:meshtk/run-mqtt-meshtk/3473b1a842eb4a39914de53150bfbca9] 2026-07-29 18:37:28.675 action=MQTT5_CONNECT, ip=10.0.2.246:34390, username=0a487d6affa5, client_id=dc34p-wr04-f096b42e
+VERDICT FAIL no proxy log line with mqtt_type=SUBSCRIBE -- the v5 SUBSCRIBE was relayed unjudged and invisible (WR-04 open)
+EXIT=0
+########## PRE-DEPLOY cr02-idle (480s) ##########
+=== cr02-idle against mqtt.defcon.run:4433 at 2026-07-29T18:38:31Z ===
+[creds] username shape ok (12 hex); password length 12
+
+[cr02] client_id=dc34p-cr02-da6ab4ce idle_target=480s
+  -> CONNECT (98B) 106000044d51545405c2003c24110000271021001422000a2700100000260006636c69656e7400096d7174746173746963001364633334702d637230322d6461...
+  <- type=2 (8B) 2006000003210014
+  [session] established, CONNACK 2006000003210014
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 30s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 60s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 90s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 120s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 150s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 180s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 210s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 240s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 270s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 300s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 330s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 360s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 390s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 420s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 450s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 480s elapsed
+  [idle] measured publish-idle duration: 480s
+  -> PUBLISH NODEINFO (107B) 3069001b6d73682f55532f322f652f64632e72756e2f213433353939306534000a360de490594315ffffffff22210804121b0a09213433353939306534120944...
+  -> PINGREQ (liveness check after the publish) (2B) c000
+  wire: session died after the post-idle publish: peer closed
+  wire: session alive after post-idle publish = False
+  [logs] correlating...
+  [log:meshtk/run-mqtt-meshtk/3473b1a842eb4a39914de53150bfbca9] 2026-07-29 18:38:31.921 action=MQTT5_CONNECT, ip=10.0.2.246:1745, username=0a487d6affa5, client_id=dc34p-cr02-da6ab4ce
+  [log:meshtk/run-mqtt-meshtk/3473b1a842eb4a39914de53150bfbca9] 2026-07-29 18:38:31.921 action=MQTT5_CONNECT, ip=10.0.2.246:1745, username=0a487d6affa5, client_id=dc34p-cr02-da6ab4ce
+  [log:meshtk/run-mqtt-meshtk/3473b1a842eb4a39914de53150bfbca9] 2026-07-29 18:46:31.984 action=BLOCK,ip=10.0.2.246:1745, clientID=, username=, mqtt_type=PUBLISH, mqtt_topic=[msh/US/2/e/dc.run/!435990e4],mesh_type=NODEINFO_APP, mesh_from=435990e4, mesh_to=ffffffff, payload=0a0921343335393930653412094443333420746573741a03543334
+  [log:meshtk/run-mqtt-meshtk/3473b1a842eb4a39914de53150bfbca9] time="2026-07-29T18:46:31Z" level=warning msg="[proxy] BLOCK from=!435990e4 to=!ffffffff reason=\"Username required for MQTT\" user= ip=10.0.2.246:1745"
+VERDICT FAIL the post-idle publish was Blocked with the username-required reason after 480s idle (1 lines) -- CR-02 open
+SCRIPT_EXIT=1
