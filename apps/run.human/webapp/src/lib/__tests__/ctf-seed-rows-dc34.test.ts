@@ -26,7 +26,11 @@ describe("buildDc34SeedRows", () => {
 
   it("chains retune to 25/day; personas and ricky to flat 100", () => {
     expect(byName.get("goldstein-otp")).toMatchObject({ pointMax: 25, pointFloor: 25, perPlayerIntervalHours: 24 });
-    expect(byName.get("ricky")).toMatchObject({ knobsOnly: true, pointMax: 100 });
+    expect(byName.get("ricky")).toMatchObject({
+      knobsOnly: true,
+      pointMax: 100,
+      perPlayerIntervalHours: 24, // daily lyrics-QR claim — must survive re-seeds
+    });
   });
 
   it("grant-only inserts are unguessable and enabled", () => {
