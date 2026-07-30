@@ -35,7 +35,11 @@
  * SAFETY / hygiene:
  *   - DRY-RUN BY DEFAULT: composes + prints every row and writes nothing.
  *     Pass --confirm to `put` them, or --remove to preview a delete (add
- *     --confirm to actually delete — WR-02).
+ *     --confirm to actually delete — WR-02). --remove ONLY ever targets the
+ *     grant-only full-insert rows this script itself creates (jack-egg,
+ *     exceptional-run, unlock-*) — the 20 knobsOnly rows are pre-existing,
+ *     hand-authored live challenge definitions (answer hashes, OTP secrets,
+ *     effects, unlock chains) and are NEVER deletable by this script.
  *   - knobsOnly rows: SKIPPED (with a warning) if no matching existing row is
  *     found — never inserted, never fabricated.
  *   - Full-insert rows are idempotent by challenge NAME, live-data-preserving
@@ -71,10 +75,12 @@
  *   # 2. write the rows (idempotent):
  *   AWS_PROFILE=dc34-application RUN_DYNAMODB_REGION=us-east-1 \
  *     npx tsx scripts/seed-ctf-dc34.mts --confirm
- *   # 3. (optional) preview a removal of the seeded set (DRY-RUN — WR-02):
+ *   # 3. (optional) preview removing ONLY the 7 grant-only rows this script
+ *   #    inserted (jack-egg, exceptional-run, unlock-*) — the 20 knobsOnly
+ *   #    rows are NEVER touched by --remove (DRY-RUN — WR-02):
  *   AWS_PROFILE=dc34-application RUN_DYNAMODB_REGION=us-east-1 \
  *     npx tsx scripts/seed-ctf-dc34.mts --remove
- *   #    then actually delete the same keys:
+ *   #    then actually delete those same 7 keys:
  *   AWS_PROFILE=dc34-application RUN_DYNAMODB_REGION=us-east-1 \
  *     npx tsx scripts/seed-ctf-dc34.mts --remove --confirm
  */
@@ -239,12 +245,16 @@ async function main() {
     return;
   }
 
-  // 3) REMOVE: delete the six by composed key — but DRY-RUN by default (WR-02).
-  //    Without --confirm this only PREVIEWS the exact seeded names it would
-  //    delete; pass --remove --confirm to actually delete. Only the six seeded
-  //    challenge keys are ever targeted.
+  // 3) REMOVE: delete ONLY the 7 grant-only full-insert rows this script
+  //    itself creates (jack-egg, exceptional-run, unlock-*) — DRY-RUN by
+  //    default (WR-02). knobsOnly rows are pre-existing, hand-authored live
+  //    challenge definitions (answer hashes, OTP secrets, effects, unlock
+  //    chains) and are NEVER eligible for removal by this script, confirm or
+  //    not. Without --confirm this only PREVIEWS the exact grant-only names
+  //    it would delete; pass --remove --confirm to actually delete.
   if (REMOVE) {
-    for (const row of rows) {
+    const removable = rows.filter((row) => !row.knobsOnly);
+    for (const row of removable) {
       const Key = keyOf(row);
       if (CONFIRM) {
         await doc.delete({ TableName: TABLE, Key });
@@ -255,9 +265,9 @@ async function main() {
     }
     console.log(
       CONFIRM
-        ? `\nRemoved ${rows.length} seeded Ctf rows.`
-        : `\nDRY-RUN: would remove ${rows.length} seeded Ctf rows, deleted nothing. ` +
-            `Re-run with --remove --confirm to delete.`
+        ? `\nRemoved ${removable.length} grant-only Ctf rows (knobsOnly rows untouched).`
+        : `\nDRY-RUN: would remove ${removable.length} grant-only Ctf rows, deleted nothing ` +
+            `(knobsOnly rows are never removable). Re-run with --remove --confirm to delete.`
     );
     return;
   }
