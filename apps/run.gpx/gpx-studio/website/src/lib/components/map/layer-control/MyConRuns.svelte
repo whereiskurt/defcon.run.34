@@ -3,7 +3,7 @@
     import type { MyConRunsLayer } from '../my-con-runs';
     import { prettyRouteName } from '../public-overlays';
     import { routeColor } from '$lib/dc34-palette';
-    import { ChevronDown, ChevronRight } from '@lucide/svelte';
+    import { Section, Row } from '$lib/components/dialog-shell/index.js';
 
     // The layer instance is created in LayerControl's map.onLoad; may be undefined
     // for the first frame before the map loads.
@@ -23,55 +23,55 @@
             }
         }
     });
+
+    // Whole-section collapse + master, sitting above the per-day sub-sections.
+    let rootCollapsed = $state(false);
+    const totalRuns = $derived($myConRunGroups.reduce((n, g) => n + g.runs.length, 0));
+    const allDaysVisible = $derived(
+        $myConRunGroups.length > 0 && $myConRunGroups.every((g) => g.visible)
+    );
+
+    // The section-wide cascade passes fit = false so one master click does not fire a
+    // fitBounds per con day; the per-day toggle keeps the default fit, unchanged.
+    function setAllDays(v: boolean) {
+        for (const g of $myConRunGroups) layer?.setDayVisible(g.conDay, v, false);
+    }
 </script>
 
 {#if $myConRunGroups.length > 0}
-    <div class="flex flex-col gap-1 text-sm">
+    <Section
+        label="My DEF CON Runs"
+        count={totalRuns}
+        master={allDaysVisible}
+        onmaster={setAllDays}
+        collapsed={rootCollapsed}
+        ontoggle={(c) => (rootCollapsed = c)}
+    >
         {#each $myConRunGroups as group, i (group.conDay)}
-            <div class="flex flex-col gap-0.5">
-                <!-- Group master toggle + collapse chevron -->
-                <div class="flex flex-row items-center gap-1 font-semibold">
-                    <button
-                        type="button"
-                        class="shrink-0 opacity-70 hover:opacity-100"
-                        aria-label={collapsed[group.conDay] ? 'Expand' : 'Collapse'}
-                        onclick={() => (collapsed[group.conDay] = !collapsed[group.conDay])}
-                    >
-                        {#if collapsed[group.conDay]}
-                            <ChevronRight size="16" />
-                        {:else}
-                            <ChevronDown size="16" />
-                        {/if}
-                    </button>
-                    <label class="flex flex-row items-center gap-2 grow">
-                        <input
-                            type="checkbox"
-                            checked={group.visible}
-                            onchange={(e) => layer?.setDayVisible(group.conDay, e.currentTarget.checked)}
-                        />
-                        <span
-                            class="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-                            style="background-color: {routeColor(i)}"
-                        ></span>
-                        {group.label} ({group.runs.length})
-                    </label>
-                </div>
-                <!-- Per-run toggles (collapsible) -->
-                {#if !collapsed[group.conDay]}
-                <div class="flex flex-col gap-0.5 pl-5">
-                    {#each group.runs as r (r.fileId)}
-                        <label class="flex flex-row items-center gap-2">
-                            <input
-                                type="checkbox"
-                                checked={r.visible}
-                                onchange={(e) => layer?.setRunVisible(r.fileId, e.currentTarget.checked)}
-                            />
-                            {prettyRouteName(r.fileName)}
-                        </label>
-                    {/each}
-                </div>
-                {/if}
-            </div>
+            <!-- The plain sub-section variant drops the nested card chrome and keeps just
+                 the indented header idiom, so there is exactly one collapse affordance at
+                 each level. -->
+            <Section
+                variant="plain"
+                label={group.label}
+                count={group.runs.length}
+                master={group.visible}
+                onmaster={(v) => layer?.setDayVisible(group.conDay, v)}
+                collapsed={!!collapsed[group.conDay]}
+                ontoggle={(c) => (collapsed[group.conDay] = c)}
+            >
+                {#each group.runs as r (r.fileId)}
+                    <!-- The day's colour dot moves from the header onto each run row, so the
+                         per-day colour identity survives the re-skin. -->
+                    <Row
+                        checked={r.visible}
+                        onchange={(v) => layer?.setRunVisible(r.fileId, v)}
+                        color={routeColor(i)}
+                        label={prettyRouteName(r.fileName)}
+                        hint={group.label + ' · your imported run'}
+                    />
+                {/each}
+            </Section>
         {/each}
-    </div>
+    </Section>
 {/if}
