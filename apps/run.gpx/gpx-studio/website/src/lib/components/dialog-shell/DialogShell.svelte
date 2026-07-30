@@ -65,11 +65,28 @@
 
         <!-- Scrollable body. Handlers are Svelte attributes, not manual addEventListener:
              Svelte attaches/detaches them with the portalled node, so there is no cleanup
-             to get wrong. -->
+             to get wrong.
+
+             `[&>*]:shrink-0` is load-bearing, not cosmetic. This body is a column flex
+             container with a definite height, so every direct child is a flex item with
+             the default `flex-shrink: 1`. Normally `min-height: auto` floors how far a
+             flex item may shrink — but that floor only applies while the item's overflow
+             is visible, and Section's card variant carries `overflow-hidden` (needed for
+             the rounded-corner clip). That resolves its min-height to 0, so once the
+             content exceeds the body the cards were SQUASHED to fit instead of
+             overflowing: `scrollHeight` never exceeded `clientHeight`, `overflow-y-auto`
+             never produced a scrollbar, and Section clipped the crushed remainder into
+             permanent unreachability. Measured live: a "DEF CON 34 Routes" card at
+             offsetHeight 134 over scrollHeight 527, and a 1400px probe element that added
+             nothing at all to the body's scrollHeight.
+
+             The child selector is deliberately `*` rather than `[data-section]`: consumers
+             render plain divs here too (CloudStorage's breadcrumb strip, its error banner
+             and both gate screens), and every one of them is subject to the same crush. -->
         <!-- svelte-ignore a11y_mouse_events_have_key_events -->
         <div
             data-dialog-body
-            class="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto p-3"
+            class="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto p-3 [&>*]:shrink-0"
             onmouseover={readHint}
             onfocusin={readHint}
             onmouseleave={() => (hint = DEFAULT_HINT)}
