@@ -234,6 +234,7 @@ export interface CtfStore {
     challenge: string;
     user: string;
     bucket: string;
+    ordinal: number;
     points: number;
     tierCeiling: number;
     channel: Channel;
@@ -458,6 +459,9 @@ export async function judgeSolve(
     if (ctf.answerType === "wordlist") {
       const n = await store.allocateOrdinal(challenge);
       if ((ctf.globalMax ?? 0) > 0 && n > (ctf.globalMax as number)) {
+        if (store.recordScoreEvent) {
+          await store.recordScoreEvent({ challenge, user, bucket: codeHash, ordinal: n, points: 0, tierCeiling: activeTierCeiling(now, ctf.timeTiers) ?? ctf.pointMax, channel });
+        }
         log(ctfJudgeLog({ challenge, result: "capped" }));
         return { solved: true, points: 0, ordinal: n, firstBlood: false, capped: true };
       }
@@ -466,7 +470,7 @@ export async function judgeSolve(
       const firstBlood = n === 1;
       const tierCeiling = activeTierCeiling(now, ctf.timeTiers) ?? ctf.pointMax;
       if (store.recordScoreEvent) {
-        await store.recordScoreEvent({ challenge, user, bucket: codeHash, points, tierCeiling, channel });
+        await store.recordScoreEvent({ challenge, user, bucket: codeHash, ordinal: n, points, tierCeiling, channel });
       }
       await store.accrue({ user, points });
       log(ctfJudgeLog({ challenge, result: capped ? "capped" : "solve" }));
@@ -502,6 +506,9 @@ export async function judgeSolve(
       // mirroring the wordlist finalize R3/R4 verbatim.
       const n = await store.allocateOrdinal(challenge);
       if ((ctf.globalMax ?? 0) > 0 && n > (ctf.globalMax as number)) {
+        if (store.recordScoreEvent) {
+          await store.recordScoreEvent({ challenge, user, bucket: otpHash, ordinal: n, points: 0, tierCeiling: activeTierCeiling(now, ctf.timeTiers) ?? ctf.pointMax, channel });
+        }
         log(ctfJudgeLog({ challenge, result: "capped" }));
         return { solved: true, points: 0, ordinal: n, firstBlood: false, capped: true };
       }
@@ -510,7 +517,7 @@ export async function judgeSolve(
       const firstBlood = n === 1;
       const tierCeiling = activeTierCeiling(now, ctf.timeTiers) ?? ctf.pointMax;
       if (store.recordScoreEvent) {
-        await store.recordScoreEvent({ challenge, user, bucket: otpHash, points, tierCeiling, channel });
+        await store.recordScoreEvent({ challenge, user, bucket: otpHash, ordinal: n, points, tierCeiling, channel });
       }
       await store.accrue({ user, points });
       log(ctfJudgeLog({ challenge, result: capped ? "capped" : "solve" }));
@@ -553,6 +560,9 @@ export async function judgeSolve(
       // dark for it.
       const n = await store.allocateOrdinal(challenge);
       if ((ctf.globalMax ?? 0) > 0 && n > (ctf.globalMax as number)) {
+        if (store.recordScoreEvent) {
+          await store.recordScoreEvent({ challenge, user, bucket, ordinal: n, points: 0, tierCeiling: activeTierCeiling(now, ctf.timeTiers) ?? ctf.pointMax, channel });
+        }
         log(ctfJudgeLog({ challenge, result: "capped" }));
         return { solved: true, points: 0, ordinal: n, firstBlood: false, capped: true };
       }
@@ -562,7 +572,7 @@ export async function judgeSolve(
       const firstBlood = n === 1;
       const tierCeiling = activeTierCeiling(now, ctf.timeTiers) ?? ctf.pointMax;
       if (store.recordScoreEvent) {
-        await store.recordScoreEvent({ challenge, user, bucket, points, tierCeiling, channel });
+        await store.recordScoreEvent({ challenge, user, bucket, ordinal: n, points, tierCeiling, channel });
       }
       await store.accrue({ user, points });
       log(ctfJudgeLog({ challenge, result: capped ? "capped" : "solve" }));
@@ -858,6 +868,7 @@ export const defaultStore: CtfStore = {
     user,
     bucket,
     points,
+    ordinal,
     tierCeiling,
     channel,
   }) {
@@ -872,7 +883,7 @@ export const defaultStore: CtfStore = {
     // this create-vs-patch distinction — it is confirmed here by reading the real
     // ElectroDB call (see the <verification> note in 56-02-PLAN).
     await CtfScoreEvent.upsert({ challenge, user, bucket })
-      .set({ points, tierCeiling, channel })
+      .set({ points, ordinal, tierCeiling, channel })
       .go();
   },
 

@@ -45,6 +45,16 @@ function makeStore(
   const ordinals = new Map<string, number>(); // challenge → solveCount
   const userScore = new Map<string, { points: number; solves: number }>();
   const attempts = new Map<string, number>(); // `${challenge}|${user}` → count
+  const scoreEventClaims = new Set<string>(); // `${challenge}|${user}|${bucket}` → claimed
+  const scoreEvents: Array<{
+    challenge: string;
+    user: string;
+    bucket: string;
+    ordinal?: number;
+    points: number;
+    tierCeiling: number;
+    channel: string;
+  }> = []; // recordScoreEvent call log, in call order
   const state = { allocateCalls: 0 };
   const key = (c: string, u: string) => `${c}|${u}`;
 
@@ -98,9 +108,22 @@ function makeStore(
       s.points += delta; // net adjustment; solve count is NOT bumped
       userScore.set(user, s);
     },
+    async claimScoreEvent({ challenge, user, bucket }) {
+      // attribute_not_exists(sk) once-per-window claim, mirroring claimSolve.
+      const k = `${challenge}|${user}|${bucket}`;
+      if (scoreEventClaims.has(k)) return { claimed: false };
+      scoreEventClaims.add(k);
+      return { claimed: true };
+    },
+    async overPerPlayerMax() {
+      return false; // no per-player cap exercised by these tests
+    },
+    async recordScoreEvent({ challenge, user, bucket, ordinal, points, tierCeiling, channel }) {
+      scoreEvents.push({ challenge, user, bucket, ordinal, points, tierCeiling, channel });
+    },
   };
 
-  return { store, solves, ordinals, userScore, attempts, state };
+  return { store, solves, ordinals, userScore, attempts, scoreEvents, state };
 }
 
 describe("judgeSolve — concurrency & gap-free ordinals (SC-2)", () => {
@@ -280,6 +303,33 @@ describe("judgeSolve — pre-hashed guess path (guessHash) parity", () => {
       { store, now: 0, log: () => {} },
     );
     expect(res.solved).toBe(true);
+  });
+});
+
+describe("judgeSolve — repeatable score events carry the solve ordinal (Task 3)", () => {
+  it("records ordinal on repeatable score events, including capped ones", async () => {
+    const ctf = fixtureCtf({ perPlayerIntervalHours: 24, globalMax: 1 });
+    const { store, scoreEvents } = makeStore(ctf);
+
+    const a = await judgeSolve(
+      { user: "userA", challenge: CHALLENGE, guess: FLAG, channel: "qr" },
+      { store, now: 0, log: () => {} },
+    );
+    const b = await judgeSolve(
+      { user: "userB", challenge: CHALLENGE, guess: FLAG, channel: "qr" },
+      { store, now: 0, log: () => {} },
+    );
+
+    // Solver A is first in, under globalMax:1 → scores; solver B is capped.
+    expect(a.ordinal).toBe(1);
+    expect(a.points).toBeGreaterThan(0);
+    expect(b.ordinal).toBe(2);
+    expect(b.points).toBe(0);
+    expect(b.capped).toBe(true);
+
+    // BOTH recorded events — including the capped one — carry the ordinal.
+    expect(scoreEvents[0]).toMatchObject({ ordinal: 1 });
+    expect(scoreEvents[1]).toMatchObject({ ordinal: 2, points: 0 });
   });
 });
 
