@@ -734,7 +734,7 @@ Plans:
 Plans:
 
 - [x] 70-01-PLAN.md — Shared dialog kit in `dialog-shell/`: DialogShell, Section, Row, Chips, Chip, HintBar (DLGS-01)
-- [ ] 70-02-PLAN.md — StravaStrip explicit card chips: "Pick a day" / "+ Import" (DLGS-05)
+- [x] 70-02-PLAN.md — StravaStrip explicit card chips: "Pick a day" / "+ Import" (DLGS-05)
 - [ ] 70-03-PLAN.md — Map Layers sections re-skinned onto the kit: PublicOverlays, MyConRuns, CommunityRoutes; row tooltips retired (DLGS-02, DLGS-04)
 - [ ] 70-04-PLAN.md — My Maps rebuilt on the shell: MY FILES first, header ⋯ menu, labelled Edit + ⋯ row actions, footer Add run (DLGS-03, DLGS-04)
 - [ ] 70-05-PLAN.md — LayerControl click-only dialog host + flat basemap radio rows; hover-open deleted (DLGS-02, DLGS-04)
