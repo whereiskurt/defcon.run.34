@@ -1,0 +1,27 @@
+==============================================================================
+Phase 70 DLGS-06 — shared dialog shell production probe
+==============================================================================
+timestamp   : 2026-07-30T17:38:42.419Z
+git sha     : b49832d2
+target      : https://gpx.defcon.run/use1/studio/app
+bundle etag : W/"3974-19fb4072538"
+bundle date : Thu, 30 Jul 2026 17:16:35 GMT
+entry chunks: /use1/studio/_app/immutable/entry/start.Rb9C4V82.js /use1/studio/_app/immutable/chunks/DHEntMQp.js /use1/studio/_app/immutable/chunks/wi-Nb4rh.js /use1/studio/_app/immutable/chunks/BDpnEvxL.js
+------------------------------------------------------------------------------
+PASS  1. Layers control button is present
+PASS  2. Hovering the layers button does NOT open the dialog
+PASS  3. Clicking the layers button opens a visible role=dialog
+PASS  4. Zero native hover-tooltip attributes inside layer rows — 15 rows inspected
+PASS  5. Map Layers section order follows the spec — order ok [Basemap | DEF CON 34 Routes | Rabbit Routes] — PASS (skipped: no User Check-ins / My DEF CON Runs / Community Routes in prod data)
+PASS  6. Hint bar shows its default copy once nothing hinted is hovered or focused — "Hover a row for details" (on open it read "Choose the background map style.")
+PASS  7. Hint bar text changes when a hinted row is hovered — "All four classics - North, East, South, West - stitched into one 20K epic."
+PASS  8. Escape closes the Map Layers dialog
+PASS  9. Ctrl+O opens the My Maps dialog
+PASS  10. My Maps puts MY FILES before SHARED WITH YOU — [My files | Other maps | Shared with you]
+PASS  11. My Maps footer carries the Add run button
+PASS  12. Zero native hover-tooltip attributes inside file rows — 2 rows inspected
+PASS  13. My Maps hides the Add run footer on the access-denied gate screen — gate reads "My Maps Your DEF CON run folder Access denied. You need the gpxstudio service. Contact an admin to request acc"
+PASS  14. Map Layers body overflows and scrolls rather than crushing its children — clientH=562 scrollH=2113 filler 1400px rendered 1400px scrollTop=400
+FAIL  15. Section collapse state survives closing and reopening Map Layers — User Check-ins: expected aria-expanded=true, got false; DEF CON 34 Routes: expected aria-expanded=false, got true; Rabbit Routes: expected aria-expanded=true, got false — 4 section(s) open#1, toggled 4, unmounted=true, 4 section(s) on reopen, 4 compared [before Basemap=false, User Check-ins=false, DEF CON 34 Routes=true, Rabbit Routes=false] [after Basemap=true, User Check-ins=true, DEF CON 34 Routes=false, Rabbit Routes=true] [reopen Basemap=true, User Check-ins=false, DEF CON 34 Routes=true, Rabbit Routes=false]
+------------------------------------------------------------------------------
+RESULT: 14/15 assertions passed
