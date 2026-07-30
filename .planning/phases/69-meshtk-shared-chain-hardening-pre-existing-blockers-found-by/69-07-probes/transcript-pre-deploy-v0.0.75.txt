@@ -1,0 +1,214 @@
+================================================================================
+PRE-DEPLOY BASELINE — meshtk v0.0.75 (the pre-fix image)
+================================================================================
+
+Taken 2026-07-30T15:11Z–15:22Z with the probe script as committed in 8473020d,
+BEFORE the buildpub release. PRE and POST therefore use provably identical bytes.
+
+Serving image tag         : dc34-run-mqtt-meshtk:v0.0.75
+ECS task definition       : run-mqtt-use1-dc34:118
+ECS task                  : 1762b3b7e0ee4f688c69842fb2bcac29 (RUNNING, HEALTHY)
+Log group                 : /ecs/run-mqtt-meshtk-run-mqtt-use1-dc34
+Log stream (PRE)          : meshtk/run-mqtt-meshtk/1762b3b7e0ee4f688c69842fb2bcac29
+Stream first event        : 2026-07-30T08:31:13.303Z
+Probe script commit       : 8473020d (2026-07-30T11:09:46-04:00 = 15:09:46Z)
+
+Every CloudWatch count below is scoped with --log-stream-names to the stream
+above. Both images write to ONE log group during a rolling replace, so an
+unscoped query produces confidently wrong attribution.
+
+--------------------------------------------------------------------------------
+MQFX-01 NEGATIVE BASELINE (never probed — see the module docstring's hard rule)
+--------------------------------------------------------------------------------
+PRE-baseline count [panic]                            = 0
+PRE-baseline count [SIGSEGV]                          = 0
+PRE-baseline count [Proxy server started]             = 1
+PRE-baseline count [action=PANIC_RECOVERED]           = 0
+PRE-baseline count [action=WILL_STRIPPED]             = 0
+PRE-baseline count [MQTT5_PUBLISH_HEADER_FAIL]        = 0
+PRE-baseline count [MQTT5_SUBSCRIBE_HEADER_FAIL]      = 0
+PRE-baseline count [MQTT5_ALIAS_SCAN_INDETERMINATE]   = 0
+
+The last four are zero because the code that emits them is not in this image at
+all. That is the point of taking them: it establishes that a POST count of zero
+is a measurement of the new code's behaviour and not an artefact.
+
+--------------------------------------------------------------------------------
+1. regression-connacks                                          VERDICT PASS
+--------------------------------------------------------------------------------
+=== regression-connacks against mqtt.defcon.run:4433 at 2026-07-30T15:11:30Z ===
+[contract] VERDICT PASS when all four CONNACK captures are byte-identical to the 68-05 record
+
+[v5 bad credentials] expect 2003008700
+  <- type=2 (5B) 2003008700
+  captured: 2003008700
+
+[protocol level 6] expect 2003008400
+  <- type=2 (5B) 2003008400
+  captured: 2003008400
+
+[v5 enhanced auth] expect 2003008c00
+  <- type=2 (5B) 2003008c00
+  captured: 2003008c00
+
+[3.1.1 bad credentials] expect 20020005
+  <- type=2 (4B) 20020005
+  captured: 20020005
+VERDICT PASS all four CONNACK captures byte-identical to the 68-05 record
+exit 0
+
+This one is EXPECTED to pass pre-fix: it is a regression gate, not a defect.
+
+--------------------------------------------------------------------------------
+2. mqfx04c-connect-connack   (MQFX-04 / WR-02)                   VERDICT FAIL
+--------------------------------------------------------------------------------
+=== mqfx04c-connect-connack against mqtt.defcon.run:4433 at 2026-07-30T15:11:37Z ===
+[mqfx04c] client_id=dc34p-mqfx04c-1ee17ad7
+  -> CONNECT with unmodelled property 0x7f (113B) 106f00044d51545405c2003c26110000271021001422000a2700100000260006636c69656e7400096d71747461737469637f00001664633334702d6d71667830...
+  wire: nothing came back (peer closed)
+  wire: captured 0 byte(s)
+  wire: type=None reason=None
+VERDICT FAIL the unparseable v5 CONNECT was closed in SILENCE (0 bytes back) -- WR-02 open; this is the hot-retry loop Phase 68 removed one layer up
+
+WR-02 reproduced on the production wire: ZERO bytes back. This is exactly the
+silent close that makes a client hot-retry against a mute socket.
+
+--------------------------------------------------------------------------------
+3. mqfx04d-loginjection      (MQFX-04 / WR-05)                   VERDICT FAIL
+--------------------------------------------------------------------------------
+=== mqfx04d-loginjection against mqtt.defcon.run:4433 at 2026-07-30T15:13:22Z ===
+[mqfx04d] marker=mqfx04d-5a4f987d
+[mqfx04d] hostile username (121 runes) contains 1 newline(s)
+  <- type=2 (5B) 2003008700
+  wire: captured 5 byte(s) 2003008700
+  [logs] counting the records this ONE CONNECT produced...
+  [log:meshtk/run-mqtt-meshtk/1762b3b7e0ee4f688c69842fb2bcac29] 2026-07-30 15:13:22.801 action=AUTH_REJECT, ip=10.0.1.27:11201, username=mqfx04d-5a4f987d
+  [log:meshtk/run-mqtt-meshtk/1762b3b7e0ee4f688c69842fb2bcac29] 2026-01-01 00:00:00.000 action=AUTH_REJECT, ip=10.0.0.1, username=admin-mqfx04d-5a4f987d, reason=invalid, reason=invalid
+  [logs] 2 record(s) carry the marker
+VERDICT FAIL one CONNECT produced 2 records and 1 of them is a FABRICATED action=AUTH_REJECT line written by the client -- WR-05 open
+
+WR-05 reproduced on the production wire. The SECOND record above is not a proxy
+observation at all: its timestamp, its ip= and its username= were all chosen by
+the client and written into the log by a single newline in the CONNECT username.
+The value in the first (real) record is UNQUOTED, which is the pre-fix state.
+
+--------------------------------------------------------------------------------
+4. mqfx03-will               (MQFX-03 / CR-02)                   VERDICT FAIL
+--------------------------------------------------------------------------------
+=== mqfx03-will against mqtt.defcon.run:4433 at 2026-07-30T15:13:41Z ===
+[mqfx03] client_id=dc34p-mqfx03-94059a35
+[mqfx03] will_topic=msh/US/2/e/dc.run/probe-dc34p-mqfx03-94059a35
+[mqfx03] will_payload (75B) 0a360d0100076915ffffffff22210804121b0a0921363930373030303112094443333420746573741a035433344801350300076948037807120664632e72756e1a09213639303730303031
+  <- type=2 (8B) 2006000003210014          [subscriber session established]
+  <- type=9 (6B) 900400310000              [SUBACK on the unique will topic]
+  <- type=2 (8B) 2006000003210014          [will-bearing session established]
+  [wire] aborting the Will session with a TCP RST (no DISCONNECT)
+  <- type=3 (125B) 307b002d6d73682f55532f322f652f64632e72756e2f70726f62652d64633334702d6d71667830332d3934303539613335000a360d...
+  wire: subscriber saw 1 PUBLISH frame(s); will_payload delivered = True
+  wire: PUBLISH (125B) 307b002d6d73682f55532f322f652f64632e72756e2f70726f62652d64633334702d6d71667830332d3934303539613335000a360d0100076915ffffffff22210804121b0a0921363930373030303112094443333420746573741a035433344801350300076948037807120664632e72756e1a09213639303730303031
+  [log:...1762b3b7] 2026-07-30 15:13:42.208 action=ALLOW,ip=10.0.1.27:6597, clientID=dc34p-mqfx03sub-bc61926f, username=0a487d6affa5, mqtt_type=SUBSCRIBE, mqtt_topic=[msh/US/2/e/dc.run/probe-dc34p-mqfx03-94059a35]
+  [log:...1762b3b7] time="2026-07-30T15:13:44Z" level=debug msg="[proxy] DOWNLINK bcast from=!69070001 id=69070003 topic=msh/US/2/e/dc.run/probe-dc34p-mqfx03-94059a35 client=10.0.1.27:6597"
+VERDICT FAIL no action=WILL_STRIPPED line for this run's will topic -- the Will was forwarded to mosquitto uninspected (subscriber received it = True); MQFX-03 open
+
+BOTH halves of the conjunction are negative pre-fix, which is the strongest form
+this baseline can take:
+  * WIRE: the 75-byte Will ServiceEnvelope was delivered VERBATIM to the second
+    session. mosquitto held it and fired it on the TCP RST, exactly as CR-02
+    describes. The proxy never saw those bytes.
+  * LOG : no action=WILL_STRIPPED line exists, because no code emits one in this
+    image -- `grep -n Will` across inspect.go/inspect_v5.go/proxy.go returned
+    nothing before 69-03.
+
+--------------------------------------------------------------------------------
+5. mqfx04a-alias-handparse   (MQFX-04 / WR-01)                   VERDICT FAIL
+--------------------------------------------------------------------------------
+=== mqfx04a-alias-handparse against mqtt.defcon.run:4433 at 2026-07-30T15:15:59Z ===
+[mqfx04a] client_id=dc34p-mqfx04a-135a238f
+[mqfx04a] property block (5B) 2300077f00 -- alias FIRST, unmodelled id second
+  -> PUBLISH: topic alias ahead of an unmodelled property (112B) 306e001b6d73682f55532f322f652f64632e72756e2f213433353939306534052300077f000a360d...
+  <- type=14 (3B) e00181
+  wire: closed=False trailing_frames=1
+  wire: frame (3B) e00181
+  [log:...1762b3b7] 2026-07-30 15:16:00.179 action=MQTT5_CONNECT, ip=10.0.1.27:24505, username=0a487d6affa5, client_id=dc34p-mqfx04a-135a238f
+  [log:...1762b3b7] 2026-07-30 15:16:00.222 action=MQTT5_PARSE_FAIL, ip=10.0.1.27:24505, mqtt_type=PUBLISH, reason=invalid Prop type 127 for packet 3
+  [log:...1762b3b7] 2026-07-30 15:16:00.222 action=ALLOW,ip=10.0.1.27:24505, clientID=dc34p-mqfx04a-135a238f, username=0a487d6affa5, mqtt_type=PUBLISH, mqtt_topic=[msh/US/2/e/dc.run/!435990e4],mesh_type=NODEINFO_APP, mesh_from=69070001, mesh_to=ffffffff, payload=0a0921363930373030303112094443333420746573741a03543334
+VERDICT FAIL no reason=topic_alias_uplink line for this session (1 action=ALLOW PUBLISH line(s) instead) -- the hand-parsed path could not see the alias; WR-01 open
+
+WR-01's PROVEN divergence, reproduced verbatim in production: a PUBLISH carrying
+a Topic Alias is ALLOWED on the hand-parsed path while the codec path Blocks the
+identical intent with reason=topic_alias_uplink. The `e00181` frame is mosquitto's
+OWN DISCONNECT 0x81 relayed back through the downlink -- independent proof the
+bytes reached the broker rather than being refused by the proxy.
+
+--------------------------------------------------------------------------------
+6. mqfx04b-subscribe-handparse (MQFX-04 / WR-04)                 VERDICT FAIL
+--------------------------------------------------------------------------------
+=== mqfx04b-subscribe-handparse against mqtt.defcon.run:4433 at 2026-07-30T15:18:36Z ===
+[mqfx04b] client_id=dc34p-mqfx04b-944418f2 filter=msh/US/2/e/dc.run/probe-dc34p-mqfx04b-944418f2/#
+[mqfx04b] SUBSCRIBE property block (2B) 7f00
+  -> SUBSCRIBE with an unmodelled property (58B) 82380041027f0000306d73682f55532f322f652f64632e72756e2f70726f62652d64633334702d6d7166783034622d39343434313866322f2300
+  <- type=14 (3B) e00181
+  wire: suback=None frames=['e00181']
+  [log:...1762b3b7] 2026-07-30 15:18:36.625 action=MQTT5_CONNECT, ip=10.0.1.27:1072, username=0a487d6affa5, client_id=dc34p-mqfx04b-944418f2
+  [log:...1762b3b7] 2026-07-30 15:18:36.666 action=MQTT5_PARSE_FAIL, ip=10.0.1.27:1072, mqtt_type=SUBSCRIBE, reason=invalid Prop type 127 for packet 8
+  [logs] parse-fail lines for this session: 1
+VERDICT FAIL the SUBSCRIBE produced 1 MQTT5_PARSE_FAIL line(s) and NO decision line carrying this run's filter -- it was relayed without ever becoming an InspectorPacket; WR-04 open
+
+The parse-fail line stands ALONE: no InspectorPacket, no PacketDecider, no
+MQTT.Topics. The `e00181` is again mosquitto's own DISCONNECT relayed back --
+the frame the proxy declined to inspect was handed to the broker, which rejected
+it. That is WR-04 and WR-03 in one capture.
+
+--------------------------------------------------------------------------------
+7. mqfx02-data-fields        (MQFX-02 / CR-03)                   VERDICT FAIL
+--------------------------------------------------------------------------------
+=== mqfx02-data-fields against mqtt.defcon.run:4433 at 2026-07-30T15:21:10Z ===
+[key] channel key shape ok (256-bit)
+[mqfx02] client_id=dc34p-mqfx02-1065e721 packet_id=0x69070265 node=0x69070001
+[mqfx02] sender Data (72B) 0801122764633334206d71667830322070726f62652064633334702d6d71667830322d3130363565373231180125222211112d4444333335666655553d8888777745010000004801
+[mqfx02] sender fields: want_response=0x1, dest=0x11112222, source=0x33334444, request_id=0x55556666, reply_id=0x77778888, emoji=0x1
+  <- type=9 (6B) 900400510000              [SUBACK]
+  -> PUBLISH encrypted TEXT_MESSAGE_APP (147B) 309001001b6d73682f55532f322f652f64632e72756e2f213433353939306534000a5d0d0100076915ffffffff2a488a62895c312b4ccf3f176a2ef3ea038371...
+  <- type=3 (115B) 3071001b6d73682f55532f322f652f64632e72756e2f213433353939306534000a3e0d0100076915ffffffff35650207692a2d8a62895c312b4ccf3f176a2ef3...
+  wire: downlink PUBLISH (115B) 3071001b6d73682f55532f322f652f64632e72756e2f213433353939306534000a3e0d0100076915ffffffff35650207692a2d8a62895c312b4ccf3f176a2ef3ea038371aaf7a1ea60de2ee0404185bd9c2e88b5ca69a3d096103bc6c833712d120664632e72756e1a09213639303730303031
+  wire: decrypted Data (45B) 0801122764633334206d71667830322070726f62652064633334702d6d71667830322d31303635653732314801
+  wire: field-by-field, sender vs what the mesh receives:
+    want_response  sent=True         wire=False        LOST
+    dest           sent=286335522    wire=0            LOST
+    source         sent=858997828    wire=0            LOST
+    request_id     sent=1431660134   wire=0            LOST
+    reply_id       sent=2004322440   wire=0            LOST
+    emoji          sent=1            wire=0            LOST
+  [log:...1762b3b7] 2026-07-30 15:21:10.636 action=MQTT5_CONNECT, ip=10.0.1.27:6935, username=0a487d6affa5, client_id=dc34p-mqfx02-1065e721
+  [log:...1762b3b7] 2026-07-30 15:21:10.675 action=ALLOW,ip=10.0.1.27:6935, clientID=dc34p-mqfx02-1065e721, username=0a487d6affa5, mqtt_type=PUBLISH, mqtt_topic=[msh/US/2/e/dc.run/!435990e4],mesh_type=TEXT_MESSAGE_APP, mesh_from=69070001, mesh_to=ffffffff, payload=64633334206d71667830322070726f62652064633334702d6d71667
+VERDICT FAIL the rewrite STRIPPED want_response, dest, source, request_id, reply_id, emoji off the text message the mesh receives -- CR-03 open, live user-visible data loss on every text message
+
+The decisive baseline of the whole plan. The sender's 72-byte Data came back as a
+45-byte Data: portnum, payload and bitfield survived, and every one of the other
+SIX fields was zeroed BY THE PROXY, on production, on a message from an ordinary
+authenticated user. This is CR-03 as live user-visible data loss -- broken 2.8
+tapbacks (emoji), threaded replies (reply_id), delivery ACKs (request_id) and DM
+routing (dest/source) -- not a theoretical finding.
+
+Note the username is an ordinary rabbit account, NOT "public": the word
+replacement is username-gated but the rewrite CALL never was, which is why this
+was fleet-wide rather than rare.
+
+================================================================================
+PRE BASELINE SUMMARY
+================================================================================
+  regression-connacks             PASS   (regression gate — expected)
+  mqfx02-data-fields              FAIL   all six Data fields stripped
+  mqfx03-will                     FAIL   Will delivered; no WILL_STRIPPED line
+  mqfx04a-alias-handparse         FAIL   ALLOW instead of topic_alias_uplink
+  mqfx04b-subscribe-handparse     FAIL   parse-fail alone, no decision line
+  mqfx04c-connect-connack         FAIL   0 bytes back — silent close
+  mqfx04d-loginjection            FAIL   2 records, 1 fabricated by the client
+
+FIVE defect subcommands FAIL pre-fix (the plan's floor is four). No defect
+subcommand PASSES pre-fix, so none of them is measuring something other than the
+defect it names.
+
+Credentials: MQTT_USERNAME / MQTT_PASSWORD were supplied from the environment for
+each run and are absent from this transcript, from the probe script and from the
+summary. MESHTK_CHANNEL_KEY likewise; only its bit length is printed.
