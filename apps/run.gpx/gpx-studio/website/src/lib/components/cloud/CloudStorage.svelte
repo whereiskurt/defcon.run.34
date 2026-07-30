@@ -563,11 +563,29 @@
     }
 
     // Footer: "+ Add run" hands off to the QuickStart hub (Strava / file doors).
+    // Belt-and-braces guard: the footer is not rendered on the gate screens (see the
+    // `footer={...}` prop below), but QuickStartHub only mounts when the same two
+    // conditions hold — firing this without them would latch `quickStartOpen` at true
+    // with no consumer mounted to reset it.
     function openAddRun() {
+        if (!get(isAuthenticated) || !get(hasGpxStudioAccess)) return;
         closeCloudStorage();
         quickStartOpen.set(true);
     }
 </script>
+
+<!-- Footer actions. Declared out here and handed to DialogShell as a PROP rather than
+     as an implicit child snippet: DialogShell draws the footer chrome with `{#if footer}`,
+     and a snippet is always truthy, so guarding inside the snippet body would still leave
+     an empty bordered strip on the gate screens. Passing `undefined` drops the whole row.
+     The gate is the same pair of conditions QuickStartHub's `canShow` derives from, so
+     "Add run" can never paint on a screen where it would be a dead end. -->
+{#snippet addRunFooter()}
+    <span class="text-[11px] text-muted-foreground">GPX up to 10mb</span>
+    <Button onclick={openAddRun}>
+        <span class="mr-2 text-[13px] leading-none" aria-hidden="true">👟</span>Add run
+    </Button>
+{/snippet}
 
 <DialogShell
     open={$cloudStorageOpen}
@@ -575,6 +593,7 @@
     dialogId="mymaps"
     heading="My Maps"
     subheading={$breadcrumbs.length > 1 ? $breadcrumbs[$breadcrumbs.length - 1].name : 'Your DEF CON run folder'}
+    footer={$isAuthenticated && $hasGpxStudioAccess ? addRunFooter : undefined}
 >
     {#snippet icon()}<Cloud class="h-[17px] w-[17px]" />{/snippet}
 
@@ -989,13 +1008,6 @@
             </Section>
         {/if}
     {/if}
-
-    {#snippet footer()}
-        <span class="text-[11px] text-muted-foreground">GPX up to 10mb</span>
-        <Button onclick={openAddRun}>
-            <span class="mr-2 text-[13px] leading-none" aria-hidden="true">👟</span>Add run
-        </Button>
-    {/snippet}
 </DialogShell>
 
 <ShareDialog bind:open={shareDialogOpen} file={fileToShare} onSubmitChange={refreshFiles} />
