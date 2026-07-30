@@ -15,3 +15,8 @@ meshtk/*
 !meshtk/internal/embedded/gpx/embedded.go
 !meshtk/internal/embedded/gpx/*/
 !meshtk/internal/embedded/gpx/*/*.gpx
+# Con-specific fleet tests. Must be TRACKED, not just present: build.sh's CI
+# overlay is built from `git ls-files`, so an untracked test would be discarded
+# by the fresh-clone step and never run.
+!meshtk/internal/app/fleet/
+!meshtk/internal/app/fleet/gpx_routes_test.go

@@ -27,6 +27,52 @@ COPY nodes.ghost.*.json /app/
 # stripped at the run.gpx trust boundary).
 COPY nodes.rabbit.*.json /app/
 
+# GPX routes for the fleet sim, FLAT in /app so WORKDIR-relative "./x.gpx"
+# resolves on the filesystem. FleetCmd.GPXCoords tries os.Open() first and only
+# falls back to the go:embed map in internal/embedded/gpx; shipping the files
+# here makes the filesystem the production path so that embed -- a permanent
+# local patch sitting in the path of vendor-sync, which has reverted it and
+# stranded all 24 GPX nodes twice (#1009, fixed by #1028/#1029) -- stops being
+# load-bearing.
+#
+# Only ghosts/ + runs/ + city/ are copied: together they supply all 24 routes
+# referenced by meshtk.dc34.yaml (8 + 14 + 2) with ZERO base-name collisions.
+# dc33/ is deliberately excluded -- it collides with runs/ on 12 base names and
+# contributes no referenced route (see PR notes on the lexical-ordering hazard).
+# example/ is excluded: no route references it.
+COPY internal/embedded/gpx/ghosts/*.gpx /app/
+COPY internal/embedded/gpx/runs/*.gpx /app/
+COPY internal/embedded/gpx/city/*.gpx /app/
+
+# Build-time assertion: every GPXFile: in the shipped config must resolve on the
+# filesystem exactly as os.Open() will resolve it at runtime. Deliberately lives
+# in the Dockerfile rather than in Go -- this file is monorepo-only and so sits
+# outside vendor-sync's blast radius, whereas anything under internal/ is exactly
+# as clobberable as embedded.go itself. Stricter than "will it run": a missing
+# file could still fall back to the embed, but we want the filesystem to be
+# authoritative, because that silent fallback is the regression.
+RUN set -e; \
+    routes=$(grep -E '^[[:space:]]*GPXFile:' /app/meshtk.yaml \
+      | sed -E 's/^[[:space:]]*GPXFile:[[:space:]]*//; s/"//g; s/[[:space:]]*$//'); \
+    if [ -z "$routes" ]; then \
+      echo "FATAL: no GPXFile: entries found in /app/meshtk.yaml -- assertion would pass vacuously" >&2; \
+      exit 1; \
+    fi; \
+    total=0; missing=0; \
+    for r in $routes; do \
+      total=$((total + 1)); \
+      if [ ! -f "$r" ]; then \
+        echo "FATAL: GPX route missing from image: $r" >&2; \
+        missing=$((missing + 1)); \
+      fi; \
+    done; \
+    if [ "$missing" -ne 0 ]; then \
+      echo "FATAL: $missing of $total GPX routes absent from /app -- the fleet sim would" >&2; \
+      echo "       silently stop emitting POSITION_APP for those nodes. Refusing to build." >&2; \
+      exit 1; \
+    fi; \
+    echo "meshtk GPX route assertion: verified $total routes present in /app"
+
 EXPOSE 1883
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
