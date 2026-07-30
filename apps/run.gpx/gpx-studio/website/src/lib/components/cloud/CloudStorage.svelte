@@ -669,7 +669,7 @@
                         class="h-7 w-7 text-green-600 hover:text-green-700"
                         onclick={handleCreateFolder}
                         disabled={loading}
-                        title="Create"
+                        aria-label="Create folder"
                     >
                         <Check class="h-4 w-4" />
                     </Button>
@@ -679,7 +679,7 @@
                         class="h-7 w-7"
                         onclick={cancelCreateFolder}
                         disabled={loading}
-                        title="Cancel"
+                        aria-label="Cancel"
                     >
                         <X class="h-4 w-4" />
                     </Button>
@@ -690,7 +690,9 @@
             {#each $cloudFolders as folder}
                 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
                 <div
-                    class="flex items-center gap-2 border rounded-md px-3 py-2 hover:bg-muted/30 cursor-pointer"
+                    data-file-row
+                    data-hint={'Folder — open ' + folder.folderName}
+                    class="group/row flex cursor-pointer items-center gap-3 px-3 py-2 hover:bg-foreground/5"
                     onclick={() => handleNavigateToFolder(folder.folderId, folder.folderName)}
                 >
                     {#if editingFolderId === folder.folderId}
@@ -709,7 +711,7 @@
                                 class="h-7 w-7 text-green-600 hover:text-green-700"
                                 onclick={(e) => { e.stopPropagation(); saveFolderRename(folder.folderId); }}
                                 disabled={loading}
-                                title="Save"
+                                aria-label="Save name"
                             >
                                 <Check class="h-4 w-4" />
                             </Button>
@@ -719,23 +721,28 @@
                                 class="h-7 w-7"
                                 onclick={(e) => { e.stopPropagation(); cancelFolderRename(); }}
                                 disabled={loading}
-                                title="Cancel"
+                                aria-label="Cancel rename"
                             >
                                 <X class="h-4 w-4" />
                             </Button>
                         </div>
                     {:else}
-                        <Folder class="h-4 w-4 text-amber-500 flex-shrink-0" />
-                        <span class="font-medium text-sm flex-1 truncate">{folder.folderName}</span>
+                        <Folder class="h-[17px] w-[17px] flex-shrink-0 text-amber-500" />
+                        <span class="min-w-0 flex-1 truncate text-sm font-semibold">
+                            {folder.folderName}
+                        </span>
                         <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-                        <div class="flex gap-0.5" onclick={(e) => e.stopPropagation()}>
+                        <div
+                            class="flex flex-shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/row:opacity-100 group-focus-within/row:opacity-100 [@media(hover:none)]:opacity-100"
+                            onclick={(e) => e.stopPropagation()}
+                        >
                             <Button
                                 variant="ghost"
                                 size="icon"
                                 class="h-7 w-7"
                                 onclick={() => startFolderRename(folder)}
                                 disabled={loading || editingFolderId !== null}
-                                title="Rename folder"
+                                aria-label="Rename folder"
                             >
                                 <Pencil class="h-3.5 w-3.5" />
                             </Button>
@@ -745,7 +752,7 @@
                                 class="h-7 w-7 text-destructive hover:text-destructive"
                                 onclick={() => handleDeleteFolder(folder)}
                                 disabled={loading}
-                                title="Delete folder"
+                                aria-label="Delete folder"
                             >
                                 <Trash2 class="h-3.5 w-3.5" />
                             </Button>
@@ -781,7 +788,7 @@
                                     class="h-7 w-7 text-green-600 hover:text-green-700"
                                     onclick={() => saveRename(file.fileId)}
                                     disabled={loading}
-                                    title="Save"
+                                    aria-label="Save name"
                                 >
                                     <Check class="h-4 w-4" />
                                 </Button>
@@ -791,7 +798,7 @@
                                     class="h-7 w-7"
                                     onclick={cancelRename}
                                     disabled={loading}
-                                    title="Cancel"
+                                    aria-label="Cancel rename"
                                 >
                                     <X class="h-4 w-4" />
                                 </Button>
@@ -962,13 +969,21 @@
                 {#each $globalFolders as folder}
                     <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
                     <div
-                        class="flex items-center gap-2 border rounded-md px-3 py-2 hover:bg-muted/30 cursor-pointer"
+                        data-file-row
+                        data-hint={'Shared folder — open ' + folder.folderName}
+                        class="flex cursor-pointer items-center gap-3 px-3 py-2 hover:bg-foreground/5"
                         onclick={() => handleNavigateToFolder(folder.folderId, folder.folderName)}
                     >
-                        <Globe class="h-4 w-4 text-blue-500 flex-shrink-0" />
-                        <span class="font-medium text-sm flex-1 truncate">{folder.folderName}</span>
-                        <span class="text-xs text-muted-foreground">shared</span>
-                        <ChevronRight class="h-4 w-4 text-muted-foreground" />
+                        <Globe class="h-[17px] w-[17px] flex-shrink-0 text-blue-500" />
+                        <span class="min-w-0 flex-1 truncate text-sm font-semibold">
+                            {folder.folderName}
+                        </span>
+                        <span
+                            class="flex-shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground"
+                        >
+                            shared
+                        </span>
+                        <ChevronRight class="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                     </div>
                 {/each}
             </Section>
