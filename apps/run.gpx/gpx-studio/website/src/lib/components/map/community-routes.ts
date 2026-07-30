@@ -4,6 +4,14 @@ import mapboxgl from 'mapbox-gl';
 import { routeColor } from '$lib/dc34-palette';
 import { listCommunityRoutes, copyRouteToMyMaps, type RouteSummary } from '$lib/cloud-sync';
 import { escapeHtml } from './escape-html';
+import {
+    PREFIX,
+    communityRouteLayer,
+    pruneLayerVisibility,
+    setLayerVisible,
+    setLayersVisible,
+    storedVisible,
+} from '$lib/stores/layer-visibility';
 
 /**
  * "Community Routes" (2026-07-28 routes-vs-runs spec) — routes other runners
@@ -131,7 +139,10 @@ export class CommunityRoutesLayer {
         try {
             manifest = await listCommunityRoutes();
             if (manifest.length === 0) {
+                // Authoritative empty — clearing is correct, and so is forgetting the
+                // stored ids for routes that are no longer published.
                 communityRoutes.set([]);
+                pruneLayerVisibility(PREFIX.communityRoute, []);
                 return;
             }
         } catch {
@@ -167,11 +178,26 @@ export class CommunityRoutesLayer {
             })
         );
 
+        // Resolved after every fetch settles, so a toggle made during a reload wins.
+        // Default stays false — nothing stored means the section looks exactly as it
+        // did before this store existed.
+        const entries = manifest
+            .filter((r) => this.routeMeta.has(r.routeId))
+            .map((r) => ({
+                routeId: r.routeId,
+                name: r.name,
+                visible: storedVisible(communityRouteLayer(r.routeId), false),
+            }));
+        // Raw layout property, never setRouteVisible: that fitBounds, and a restore
+        // must not move the camera on page load.
+        for (const e of entries) this.setLayerPairVisible(e.routeId, e.visible);
+
         this.loaded = true;
-        communityRoutes.set(
-            manifest
-                .filter((r) => this.routeMeta.has(r.routeId))
-                .map((r) => ({ routeId: r.routeId, name: r.name, visible: false }))
+        communityRoutes.set(entries);
+        // Authoritative manifest in hand — forget stored ids whose route is gone.
+        pruneLayerVisibility(
+            PREFIX.communityRoute,
+            manifest.map((r) => communityRouteLayer(r.routeId))
         );
     }
 
@@ -266,6 +292,7 @@ export class CommunityRoutesLayer {
     /** Toggle one community route. */
     setRouteVisible(routeId: string, visible: boolean) {
         this.setLayerPairVisible(routeId, visible);
+        setLayerVisible(communityRouteLayer(routeId), visible);
         if (visible) this.fitToRoute(routeId);
         communityRoutes.update((routes) =>
             routes.map((r) => (r.routeId === routeId ? { ...r, visible } : r))
@@ -274,12 +301,16 @@ export class CommunityRoutesLayer {
 
     /** Master toggle for the whole section. */
     setAllVisible(visible: boolean) {
+        const ids: string[] = [];
         communityRoutes.update((routes) =>
             routes.map((r) => {
                 this.setLayerPairVisible(r.routeId, visible);
+                ids.push(communityRouteLayer(r.routeId));
                 return { ...r, visible };
             })
         );
+        // One write for the whole cascade (the section master is derived from the rows).
+        setLayersVisible(ids, visible);
     }
 
     private teardownMapLayers() {

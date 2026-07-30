@@ -5,6 +5,14 @@ import { routeColor } from '$lib/dc34-palette';
 import { deleteFromCloud, getApiBase } from '$lib/cloud-sync';
 import { notifyStravaRunRemoved } from '$lib/stores/strava-strip';
 import { conRunDayColors, conRunMetaByFileId, runPopupHtml, wireRunPopupRemove } from './run-popup';
+import {
+    PREFIX,
+    conRunLayer,
+    pruneLayerVisibility,
+    setLayerVisible,
+    setLayersVisible,
+    storedVisible,
+} from '$lib/stores/layer-visibility';
 
 /**
  * "My DEF CON Runs" — the signed-in runner's own con-day-tagged files, rendered
@@ -135,8 +143,10 @@ export class MyConRunsLayer {
             const body = (await res.json()) as { runs: RunManifestEntry[] };
             manifest = body.runs ?? [];
             if (manifest.length === 0) {
-                // A real, authoritative empty answer — clearing is correct.
+                // A real, authoritative empty answer — clearing is correct, and so is
+                // forgetting every stored run id (the runner has no runs left).
                 myConRunGroups.set([]);
+                pruneLayerVisibility(PREFIX.conRun, []);
                 return;
             }
         } catch {
@@ -164,15 +174,6 @@ export class MyConRunsLayer {
             })
         );
 
-        const groups: MyConRunGroup[] = days.map((conDay) => ({
-            conDay,
-            label: dayLabel(conDay),
-            visible: false,
-            runs: manifest
-                .filter((r) => r.conDay === conDay)
-                .map((r) => ({ fileId: r.fileId, fileName: r.fileName, visible: false })),
-        }));
-
         // Fetch + parse each run's GPX, add a read-only glow+core line layer (initially hidden).
         await Promise.all(
             manifest.map(async (r) => {
@@ -199,8 +200,44 @@ export class MyConRunsLayer {
             })
         );
 
+        // Visibility is resolved HERE, after every fetch has settled, rather than when
+        // the manifest arrived: `reload()` deliberately leaves the old panel content on
+        // screen while it refetches, so the runner can toggle a run mid-flight. Reading
+        // the persisted value as late as possible means their toggle wins instead of
+        // being clobbered by a value read before they clicked.
+        const groups: MyConRunGroup[] = days.map((conDay) => {
+            const runs = manifest
+                .filter((r) => r.conDay === conDay)
+                .map((r) => ({
+                    fileId: r.fileId,
+                    fileName: r.fileName,
+                    visible: storedVisible(conRunLayer(r.fileId), false),
+                }));
+            return {
+                conDay,
+                label: dayLabel(conDay),
+                // The day master mirrors "all runs visible" — the same rule
+                // setRunVisible applies. With nothing stored every run is false, so a
+                // first-time visitor still gets a hidden, unchecked day.
+                visible: runs.length > 0 && runs.every((r) => r.visible),
+                runs,
+            };
+        });
+
+        // Apply the restored state with the raw layout property, NEVER via
+        // setDayVisible/setRunVisible: both fitBounds, and a page load that recentred
+        // the map on a restored run would be a worse bug than the one this fixes.
+        for (const g of groups) {
+            for (const r of g.runs) this.setLayerPairVisible(r.fileId, r.visible);
+        }
+
         this.loaded = true;
         myConRunGroups.set(groups);
+        // Authoritative manifest in hand — forget stored ids whose run is gone.
+        pruneLayerVisibility(
+            PREFIX.conRun,
+            manifest.map((r) => conRunLayer(r.fileId))
+        );
     }
 
     /** Idempotent re-fetch (e.g. after a fresh import/re-tag). Tears the old map
@@ -331,12 +368,16 @@ export class MyConRunsLayer {
                 return { ...g, visible, runs: g.runs.map((r) => ({ ...r, visible })) };
             })
         );
+        // One write for the whole day — persisting the runs is what restores the day
+        // master, because the master is derived from them.
+        setLayersVisible(fitIds.map(conRunLayer), visible);
         if (visible && fit) this.fitToRoutes(fitIds);
     }
 
     /** Toggle a single run (glow + core together). */
     setRunVisible(fileId: string, visible: boolean) {
         this.setLayerPairVisible(fileId, visible);
+        setLayerVisible(conRunLayer(fileId), visible);
         if (visible) this.fitToRoutes([fileId]);
         myConRunGroups.update((groups) =>
             groups.map((g) => {

@@ -25,6 +25,15 @@
  * geometry, which is why they scored 13/13 green while the body was silently crushing
  * every section flat.
  *
+ * Assertion 16 covers layer VISIBILITY persistence across a PAGE LOAD. It seeds
+ * localStorage in a fresh browser context (via addInitScript, before any app code runs)
+ * with values that are the OPPOSITE of the built-in defaults, then does exactly one page
+ * load and asserts the map layers came up in the seeded state — and that the camera did
+ * not move as a result. The camera half is not decoration: every user-facing visibility
+ * setter fitBounds, so a restore wired through one of them would yank the map away from
+ * wherever the runner is, on every page load. Reloading in-page is deliberately NOT used
+ * — re-initialising mapbox in the same page under swiftshader times out.
+ *
  * Assertion 15 covers collapse-state PERSISTENCE across a dialog close/reopen. The
  * shell portals without forceMount, so closing the dialog removes its whole subtree
  * from the DOM and every `$state` declared by a component rendered inside it is
@@ -55,11 +64,24 @@
  */
 
 const path = require('path');
+const https = require('https');
 const { execSync } = require('child_process');
 const { chromium } = require('/Users/khundeck/working/defcon.run.34/apps/run.auth/e2e/node_modules/playwright-core');
 
-const TOTAL = 15;
+const TOTAL = 16;
 const TARGET = 'https://gpx.defcon.run/use1/studio/app';
+// Read directly (not through the browser) by assertion 16, to learn the real fileIds it
+// must seed. Keying the seed off an id from the live manifest is what stops the
+// assertion passing vacuously against a route that does not exist.
+const PUBLIC_MANIFEST = 'https://gpx.defcon.run/use1/api/gpx/public/maps';
+// The GLOBAL folder the app ships ON by default (public-overlays.ts DEFAULT_ON_FOLDER).
+const DEFAULT_ON_FOLDER = 'DEF CON 34 Maps';
+// localStorage keys the two persisted dialog stores use.
+const LS_VISIBILITY = 'dc34LayerVisibility';
+const LS_COLLAPSE = 'dc34LayerSectionCollapse';
+// Somewhere unmistakably not Las Vegas: any fitBounds fired by a restore would move the
+// camera thousands of km, so an unchanged reading here is not a near-miss.
+const CAMERA_SENTINEL = { center: [-0.1276, 51.5074], zoom: 9 };
 const EXECUTABLE = `${process.env.HOME}/Library/Caches/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-mac-arm64/chrome-headless-shell`;
 const OUT_DIR = __dirname;
 const DEFAULT_HINT = 'Hover a row for details';
@@ -95,6 +117,32 @@ function skipWhy(n, label, why) {
 }
 function bad(n, label, note) {
     console.log(`FAIL  ${n}. ${label}${note ? ` — ${note}` : ''}`);
+}
+
+/** GET a JSON document, reading the body to completion (a truncated read here would
+ * manufacture a phantom "no routes in prod data" skip). */
+function fetchJson(url) {
+    return new Promise((resolve, reject) => {
+        https
+            .get(url, { headers: { accept: 'application/json' } }, (res) => {
+                if (res.statusCode !== 200) {
+                    res.resume();
+                    reject(new Error(`HTTP ${res.statusCode}`));
+                    return;
+                }
+                let body = '';
+                res.setEncoding('utf8');
+                res.on('data', (c) => (body += c));
+                res.on('end', () => {
+                    try {
+                        resolve(JSON.parse(body));
+                    } catch (e) {
+                        reject(e);
+                    }
+                });
+            })
+            .on('error', reject);
+    });
 }
 
 function sha() {
@@ -707,6 +755,224 @@ async function main() {
             }
         } catch (e) {
             bad(15, L15, String(e.message).split('\n')[0]);
+        }
+
+        // ---- 16. layer visibility survives a PAGE LOAD, without moving the camera ----
+        // Collapse state persisted first (assertion 15); the layers a runner had switched
+        // on did not, because visibility lives in layer instances that are rebuilt from a
+        // manifest on every load with hardcoded defaults.
+        //
+        // Method: a FRESH context whose localStorage is seeded by addInitScript before any
+        // app code runs, then ONE page load. In-page reload is avoided on purpose —
+        // re-initialising mapbox in the same page under swiftshader times out.
+        //
+        // The seed is the OPPOSITE of the built-in default for every subject, keyed off a
+        // fileId read from the live manifest, so the assertion cannot pass vacuously:
+        //   · a route in the default-ON folder is seeded OFF (expect visibility 'none')
+        //   · falling back to a default-OFF folder, its route is seeded ON
+        //   · User Check-ins (default OFF) is seeded ON
+        // Collapse is seeded too, expanding the owning group, so the row is actually
+        // rendered for the DOM half of the check — and so the two stores are proven to
+        // coexist rather than one clobbering the other.
+        //
+        // Camera: the page is jumped to a sentinel view the instant the map object exists
+        // and a movestart recorder is attached; the restore must leave both untouched.
+        //
+        // Data-volume caveat (hit three times in this phase): the public manifest is racy.
+        // A run that genuinely has no public routes scores a documented skip rather than
+        // asserting something vacuous.
+        const L16 = 'Layer visibility survives a page load and the restore does not move the camera';
+        try {
+            let manifestGroups = [];
+            try {
+                const doc = await fetchJson(PUBLIC_MANIFEST);
+                manifestGroups = (doc && doc.groups) || [];
+            } catch (e) {
+                manifestGroups = [];
+            }
+            const onGroup = manifestGroups.find(
+                (g) => g.folderName === DEFAULT_ON_FOLDER && g.maps && g.maps.length > 0
+            );
+            const anyGroup = manifestGroups.find((g) => g.maps && g.maps.length > 0);
+            const group = onGroup || anyGroup;
+
+            if (!group) {
+                skipWhy(16, L16, 'no public routes in the live manifest');
+            } else {
+                const target = group.maps[0];
+                // Default for this route = whether its folder is the default-ON one.
+                const defaultVisible = !!onGroup;
+                const seedValue = !defaultVisible;
+                const wantRouteVis = seedValue ? 'visible' : 'none';
+                const routeLayerId = `public-map-${target.fileId}`;
+                const wantLabel = (
+                    target.title || String(target.fileName || '').replace(/\.gpx$/i, '')
+                ).trim();
+
+                const visSeed = { [`route:${target.fileId}`]: seedValue, checkins: true };
+                const collapseSeed = { [`group:${group.folderId}`]: false, checkins: false };
+
+                const visCtx = await browser.newContext({
+                    viewport: { width: 1280, height: 900 },
+                });
+                await visCtx.addInitScript(
+                    (s) => {
+                        try {
+                            localStorage.setItem(s.visKey, JSON.stringify(s.vis));
+                            localStorage.setItem(s.collapseKey, JSON.stringify(s.collapse));
+                        } catch (e) {
+                            /* private mode — the assertion below will report the miss */
+                        }
+                    },
+                    {
+                        visKey: LS_VISIBILITY,
+                        collapseKey: LS_COLLAPSE,
+                        vis: visSeed,
+                        collapse: collapseSeed,
+                    }
+                );
+                const visPage = await visCtx.newPage();
+                await installRoutes(visPage, SESSION_GRANTED);
+                await visPage.goto(TARGET, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+                await visPage.waitForFunction(() => !!window._map, null, { timeout: 90_000 });
+                await visPage.evaluate(() => window._map.setTerrain(null));
+
+                // Sentinel view + move recorder, attached AFTER the jump so the jump's own
+                // movestart is not counted. `early` records whether the restore had already
+                // landed at this point; if it had, the camera half would be vacuous and the
+                // note says so.
+                const early = await visPage.evaluate(
+                    (a) => {
+                        const m = window._map;
+                        m.jumpTo({ center: a.center, zoom: a.zoom, bearing: 0, pitch: 0 });
+                        window.__dc34Moves = [];
+                        m.on('movestart', () => window.__dc34Moves.push('movestart'));
+                        return { alreadyRestored: !!m.getLayer(a.routeLayerId) };
+                    },
+                    { ...CAMERA_SENTINEL, routeLayerId }
+                );
+
+                // Wait for the restore to actually land (the route layer is added by the
+                // same code path that applies the restored visibility).
+                let landed = true;
+                try {
+                    await visPage.waitForFunction(
+                        (id) => !!window._map.getLayer(id),
+                        routeLayerId,
+                        { timeout: 90_000 }
+                    );
+                } catch (e) {
+                    landed = false;
+                }
+
+                if (!landed) {
+                    skipWhy(16, L16, `route layer ${routeLayerId} never rendered in prod data`);
+                } else {
+                    // Settle: give any late fitBounds animation room to fire before reading.
+                    await visPage.waitForTimeout(2500);
+
+                    const seen = await visPage.evaluate(
+                        (a) => {
+                            const m = window._map;
+                            const vis = (id) =>
+                                m.getLayer(id)
+                                    ? m.getLayoutProperty(id, 'visibility') || 'visible'
+                                    : null;
+                            const c = m.getCenter();
+                            return {
+                                route: vis(a.routeLayerId),
+                                checkins: vis('public-checkins-pin'),
+                                center: [c.lng, c.lat],
+                                zoom: m.getZoom(),
+                                moves: (window.__dc34Moves || []).length,
+                                stored: localStorage.getItem(a.visKey),
+                            };
+                        },
+                        { routeLayerId, visKey: LS_VISIBILITY }
+                    );
+
+                    // DOM corroboration: the seeded row's checkbox in the dialog itself.
+                    let row = { found: false };
+                    try {
+                        await visPage.waitForSelector('[data-dc34-layers-btn]', {
+                            timeout: 45_000,
+                        });
+                        await visPage.click('[data-dc34-layers-btn]');
+                        await visPage
+                            .locator('[data-dc34-dialog="layers"]')
+                            .waitFor({ state: 'visible', timeout: 15_000 });
+                        await visPage.waitForTimeout(2500);
+                    } catch (e) {
+                        /* handled by row.found below */
+                    }
+                    row = await visPage
+                        .evaluate((label) => {
+                            const d = document.querySelector('[data-dc34-dialog="layers"]');
+                            if (!d) return { found: false, rows: 0 };
+                            const rows = [...d.querySelectorAll('[data-layer-row]')];
+                            const hit = rows.find(
+                                (r) => (r.textContent || '').trim() === label
+                            );
+                            if (!hit) return { found: false, rows: rows.length };
+                            const cb = hit.querySelector('input[type="checkbox"]');
+                            return { found: true, checked: !!(cb && cb.checked) };
+                        }, wantLabel)
+                        .catch(() => ({ found: false, rows: 0 }));
+
+                    await visPage
+                        .screenshot({
+                            path: path.join(OUT_DIR, 'shot-visibility-restore.png'),
+                            fullPage: false,
+                        })
+                        .catch(() => {});
+
+                    const dLng = Math.abs(seen.center[0] - CAMERA_SENTINEL.center[0]);
+                    const dLat = Math.abs(seen.center[1] - CAMERA_SENTINEL.center[1]);
+                    const dZoom = Math.abs(seen.zoom - CAMERA_SENTINEL.zoom);
+                    const cameraHeld = dLng < 1e-3 && dLat < 1e-3 && dZoom < 1e-3;
+
+                    const problems = [];
+                    if (seen.route !== wantRouteVis)
+                        problems.push(
+                            `route "${wantLabel}" seeded ${seedValue} (default ${defaultVisible}) ` +
+                                `renders visibility=${seen.route}, wanted ${wantRouteVis}`
+                        );
+                    if (seen.checkins !== null && seen.checkins !== 'visible')
+                        problems.push(
+                            `check-ins seeded ON render visibility=${seen.checkins}`
+                        );
+                    if (row.found && row.checked !== seedValue)
+                        problems.push(
+                            `dialog row checkbox is ${row.checked}, wanted ${seedValue}`
+                        );
+                    if (!cameraHeld)
+                        problems.push(
+                            `camera moved: centre ${seen.center.map((n) => n.toFixed(4)).join(',')} ` +
+                                `zoom ${seen.zoom.toFixed(3)} vs sentinel ` +
+                                `${CAMERA_SENTINEL.center.join(',')} zoom ${CAMERA_SENTINEL.zoom}`
+                        );
+                    if (seen.moves !== 0)
+                        problems.push(`${seen.moves} camera move(s) fired during the restore`);
+
+                    const note =
+                        `seeded ${JSON.stringify(visSeed)}; ` +
+                        `route ${wantRouteVis === seen.route ? 'ok' : 'BAD'} (${seen.route}), ` +
+                        `check-ins ${seen.checkins === null ? 'absent in prod data' : seen.checkins}, ` +
+                        `row ${row.found ? `checked=${row.checked}` : `not rendered (${row.rows} rows)`}, ` +
+                        `camera before ${CAMERA_SENTINEL.center.join(',')}@${CAMERA_SENTINEL.zoom} ` +
+                        `after ${seen.center.map((n) => n.toFixed(4)).join(',')}@${seen.zoom.toFixed(3)} ` +
+                        `moves=${seen.moves}` +
+                        (early.alreadyRestored
+                            ? ' [WARN restore had already landed before the recorder attached]'
+                            : '');
+
+                    if (problems.length) bad(16, L16, `${problems.join('; ')} — ${note}`);
+                    else pass(16, L16, note);
+                }
+                await visCtx.close();
+            }
+        } catch (e) {
+            bad(16, L16, String(e.message).split('\n')[0]);
         }
     } finally {
         await browser.close();

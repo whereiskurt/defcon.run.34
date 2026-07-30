@@ -5,6 +5,15 @@ import { DC34, routeColor } from '$lib/dc34-palette';
 import { pinIconById, pinSvg, DEFAULT_PIN_ICON, DEFAULT_PIN_COLOR } from '$lib/dc34-pins';
 import { getSvgForSymbol } from './gpx-layer/gpx-layer';
 import { getSymbolKey } from '$lib/assets/symbols';
+import {
+    LAYER,
+    PREFIX,
+    publicRouteLayer,
+    pruneLayerVisibility,
+    setLayerVisible,
+    setLayersVisible,
+    storedVisible,
+} from '$lib/stores/layer-visibility';
 
 /**
  * Public overlays — DEF CON 34 official map layers (v1.7 Phase 28, decorated v1.8).
@@ -420,16 +429,22 @@ export class PublicOverlaysLayer {
             groups = body.groups.map((g) => {
                 // "DEF CON 34 Maps" is ON by default; every other group opts in.
                 const on = g.folderName === DEFAULT_ON_FOLDER;
+                const maps = g.maps.map((m) => ({
+                    ...m,
+                    // CMS-provided mapColor wins; otherwise cycle the DC34 varied ramp.
+                    color: m.mapColor || routeColor(routeIndex++),
+                    // A persisted per-route choice wins; a route the viewer has never
+                    // touched keeps its folder default, so a first-time visitor sees
+                    // exactly what they saw before this store existed.
+                    visible: storedVisible(publicRouteLayer(m.fileId), on),
+                }));
                 return {
                     folderId: g.folderId,
                     folderName: g.folderName,
-                    visible: on,
-                    maps: g.maps.map((m) => ({
-                        ...m,
-                        // CMS-provided mapColor wins; otherwise cycle the DC34 varied ramp.
-                        color: m.mapColor || routeColor(routeIndex++),
-                        visible: on,
-                    })),
+                    // The master mirrors "all children visible" — the same rule
+                    // setRouteVisible applies — so restoring the leaves restores it too.
+                    visible: maps.length > 0 ? maps.every((m) => m.visible) : on,
+                    maps,
                 };
             });
             // Cache per-route bounds so toggling a layer on can fit it in view.
@@ -485,12 +500,18 @@ export class PublicOverlaysLayer {
         this.loaded = true;
         publicOverlayGroups.set(groups);
 
-        // Apply the default-on state to the layers that were added hidden above.
-        // No fitToRoutes here — defaulting maps on must not hijack the map view.
+        // Apply the resolved (default OR restored) state to the layers that were added
+        // hidden above. Deliberately the raw layout property, never setRouteVisible /
+        // setGroupVisible — those fitBounds, and a restore that moved the camera on page
+        // load would yank the map away from wherever the runner actually is.
         for (const g of groups) {
-            if (!g.visible) continue;
-            for (const m of g.maps) this.setLayerPairVisible(m.fileId, true);
+            for (const m of g.maps) this.setLayerPairVisible(m.fileId, m.visible);
         }
+        // Authoritative manifest in hand — forget stored ids whose route is gone.
+        pruneLayerVisibility(
+            PREFIX.publicRoute,
+            groups.flatMap((g) => g.maps.map((m) => publicRouteLayer(m.fileId)))
+        );
 
         await this.addAggregate();
         await this.addCheckIns();
@@ -517,7 +538,12 @@ export class PublicOverlaysLayer {
                     paint: { 'line-color': '#00e5ff', 'line-width': 2, 'line-opacity': 0.15 },
                 });
             }
-            publicAggregate.set({ available: true, visible: false });
+            // Restored in ONE store write (never "available, off" then "on"): the layer
+            // control derives collapse from an ON/OFF transition, so a two-step restore
+            // would read as a user toggle and rewrite the persisted collapse state.
+            const visible = storedVisible(LAYER.aggregate, false);
+            if (visible) this.map.setLayoutProperty(AGGREGATE_LAYER, 'visibility', 'visible');
+            publicAggregate.set({ available: true, visible });
         } catch {
             // aggregate unavailable → no layer, studio unaffected
         }
@@ -529,6 +555,7 @@ export class PublicOverlaysLayer {
             this.map.setLayoutProperty(AGGREGATE_LAYER, 'visibility', visible ? 'visible' : 'none');
         }
         publicAggregate.update((s) => ({ ...s, visible }));
+        setLayerVisible(LAYER.aggregate, visible);
     }
 
     /** Register a data-URI SVG as a map image (decodes async; no-op if already loaded). */
@@ -759,19 +786,31 @@ export class PublicOverlaysLayer {
                 );
             }
 
-            publicCheckIns.set({ available: true, visible: false, count: body.checkIns.length });
+            // Same one-write restore as the aggregate above: the layer control's
+            // check-ins collapse effect keys off an ON/OFF transition, so landing
+            // "available, off" and then flipping it on would look like a user toggle
+            // and clobber the persisted collapse state.
+            const visible = storedVisible(LAYER.checkins, false);
+            this.applyCheckInsLayers(visible);
+            publicCheckIns.set({ available: true, visible, count: body.checkIns.length });
         } catch {
             // check-ins unavailable → no layer, studio unaffected
         }
     }
 
-    /** Toggle the "User Check-ins" layers (pins + clusters together). */
-    setCheckInsVisible(visible: boolean) {
+    /** Drive the three check-in map layers. No camera move on any path. */
+    private applyCheckInsLayers(visible: boolean) {
         const vis = visible ? 'visible' : 'none';
         for (const id of [CHECKINS_CLUSTER_LAYER, CHECKINS_COUNT_LAYER, CHECKINS_PIN_LAYER]) {
             if (this.map.getLayer(id)) this.map.setLayoutProperty(id, 'visibility', vis);
         }
+    }
+
+    /** Toggle the "User Check-ins" layers (pins + clusters together). */
+    setCheckInsVisible(visible: boolean) {
+        this.applyCheckInsLayers(visible);
         publicCheckIns.update((s) => ({ ...s, visible }));
+        setLayerVisible(LAYER.checkins, visible);
     }
 
     /** Add the glow + core line layers for a route, plus its click/hover handlers. */
@@ -1025,6 +1064,7 @@ export class PublicOverlaysLayer {
     /** Toggle a single route (glow + core together). */
     setRouteVisible(fileId: string, visible: boolean) {
         this.setLayerPairVisible(fileId, visible);
+        setLayerVisible(publicRouteLayer(fileId), visible);
         if (visible) this.fitToRoutes([fileId]);
         publicOverlayGroups.update((groups) =>
             groups.map((g) => {
@@ -1047,6 +1087,9 @@ export class PublicOverlaysLayer {
                 return { ...g, visible, maps: g.maps.map((m) => ({ ...m, visible })) };
             })
         );
+        // One write for the whole cascade — persisting the leaves is what restores the
+        // master, because the master is derived from them.
+        setLayersVisible(fitIds.map(publicRouteLayer), visible);
         if (visible) this.fitToRoutes(fitIds);
     }
 
