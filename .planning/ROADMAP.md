@@ -737,7 +737,7 @@ Plans:
 - [x] 70-02-PLAN.md — StravaStrip explicit card chips: "Pick a day" / "+ Import" (DLGS-05)
 - [x] 70-03-PLAN.md — Map Layers sections re-skinned onto the kit: PublicOverlays, MyConRuns, CommunityRoutes; row tooltips retired (DLGS-02, DLGS-04)
 - [x] 70-04-PLAN.md — My Maps rebuilt on the shell: MY FILES first, header ⋯ menu, labelled Edit + ⋯ row actions, footer Add run (DLGS-03, DLGS-04)
-- [ ] 70-05-PLAN.md — LayerControl click-only dialog host + flat basemap radio rows; hover-open deleted (DLGS-02, DLGS-04)
+- [x] 70-05-PLAN.md — LayerControl click-only dialog host + flat basemap radio rows; hover-open deleted (DLGS-02, DLGS-04)
 - [ ] 70-06-PLAN.md — Autonomous ship: gates → PR → squash-merge → buildpub.yml → deploy.yml → Playwright prod probe (DLGS-06)
 
 ### Phase 71: Heat Map Layers — DC33 + DC34 Flame Stacks (gpx-studio)
