@@ -3,7 +3,7 @@ status: passed
 phase: 70-gpx-studio-shared-dialog-shell-map-layers-my-maps
 source: [70-VERIFICATION.md]
 started: 2026-07-30T18:05:00Z
-updated: 2026-07-30T18:40:00Z
+updated: 2026-07-30T23:15:00Z
 ---
 
 ## Current Test
@@ -41,12 +41,17 @@ result: passed
 
 ## Summary
 
-total: 5
-passed: 5
+total: 6
+passed: 6
 issues: 0
 pending: 0
 skipped: 0
 blocked: 0
+
+### 6. Master checkbox auto-folds its section
+expected: With a section expanded and its layers on, clicking the section's MASTER checkbox off folds the section body shut on its own (ROADMAP SC-1).
+why_human: Carried on the separate behavior_unverified_items list, NOT among the original five, so the first UAT pass did not reach it. Probe assertion 15 clicks `[data-section-chevron]` and never a checkbox, so the `prev !== undefined && prev !== group.visible -> setSectionCollapsed(...)` branch had never executed under test.
+result: passed
 
 ## Gaps
 
@@ -61,4 +66,9 @@ render checks (1, 2) and accepting the two subjective calls as shipped:
   `BasemapSection` still passes no `hint` to its Rows; that stands as designed.
 
 Test 5 confirmed the CR-02 footer fix (PR #1112) from the user side.
+
+Test 6 added 2026-07-30 after re-verification flagged the master-checkbox collapse
+transition as the last unproven branch. Kurt: "it folds, works, things are fine."
+That closes the only behavior_unverified item; the branch remains unexercised by the
+automated probe, which is a probe-coverage note, not an open defect.
 

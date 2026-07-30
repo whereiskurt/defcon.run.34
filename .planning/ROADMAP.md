@@ -730,7 +730,7 @@ Plans:
   4. All five StravaStrip card states read as actionable or done ("Pick a day" / "+ Import" / ✓ day) and open the same popover modes as today.
   5. gpx v0.0.10x is LIVE on use1 with the above verified by an automated Playwright probe against https://gpx.defcon.run — no human step anywhere between "plan approved" and "probe green" except the standing PR-merge authorization granted for this phase.
 
-**Plans:** 6 plans
+**Plans:** 6/6 plans complete
 
 Plans:
 
