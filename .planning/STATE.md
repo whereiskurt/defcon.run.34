@@ -24,7 +24,7 @@ current_phase_name: gpx-heatmap-layers-dc33-dc34
 See: .planning/PROJECT.md (updated 2026-07-05)
 
 **Core value:** Participants and organizers have a seamless digital experience for DCR34 -- from device setup to event discovery to route navigation. Milestone v2.2 brings back the DC33 leaderboard-as-activity-table in run.human, shipped hidden behind the admin group until perfected.
-**Current focus:** Phase 69 — meshtk-shared-chain-hardening-pre-existing-blockers-found-by
+**Current focus:** Phase 71 — heat-map-layers-dc33-dc34-flame-stacks-gpx-studio (next to plan; 71-CONTEXT.md exists, no plans yet)
 
 ## Current Position
 
