@@ -69,6 +69,7 @@
     import { autoSaveManager } from '$lib/auto-save';
     import { quickStartOpen } from '$lib/stores/quickstart';
     import { exportAllFiles } from '$lib/components/export/utils.svelte';
+    import FileSaver from 'file-saver';
 
     let loading = false;
     let error: string | null = null;
@@ -353,6 +354,25 @@
             closeCloudStorage();
         } catch (e) {
             error = e instanceof Error ? e.message : 'Failed to load file';
+        } finally {
+            loading = false;
+        }
+    }
+
+    // Per-file GPX download. Deliberately reuses loadFromCloud — the same
+    // authenticated endpoint the row click already takes — so no presigned URL or
+    // storage key is ever surfaced to the DOM. The blob is built client-side.
+    async function handleExportFile(file: CloudFile) {
+        loading = true;
+        error = null;
+        try {
+            const { content } = await loadFromCloud(file.fileId);
+            const name = file.fileName.toLowerCase().endsWith('.gpx')
+                ? file.fileName
+                : `${file.fileName}.gpx`;
+            FileSaver.saveAs(new Blob([content], { type: 'application/gpx+xml' }), name);
+        } catch (e) {
+            error = e instanceof Error ? e.message : 'Failed to export file';
         } finally {
             loading = false;
         }
@@ -779,26 +799,28 @@
                         {:else}
                             <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
                             <div
-                                class="flex items-center gap-2 px-3 py-2 hover:bg-muted/30 cursor-pointer"
+                                data-file-row
+                                data-hint={'Open ' + file.fileName + ' on the map' + (file.conDay ? ' · ' + file.conDay : ' · no con day assigned')}
+                                class="group/row flex cursor-pointer items-center gap-3 px-3 py-2 hover:bg-foreground/5"
                                 onclick={() => handleLoadFile(file)}
-                                title="Open on the map"
                             >
-                                <MapIcon class="h-4 w-4 text-primary flex-shrink-0" />
+                                <MapIcon class="h-[17px] w-[17px] flex-shrink-0 text-primary" />
                                 <div class="min-w-0 flex-1">
-                                    <div class="font-medium text-sm flex items-center gap-1.5" title={file.fileName}>
+                                    <div class="flex items-center gap-1.5 text-sm font-semibold">
                                         <span class="truncate min-w-0">{file.fileName}</span>
                                         {#if file.shareRequested}
                                             <!-- Verb ②: at-a-glance "submitted to DEF CON run" state.
                                                  Data-only flag (no link); pending admin review. -->
                                             <span
                                                 class="inline-flex flex-shrink-0 text-emerald-600"
-                                                title="Submitted to DEF CON run — pending review"
+                                                data-hint="Submitted to DEF CON run — pending review."
+                                                aria-label="Submitted to DEF CON run — pending review."
                                             >
                                                 <Send class="h-3.5 w-3.5" />
                                             </span>
                                         {/if}
                                     </div>
-                                    <div class="text-xs text-muted-foreground flex gap-2">
+                                    <div class="mt-0.5 flex gap-2 text-[11px] text-muted-foreground">
                                         <span>v{file.version || 1}</span>
                                         {#if file.trackCount}
                                             <span>· {file.trackCount} track{file.trackCount !== 1 ? 's' : ''}</span>
@@ -807,112 +829,113 @@
                                         <span class="hidden sm:inline">· {formatDate(file.updatedAt)}</span>
                                     </div>
                                 </div>
-                                <!-- Per-row actions (stopPropagation so they don't open the map) -->
+                                <!-- Row actions. This wrapper MUST swallow the click: the whole row
+                                     loads the file, so without it opening the menu would too. -->
                                 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-                                <div class="flex gap-0.5 flex-shrink-0" onclick={(e) => e.stopPropagation()}>
+                                <div
+                                    class="flex flex-shrink-0 items-center gap-1.5 opacity-0 transition-opacity group-hover/row:opacity-100 group-focus-within/row:opacity-100 [@media(hover:none)]:opacity-100"
+                                    onclick={(e) => e.stopPropagation()}
+                                >
                                     <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        class="h-7 w-7"
+                                        variant="outline"
+                                        size="sm"
+                                        class="h-7 px-2.5 text-xs"
                                         onclick={() => startRename(file)}
                                         disabled={loading || editingFileId !== null}
-                                        title="Rename"
-                                    >
-                                        <Pencil class="h-3.5 w-3.5" />
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        class="h-7 w-7 {filesWithShares.has(file.fileId) ? 'text-blue-600 hover:text-blue-700' : ''}"
-                                        onclick={() => { fileToShare = file; shareDialogOpen = true; }}
-                                        disabled={loading}
-                                        title={filesWithShares.has(file.fileId) ? 'Shared — click to manage' : 'Share'}
-                                    >
-                                        <Share2 class="h-3.5 w-3.5" />
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        class="h-7 w-7"
-                                        onclick={() => (conDayDialogFile = file)}
-                                        disabled={loading}
-                                        title="Save as defcon.run Activity"
-                                        aria-label="Save as defcon.run Activity"
-                                    >
-                                        <CalendarCheck class="h-3.5 w-3.5" />
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        class="h-7 w-7"
-                                        onclick={() => {
-                                            routeConvertMsg = null;
-                                            routeConvertErr = null;
-                                            routeDialogFile = file;
-                                        }}
-                                        disabled={loading}
-                                        title="Save as route (shareable template)"
-                                        aria-label="Save as route"
-                                    >
-                                        <RouteIcon class="h-3.5 w-3.5" />
-                                    </Button>
-                                    {#if (file.versionCount || 1) > 1}
-                                        <DropdownMenu.Root onOpenChange={(isOpen) => { if (isOpen) fetchVersionHistory(file); }}>
-                                            <DropdownMenu.Trigger
-                                                class="inline-flex items-center justify-center h-7 w-7 rounded-md text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
-                                                disabled={loading}
+                                    >Edit</Button>
+                                    <DropdownMenu.Root>
+                                        <DropdownMenu.Trigger
+                                            class="inline-flex items-center justify-center h-7 w-7 rounded-md text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+                                            disabled={loading}
+                                            aria-label={'Actions for ' + file.fileName}
+                                        >
+                                            <Ellipsis class="h-3.5 w-3.5" />
+                                        </DropdownMenu.Trigger>
+                                        <DropdownMenu.Content class="w-56" align="end">
+                                            <DropdownMenu.Item
+                                                onclick={() => { fileToShare = file; shareDialogOpen = true; }}
                                             >
-                                                <History class="h-3.5 w-3.5" />
-                                                <span class="sr-only">Version history</span>
-                                            </DropdownMenu.Trigger>
-                                            <DropdownMenu.Content class="w-56">
-                                                <DropdownMenu.Label>
-                                                    Version History ({file.versionCount} versions)
-                                                </DropdownMenu.Label>
-                                                <DropdownMenu.Separator />
-                                                {#if loadingVersions && loadingVersionsFileId === file.fileId}
-                                                    <div class="flex items-center gap-2 px-2 py-3 text-sm text-muted-foreground">
-                                                        <Loader2 class="h-4 w-4 animate-spin" />
-                                                        Loading...
-                                                    </div>
-                                                {:else if fileVersions.length === 0}
-                                                    <div class="px-2 py-3 text-sm text-muted-foreground">
-                                                        No versions found
-                                                    </div>
+                                                <Share2 class="h-4 w-4" />
+                                                {#if filesWithShares.has(file.fileId)}
+                                                    <span>Manage sharing</span>
                                                 {:else}
-                                                    <div class="max-h-64 overflow-y-auto">
-                                                        {#each [...fileVersions].reverse() as ver}
-                                                            <DropdownMenu.Item
-                                                                class="flex justify-between items-center cursor-pointer {!ver.exists ? 'opacity-50' : ''}"
-                                                                disabled={!ver.exists}
-                                                                onclick={() => handleLoadVersion(file, ver.version)}
-                                                            >
-                                                                <span class="flex items-center gap-2">
-                                                                    <span class="font-medium">v{ver.version}</span>
-                                                                    {#if ver.version === versionHistoryCurrent}
-                                                                        <span class="text-xs bg-primary text-primary-foreground px-1 rounded">current</span>
-                                                                    {/if}
-                                                                </span>
-                                                                <span class="text-xs text-muted-foreground">
-                                                                    {ver.createdAt ? formatVersionDate(ver.createdAt) : ''}
-                                                                </span>
-                                                            </DropdownMenu.Item>
-                                                        {/each}
-                                                    </div>
+                                                    <span>Share</span>
                                                 {/if}
-                                            </DropdownMenu.Content>
-                                        </DropdownMenu.Root>
-                                    {/if}
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        class="h-7 w-7 text-destructive hover:text-destructive"
-                                        onclick={() => handleDeleteFile(file)}
-                                        disabled={loading}
-                                        title="Delete"
-                                    >
-                                        <Trash2 class="h-3.5 w-3.5" />
-                                    </Button>
+                                            </DropdownMenu.Item>
+                                            <DropdownMenu.Item onclick={() => (conDayDialogFile = file)}>
+                                                <CalendarCheck class="h-4 w-4" />
+                                                <span>Assign day</span>
+                                            </DropdownMenu.Item>
+                                            <DropdownMenu.Item
+                                                onclick={() => {
+                                                    routeConvertMsg = null;
+                                                    routeConvertErr = null;
+                                                    routeDialogFile = file;
+                                                }}
+                                            >
+                                                <RouteIcon class="h-4 w-4" />
+                                                <span>Save as Route</span>
+                                            </DropdownMenu.Item>
+                                            <DropdownMenu.Item onclick={() => handleExportFile(file)}>
+                                                <Download class="h-4 w-4" />
+                                                <span>Export GPX</span>
+                                            </DropdownMenu.Item>
+                                            {#if (file.versionCount || 1) > 1}
+                                                <DropdownMenu.Sub
+                                                    onOpenChange={(isOpen) => { if (isOpen) fetchVersionHistory(file); }}
+                                                >
+                                                    <DropdownMenu.SubTrigger>
+                                                        <History class="h-4 w-4" />
+                                                        <span>Version history</span>
+                                                    </DropdownMenu.SubTrigger>
+                                                    <DropdownMenu.SubContent class="w-56">
+                                                        <DropdownMenu.Label>
+                                                            Version History ({file.versionCount} versions)
+                                                        </DropdownMenu.Label>
+                                                        <DropdownMenu.Separator />
+                                                        {#if loadingVersions && loadingVersionsFileId === file.fileId}
+                                                            <div class="flex items-center gap-2 px-2 py-3 text-sm text-muted-foreground">
+                                                                <Loader2 class="h-4 w-4 animate-spin" />
+                                                                Loading...
+                                                            </div>
+                                                        {:else if fileVersions.length === 0}
+                                                            <div class="px-2 py-3 text-sm text-muted-foreground">
+                                                                No versions found
+                                                            </div>
+                                                        {:else}
+                                                            <div class="max-h-64 overflow-y-auto">
+                                                                {#each [...fileVersions].reverse() as ver}
+                                                                    <DropdownMenu.Item
+                                                                        class="flex justify-between items-center cursor-pointer {!ver.exists ? 'opacity-50' : ''}"
+                                                                        disabled={!ver.exists}
+                                                                        onclick={() => handleLoadVersion(file, ver.version)}
+                                                                    >
+                                                                        <span class="flex items-center gap-2">
+                                                                            <span class="font-medium">v{ver.version}</span>
+                                                                            {#if ver.version === versionHistoryCurrent}
+                                                                                <span class="text-xs bg-primary text-primary-foreground px-1 rounded">current</span>
+                                                                            {/if}
+                                                                        </span>
+                                                                        <span class="text-xs text-muted-foreground">
+                                                                            {ver.createdAt ? formatVersionDate(ver.createdAt) : ''}
+                                                                        </span>
+                                                                    </DropdownMenu.Item>
+                                                                {/each}
+                                                            </div>
+                                                        {/if}
+                                                    </DropdownMenu.SubContent>
+                                                </DropdownMenu.Sub>
+                                            {/if}
+                                            <DropdownMenu.Separator />
+                                            <DropdownMenu.Item
+                                                variant="destructive"
+                                                onclick={() => handleDeleteFile(file)}
+                                            >
+                                                <Trash2 class="h-4 w-4" />
+                                                <span>Delete</span>
+                                            </DropdownMenu.Item>
+                                        </DropdownMenu.Content>
+                                    </DropdownMenu.Root>
                                 </div>
                             </div>
                         {/if}
