@@ -61,6 +61,18 @@ interface MeshtasticRadiosProps {
   onUpdate?: () => void;
 }
 
+/** Radio screens (and the private key here) show keys as base64, but MeshRadio
+ *  stores publicKey as "0x" + 64 hex — meshtk's ParseHexKey reads that stored
+ *  form (MRAD-02 boundary in mesh-radio-canonical.ts), so the conversion is
+ *  display-only. Anything that isn't exactly 0x-hex-64 (legacy base64 rows)
+ *  passes through unchanged. */
+function displayKeyBase64(key: string): string {
+  const m = key.match(/^0x([0-9a-fA-F]{64})$/);
+  if (!m) return key;
+  const bytes = m[1].match(/.{2}/g)!.map((b) => parseInt(b, 16));
+  return btoa(String.fromCharCode(...bytes));
+}
+
 export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUsername, mqttPassword, onUpdate }: MeshtasticRadiosProps) {
   const [radios, setRadios] = useState<MeshtasticRadio[]>(initialRadios || []);
   const [loading, setLoading] = useState(!initialRadios);
@@ -798,7 +810,7 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
                             <span className="text-xs text-default-500 w-16 shrink-0">Public Key:</span>
                             <code className="text-xs font-mono bg-default-100 px-2 py-1 rounded flex-1 overflow-hidden">
                               {visiblePublicKeys[radio.nodeId]
-                                ? radio.publicKey
+                                ? displayKeyBase64(radio.publicKey)
                                 : '••••••••••••••••••••••••'}
                             </code>
                             <Button
