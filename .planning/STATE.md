@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
 status: Milestone complete
-stopped_at: Completed 70-01-PLAN.md (shared dialog kit, wave 1)
-last_updated: "2026-07-30T05:12:37.209Z"
+stopped_at: Completed 70-03-PLAN.md (map-layers sections on shared kit, wave 2)
+last_updated: "2026-07-30T05:21:23.802Z"
 last_activity: 2026-07-30
 progress:
   total_phases: 29
   completed_phases: 17
   total_plans: 73
-  completed_plans: 67
+  completed_plans: 68
   percent: 59
 current_phase: 56
 current_phase_name: ctf-flag-types-slice-3-wordlist-one-time-codes-ctfcode-entit
@@ -122,6 +122,7 @@ Recent decisions affecting current work:
 - [Phase 54]: 54-04: CtfForm design-A redesign (Phase 54 DONE, 4/4) — 7 ordered section cards (Name → challenge-type segmented presets → Answer type Static/Rotating-OTP → Scoring window & limits → Unlock & chaining → hand-rolled Advanced disclosure → live scoring preview). Dead standalone `Points` field REMOVED (grep-verified setPoints==0). Live preview binds previewPoints (54-01 adapter → computePoints; judge-parity, no duplicate scorer). Secrets write-only end-to-end: edit page routes getCtf row through redactCtfSecrets (raw `record as CtfRecord` cast GONE; no `secret` token on edit page); CtfForm's CtfRecord aliased to RedactedCtfRecord so the safe shape is the only accepted prop; answer/otp-secret/reward-otpauth/effect never prefilled, blank-on-save keeps stored (no-clobber). applyPreset pre-fills Advanced knobs via presetToAdvanced but never locks them. Static Reward → OTP enrollment configurator: write-only otpauth composes {kind:"otp-enroll",otpauth,nextFlag?} (precedence over raw Effect JSON), Reveal preview REUSES the 54-03 CtfOtpEnroll card. Wordlist NOT rendered; Slice-2 day/time/tz = placeholder note only (D5). New shared qr-ui tokens cls.segment/segmentActive/segmentIdle/chip/rewardCard (slices 55/56 inherit). Zero new deps. Full webapp suite 551 green; touched files tsc-clean (2 pre-existing out-of-scope errors in dropdown-user.tsx + checkin.test.ts untouched).
 - [Phase ?]: [Phase 70]: 70-01: shared dialog-shell kit (DialogShell/HintBar/Section/Row/Chips/Chip + barrel) — header props named heading/subheading so plans 03-06 keep a phase-wide zero-count grep on the native tooltip attribute spelling; Section takes collapsed as a plain input prop + ontoggle (never bindable) and performs no cascade, so the shipped group-off-collapses effect in PublicOverlays survives byte-for-byte; plain overflow-y-auto body instead of the bits-ui viewport wrapper (fights flex-1 min-h-0); hint delegation via Svelte 5 event attributes on the body, not manual addEventListener. Zero new deps; svelte-check 30 total / 0 in dialog-shell.
 - [Phase ?]: Phase 70 P02: Strava never-imported cards get a quiet '+ Import' chip; imported-untagged reads 'Pick a day' — every non-tagged card names its own click outcome, popover modes unchanged
+- [Phase ?]: Phase 70 P03: map-layers sections re-skinned onto the shared kit — PublicOverlays/MyConRuns/CommunityRoutes render only Section cards at their template top level (no wrapper), so plan 05 drops them straight into the dialog body; check-ins master-off now COLLAPSES the filter body instead of unmounting it (a prevCheckinsVisible effect mirroring the group idiom), so the chevron stays usable after turning the layer off; MyConRuns' whole-section master cascades with setDayVisible(..., fit=false) to avoid one fitBounds animation per con day while the per-day toggle keeps the shipped default fit; the per-day colour dot moved from the day header onto each run row because Section has no dot slot; the route-group `{#if length > 0}` wrapper was dropped since an empty `{#each}` already renders nothing. Zero native hover tooltips remain in the three files (DLGS-04 hover-stutter fix); setCheckInFilters call count pinned at 4 so filter semantics could not drift. svelte-check 30 total / 0 on the three files.
 
 ### Pending Todos
 
@@ -134,8 +135,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-30T05:12:04.800Z
-Stopped at: Completed 70-01-PLAN.md (shared dialog kit, wave 1)
+Last session: 2026-07-30T05:21:23.795Z
+Stopped at: Completed 70-03-PLAN.md (map-layers sections on shared kit, wave 2)
 Resume file: None
 
 ## Operator Next Steps
@@ -185,3 +186,4 @@ Resume file: None
 | Phase 66 P04 | 20 | 2 tasks | 2 files |
 | Phase 70 P01 | ~25m | 3 tasks | 7 files |
 | Phase 70 P02 | ~10m | 1 tasks | 1 files |
+| Phase 70 P03 | ~20m | 3 tasks | 3 files |
