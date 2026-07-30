@@ -143,6 +143,37 @@ export const RunUser = new Entity(
         type: "number",
       },
 
+      // ── Derived score (points-consistency, 2026-07-30). Written ONLY by
+      // lib/rescore.ts:rescoreUser — the single mutation point for ALL score
+      // fields. score = runStreak + socialStreak + ctfStreak + flagPoints,
+      // recomputed from ledgers (Accomplishment, CtfSolve, CtfScoreEvent)
+      // against current Ctf config. activityScore/ctfScore/socialScore above
+      // are LEGACY (frozen; socialScore still ticks as a cosmetic scan meter).
+      score: {
+        type: "number",
+        default: () => 0,
+      },
+      scoreBreakdown: {
+        type: "map",
+        properties: {
+          runStreak: { type: "number", default: () => 0 },
+          socialStreak: { type: "number", default: () => 0 },
+          ctfStreak: { type: "number", default: () => 0 },
+          flagPoints: { type: "number", default: () => 0 },
+        },
+      },
+      streakDays: {
+        type: "map",
+        properties: {
+          run: { type: "number", default: () => 0 },
+          social: { type: "number", default: () => 0 },
+          ctf: { type: "number", default: () => 0 },
+        },
+      },
+      rescoredAt: {
+        type: "number",
+      },
+
       // User preferences
       preferences: {
         type: "map",
@@ -460,6 +491,17 @@ export type RunUserItem = {
   activityScore?: number;
   activityCounts?: { checkin?: number; gpx?: number; strava?: number };
   latestActivityAt?: number;
+  // Derived score (points-consistency, 2026-07-30) — written ONLY by
+  // lib/rescore.ts:rescoreUser. See attribute comment above for the formula.
+  score?: number;
+  scoreBreakdown?: {
+    runStreak?: number;
+    socialStreak?: number;
+    ctfStreak?: number;
+    flagPoints?: number;
+  };
+  streakDays?: { run?: number; social?: number; ctf?: number };
+  rescoredAt?: number;
   preferences?: {
     theme?: string;
     units?: string;
