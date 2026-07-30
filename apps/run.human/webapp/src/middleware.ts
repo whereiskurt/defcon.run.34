@@ -11,20 +11,6 @@ const LEGACY_COOKIE_DOMAIN = process.env.AUTH_COOKIE_DOMAIN;
  * This enables layouts to check for query parameters like autoLogin.
  */
 export function middleware(request: NextRequest) {
-  // /qr/<code> lives OUTSIDE the /use1 basePath (Impart forwards unmatched
-  // host paths here and Next would 404). Bridge it to the apex, whose CDN
-  // serves the static redirect objects (landing bucket /qr/ keys) — keeps
-  // hunt paths host-agnostic without a CloudFront behavior change.
-  const rawPath = request.nextUrl.basePath
-    ? request.nextUrl.basePath + request.nextUrl.pathname
-    : request.nextUrl.pathname;
-  if (rawPath.startsWith("/qr/")) {
-    return NextResponse.redirect(
-      `https://defcon.run${rawPath}${request.nextUrl.search}`,
-      302,
-    );
-  }
-
   // Clone the request headers and add x-url
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-url", request.url);
