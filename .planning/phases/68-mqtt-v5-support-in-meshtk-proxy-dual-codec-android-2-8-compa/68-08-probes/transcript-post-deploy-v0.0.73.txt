@@ -1,0 +1,145 @@
+########## POST-DEPLOY(v2) regression-connacks ##########
+=== regression-connacks against mqtt.defcon.run:4433 at 2026-07-29T19:07:12Z ===
+
+[v5 bad credentials] expect 2003008700
+  -> CONNECT (108B) 106a00044d51545405c2003c24110000271021001422000a2700100000260006636c69656e7400096d7174746173746963001364633334702d726567312d6366...
+  <- type=2 (5B) 2003008700
+  captured: 2003008700
+
+[protocol level 6] expect 2003008400
+  -> CONNECT (108B) 106a00044d51545406c2003c24110000271021001422000a2700100000260006636c69656e7400096d7174746173746963001364633334702d726567322d6636...
+  <- type=2 (5B) 2003008400
+  captured: 2003008400
+
+[v5 enhanced auth] expect 2003008c00
+  -> CONNECT (122B) 107800044d51545405c2003c32110000271021001422000a2700100000260006636c69656e7400096d717474617374696315000b534352414d2d5348412d3100...
+  <- type=2 (5B) 2003008c00
+  captured: 2003008c00
+
+[3.1.1 bad credentials] expect 20020005
+  -> CONNECT (71B) 104500044d51545404c2003c001364633334702d726567342d3338333537313634000f6e6f742d612d7265616c2d7573657200136e6f742d612d7265616c2d70...
+  <- type=2 (4B) 20020005
+  captured: 20020005
+VERDICT PASS all four CONNACK captures byte-identical to the 68-05 record
+SCRIPT_EXIT=0
+########## POST-DEPLOY(v2) cr03-second-connect ##########
+=== cr03-second-connect against mqtt.defcon.run:4433 at 2026-07-29T19:07:13Z ===
+[creds] username shape ok (12 hex); password length 12
+
+[cr03] client_id=dc34p-cr03-3b4531fd
+  -> CONNECT (98B) 106000044d51545405c2003c24110000271021001422000a2700100000260006636c69656e7400096d7174746173746963001364633334702d637230332d3362...
+  <- type=2 (8B) 2006000003210014
+  [session] established, CONNACK 2006000003210014
+  -> second CONNECT (bogus creds) (123B) 107900044d51545405c2003c24110000271021001422000a2700100000260006636c69656e7400096d717474617374696300186d71747461737469632d736563...
+  <- type=14 (4B) e0028200
+  wire: closed=True disconnect_frames=1 reason=0x82
+  [logs] correlating...
+  [log:meshtk/run-mqtt-meshtk/17a91e1151984604a3783db2d78687b5] 2026-07-29 19:07:13.377 action=MQTT5_CONNECT, ip=10.0.2.246:44298, username=0a487d6affa5, client_id=dc34p-cr03-3b4531fd
+  [logs] session socket addr recovered: 10.0.2.246:44298
+  [log:meshtk/run-mqtt-meshtk/17a91e1151984604a3783db2d78687b5] 2026-07-29 19:07:13.377 action=MQTT5_CONNECT, ip=10.0.2.246:44298, username=0a487d6affa5, client_id=dc34p-cr03-3b4531fd
+  [log:meshtk/run-mqtt-meshtk/17a91e1151984604a3783db2d78687b5] 2026-07-29 19:07:13.404 action=MQTT5_PROTOCOL_VIOLATION, ip=10.0.2.246:44298, mqtt_type=1, reason=illegal_frame_on_established_session
+VERDICT PASS second CONNECT refused with DISCONNECT 0x82 and exactly one MQTT5_PROTOCOL_VIOLATION logged
+SCRIPT_EXIT=0
+########## POST-DEPLOY(v2) cr04-unmodelled-block ##########
+=== cr04-unmodelled-block against mqtt.defcon.run:4433 at 2026-07-29T19:07:16Z ===
+[creds] username shape ok (12 hex); password length 12
+
+[cr04] client_id=dc34p-cr04-d01b11ab
+  -> CONNECT (98B) 106000044d51545405c2003c24110000271021001422000a2700100000260006636c69656e7400096d7174746173746963001364633334702d637230342d6430...
+  <- type=2 (8B) 2006000003210014
+  [session] established, CONNACK 2006000003210014
+  -> PUBLISH with unmodelled property 0x7f + undecryptable envelope (124B) 307a001b6d73682f55532f322f652f64632e72756e2f213433353939306534027f000a450de490594315ffffffff2a30a283e0c1260764455abb98f9de3f1c7d...
+  wire: closed=True trailing_frames=0
+  [logs] correlating...
+  [log:meshtk/run-mqtt-meshtk/17a91e1151984604a3783db2d78687b5] 2026-07-29 19:07:17.004 action=MQTT5_CONNECT, ip=10.0.2.246:35209, username=0a487d6affa5, client_id=dc34p-cr04-d01b11ab
+  [log:meshtk/run-mqtt-meshtk/17a91e1151984604a3783db2d78687b5] 2026-07-29 19:07:17.032 action=BLOCK,ip=10.0.2.246:35209, clientID=dc34p-cr04-d01b11ab, username=0a487d6affa5, mqtt_type=PUBLISH, mqtt_topic=[msh/US/2/e/dc.run/!435990e4]
+  [log:meshtk/run-mqtt-meshtk/17a91e1151984604a3783db2d78687b5] 2026-07-29 19:07:17.004 action=MQTT5_CONNECT, ip=10.0.2.246:35209, username=0a487d6affa5, client_id=dc34p-cr04-d01b11ab
+  [log:meshtk/run-mqtt-meshtk/17a91e1151984604a3783db2d78687b5] 2026-07-29 19:07:17.032 action=MQTT5_PARSE_FAIL, ip=10.0.2.246:35209, mqtt_type=PUBLISH, reason=invalid Prop type 127 for packet 3
+  [log:meshtk/run-mqtt-meshtk/17a91e1151984604a3783db2d78687b5] 2026-07-29 19:07:17.032 action=BLOCK,ip=10.0.2.246:35209, clientID=dc34p-cr04-d01b11ab, username=0a487d6affa5, mqtt_type=PUBLISH, mqtt_topic=[msh/US/2/e/dc.run/!435990e4]
+  [log:meshtk/run-mqtt-meshtk/17a91e1151984604a3783db2d78687b5] time="2026-07-29T19:07:17Z" level=warning msg="[proxy] BLOCK from=!435990e4 to=!ffffffff reason=\"Failed to decrypt with any known key\" user=0a487d6affa5 ip=10.0.2.246:35209"
+VERDICT PASS unmodelled-property PUBLISH inspected and Blocked (1 action=BLOCK, 1 [proxy] BLOCK)
+SCRIPT_EXIT=0
+########## POST-DEPLOY(v2) wr04-subscribe ##########
+=== wr04-subscribe against mqtt.defcon.run:4433 at 2026-07-29T19:07:29Z ===
+[creds] username shape ok (12 hex); password length 12
+
+[wr04] client_id=dc34p-wr04-c2f4559c filter=msh/US/2/e/dc.run/probe-dc34p-wr04-c2f4559c/#
+  -> CONNECT (98B) 106000044d51545405c2003c24110000271021001422000a2700100000260006636c69656e7400096d7174746173746963001364633334702d777230342d6332...
+  <- type=2 (8B) 2006000003210014
+  [session] established, CONNACK 2006000003210014
+  -> SUBSCRIBE (53B) 8233001500002d6d73682f55532f322f652f64632e72756e2f70726f62652d64633334702d777230342d63326634353539632f2300
+  <- type=9 (6B) 900400150000
+  wire: suback=900400150000
+  [logs] correlating...
+  [log:meshtk/run-mqtt-meshtk/17a91e1151984604a3783db2d78687b5] 2026-07-29 19:07:29.412 action=MQTT5_CONNECT, ip=10.0.2.246:7188, username=0a487d6affa5, client_id=dc34p-wr04-c2f4559c
+  [log:meshtk/run-mqtt-meshtk/17a91e1151984604a3783db2d78687b5] 2026-07-29 19:07:29.454 action=ALLOW,ip=10.0.2.246:7188, clientID=dc34p-wr04-c2f4559c, username=0a487d6affa5, mqtt_type=SUBSCRIBE, mqtt_topic=[msh/US/2/e/dc.run/probe-dc34p-wr04-c2f4559c/#]
+VERDICT PASS v5 SUBSCRIBE reached the proxy's decision log with its topic filter
+SCRIPT_EXIT=0
+########## POST-DEPLOY(v2) cr02-idle 480s ##########
+=== cr02-idle against mqtt.defcon.run:4433 at 2026-07-29T19:07:38Z ===
+[creds] username shape ok (12 hex); password length 12
+
+[cr02] client_id=dc34p-cr02-e21cb604 idle_target=480s
+  -> CONNECT (98B) 106000044d51545405c2003c24110000271021001422000a2700100000260006636c69656e7400096d7174746173746963001364633334702d637230322d6532...
+  <- type=2 (8B) 2006000003210014
+  [session] established, CONNACK 2006000003210014
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 30s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 60s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 90s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 120s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 150s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 180s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 210s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 240s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 270s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 300s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 330s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 360s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 390s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 420s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 450s elapsed
+  -> PINGREQ (2B) c000
+  <- type=13 (2B) d000
+  [idle] 480s elapsed
+  [idle] measured publish-idle duration: 480s
+  -> PUBLISH NODEINFO (107B) 3069001b6d73682f55532f322f652f64632e72756e2f213433353939306534000a360de490594315ffffffff22210804121b0a09213433353939306534120944...
+  -> PINGREQ (liveness check after the publish) (2B) c000
+  <- type=13 (2B) d000
+  wire: session alive after post-idle publish = True
+  [logs] correlating...
+  [log:meshtk/run-mqtt-meshtk/17a91e1151984604a3783db2d78687b5] 2026-07-29 19:07:39.071 action=MQTT5_CONNECT, ip=10.0.2.246:21017, username=0a487d6affa5, client_id=dc34p-cr02-e21cb604
+  [log:meshtk/run-mqtt-meshtk/17a91e1151984604a3783db2d78687b5] 2026-07-29 19:15:39.137 action=ALLOW,ip=10.0.2.246:21017, clientID=dc34p-cr02-e21cb604, username=0a487d6affa5, mqtt_type=PUBLISH, mqtt_topic=[msh/US/2/e/dc.run/!435990e4],mesh_type=NODEINFO_APP, mesh_from=435990e4, mesh_to=ffffffff, payload=0a0921343335393930653412094443333420746573741a03543334
+  [log:meshtk/run-mqtt-meshtk/17a91e1151984604a3783db2d78687b5] 2026-07-29 19:07:39.071 action=MQTT5_CONNECT, ip=10.0.2.246:21017, username=0a487d6affa5, client_id=dc34p-cr02-e21cb604
+  [log:meshtk/run-mqtt-meshtk/17a91e1151984604a3783db2d78687b5] 2026-07-29 19:15:39.137 action=ALLOW,ip=10.0.2.246:21017, clientID=dc34p-cr02-e21cb604, username=0a487d6affa5, mqtt_type=PUBLISH, mqtt_topic=[msh/US/2/e/dc.run/!435990e4],mesh_type=NODEINFO_APP, mesh_from=435990e4, mesh_to=ffffffff, payload=0a0921343335393930653412094443333420746573741a03543334
+VERDICT PASS publish after 480s idle was ALLOWed, no username-required Block, session still alive
+SCRIPT_EXIT=0
