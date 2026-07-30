@@ -5,6 +5,8 @@ import { useCopy } from "@/components/CopyProvider";
 import { setRaining } from "@/lib/rain-store";
 import { setBurning } from "@/lib/burn-store";
 import { CashConfirmModal } from "./CashConfirmModal";
+import { BibSalesClosedModal } from "./BibSalesClosedModal";
+import { BIB_SALES_CLOSED } from "@/lib/bib-sales";
 
 /**
  * ContributionChoice (Kurt 2026-07-05) — a 3-way opt between:
@@ -29,19 +31,31 @@ const API_BIB_PATH = "/api/bib";
 export type Choice = "nothing" | "inperson" | "burn";
 
 /** What selecting a choice does. Pay-in-person defers to the Signal-confirm
- *  modal (⑤ 2026-07-08); every other pick applies immediately. */
+ *  modal (⑤ 2026-07-08) — or, once bib sales close, to the "sales closed"
+ *  dumpster-fire modal (never committed); every other pick applies immediately. */
 export type SelectEffect =
   | { kind: "open-cash-modal" }
+  | { kind: "open-closed-modal" }
   | { kind: "apply"; choice: Choice };
 
 /**
  * Pure decision behind onSelect — pinned by contribution-choice-cash-gate.test.ts.
  * Pay-in-person opens the cash-confirm modal (the pledge is committed only on OK);
- * burn/nothing apply immediately. Returns null for a no-op (unchanged pick).
+ * with sales closed it opens the BibSalesClosedModal instead and the pledge can
+ * never be committed. burn/nothing apply immediately (un-pledging stays allowed).
+ * Returns null for a no-op (unchanged pick).
  */
-export function planSelect(next: Choice, current: Choice): SelectEffect | null {
+export function planSelect(
+  next: Choice,
+  current: Choice,
+  salesClosed = false
+): SelectEffect | null {
   if (next === current) return null;
-  if (next === "inperson") return { kind: "open-cash-modal" };
+  if (next === "inperson") {
+    return salesClosed
+      ? { kind: "open-closed-modal" }
+      : { kind: "open-cash-modal" };
+  }
   return { kind: "apply", choice: next };
 }
 
@@ -82,6 +96,7 @@ export function ContributionChoice({
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
   const [limitReached, setLimitReached] = useState(false);
   const [cashModalOpen, setCashModalOpen] = useState(false);
+  const [closedModalOpen, setClosedModalOpen] = useState(false);
 
   const lastSavedRef = useRef<Choice>(initialChoice);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -175,12 +190,18 @@ export function ContributionChoice({
 
   const onSelect = useCallback(
     (next: Choice) => {
-      const effect = planSelect(next, choice);
+      const effect = planSelect(next, choice, BIB_SALES_CLOSED);
       if (!effect) return;
       // Pay-in-person is gated behind the Signal-confirm modal (⑤): don't flip
       // the checkbox, rain, or PATCH until the runner clicks OK.
       if (effect.kind === "open-cash-modal") {
         setCashModalOpen(true);
+        return;
+      }
+      // Sales closed: the cash pledge is retired along with checkout — show the
+      // dumpster-fire "Where were you!??" modal and never flip / rain / PATCH.
+      if (effect.kind === "open-closed-modal") {
+        setClosedModalOpen(true);
         return;
       }
       applyChoice(effect.choice);
@@ -259,6 +280,11 @@ export function ContributionChoice({
         runnerCode={runnerCode}
         onConfirm={commitInPerson}
         onCancel={() => setCashModalOpen(false)}
+      />
+
+      <BibSalesClosedModal
+        open={closedModalOpen}
+        onClose={() => setClosedModalOpen(false)}
       />
     </div>
   );

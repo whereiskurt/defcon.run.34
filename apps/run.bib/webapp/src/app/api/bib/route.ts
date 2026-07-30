@@ -16,6 +16,7 @@ import { verifyBibSolution } from "@/lib/altcha";
 import { maybeSyncRabbitName } from "@/lib/rabbit-name-sync";
 import { assertNotLockedLive } from "@/lib/live-lockout";
 import { invalidateBib } from "@/lib/report-cache";
+import { BIB_SALES_CLOSED } from "@/lib/bib-sales";
 
 /**
  * /api/bib — read / idempotent create / edit the signed-in user's bib.
@@ -246,6 +247,20 @@ export async function PATCH(req: NextRequest) {
     }
     let togglesRemaining: number | undefined;
     if (parsed.data.willPayInPerson !== undefined) {
+      // Bib sales are closed (lib/bib-sales.ts): the pay-in-person pledge is
+      // retired along with checkout. The UI never sends true while closed
+      // (ContributionChoice shows the dumpster-fire modal instead); this guard
+      // stops a crafted PATCH from joining the pledged list anyway. Turning
+      // the pledge OFF stays allowed.
+      if (BIB_SALES_CLOSED && parsed.data.willPayInPerson === true) {
+        return NextResponse.json(
+          {
+            error: "bib_sales_closed",
+            detail: "bib sales have ended — donate instead",
+          },
+          { status: 403 }
+        );
+      }
       // Turning the pledge ON drives the fun cash-rain — consume one from the
       // central bib_toggle quota (Kurt 2026-07-05, capped at 30). Turning it OFF
       // is free. On exhaustion, 429 so the client reverts the checkbox and shows
