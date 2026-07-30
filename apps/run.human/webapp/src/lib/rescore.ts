@@ -41,7 +41,8 @@ export async function rescoreUser(userId: string): Promise<UserScore> {
     events: eventsResult.data.map((e) => ({
       challenge: e.challenge,
       bucket: e.bucket,
-      ordinal: (e as { ordinal?: number }).ordinal,
+      ordinal: (e as { ordinal?: number; points?: number }).ordinal,
+      points: (e as { ordinal?: number; points?: number }).points,
       scoredAt: e.scoredAt,
     })),
     configs,

@@ -18,6 +18,7 @@ export type EngineScoreEvent = {
   challenge: string;
   bucket: string;
   ordinal?: number;
+  points?: number;
   scoredAt?: string;
 };
 export type EngineCtfConfig = {
@@ -43,7 +44,7 @@ export interface UserScore {
 const SOCIAL_CHALLENGE = "social-scan";
 
 function flagValue(
-  row: { challenge: string; ordinal?: number; at?: string },
+  row: { challenge: string; ordinal?: number; at?: string; points?: number },
   configs: Map<string, EngineCtfConfig>,
 ): number {
   const cfg = configs.get(row.challenge);
@@ -63,8 +64,12 @@ function flagValue(
       row.at ? Date.parse(row.at) || 0 : 0,
     );
   }
-  // Pre-DC34 legacy row (no ordinal recorded): value at the current floor.
-  return cfg.pointFloor ?? 0;
+  // Ordinal-less row: a genuine pre-DC34 legacy row (the old accrue path
+  // always wrote `points`) values at the current floor. An ABANDONED claim —
+  // a repeatable-flag row claimed (R1) then rejected at perPlayerMax (R2) —
+  // never had `points` recorded and must value 0, not farm the floor.
+  if (row.points !== undefined) return cfg.pointFloor ?? 0;
+  return 0;
 }
 
 export function computeUserScore(input: {
@@ -90,26 +95,31 @@ export function computeUserScore(input: {
 
   // ── Social track: scan-day events light days; individual scans worth 0. ──
   const socialDays = new Set<string>();
-  const flagRows: { challenge: string; ordinal?: number; at?: string }[] = [];
+  const flagRows: { challenge: string; ordinal?: number; at?: string; points?: number }[] = [];
   for (const e of events) {
     if (e.challenge === SOCIAL_CHALLENGE) {
       const day = e.bucket.split("#")[0];
       if (isConDay(day)) socialDays.add(day);
       continue;
     }
-    flagRows.push({ challenge: e.challenge, ordinal: e.ordinal, at: e.scoredAt });
+    flagRows.push({ challenge: e.challenge, ordinal: e.ordinal, at: e.scoredAt, points: e.points });
   }
   for (const s of solves) {
     flagRows.push({ challenge: s.challenge, ordinal: s.ordinal, at: s.solvedAt });
   }
 
   // ── CTF track: every admitted flag row (even valued 0) lights its day. ──
+  // An ABANDONED claim (no ordinal, no points — claimed at R1 then rejected
+  // at perPlayerMax R2) was never admitted: it must not light a CTF streak
+  // day, matching its 0 valuation in flagValue above.
   const ctfDays = new Set<string>();
   let flagPoints = 0;
   for (const row of flagRows) {
     counts.solves += 1;
+    const abandonedClaim =
+      (row.ordinal === undefined || row.ordinal === null) && row.points === undefined;
     flagPoints += flagValue(row, configs);
-    if (row.at) {
+    if (!abandonedClaim && row.at) {
       const t = Date.parse(row.at);
       if (!Number.isNaN(t)) {
         const day = conLocalDate(t);

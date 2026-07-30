@@ -65,14 +65,29 @@ describe("computeUserScore", () => {
     expect(r.score).toBe(225);
   });
 
-  it("legacy event rows without ordinal value at current pointFloor", () => {
+  it("legacy SCORED event rows (points present, no ordinal) value at current pointFloor", () => {
     const configs = new Map([["goldstein-otp", cfg({ challenge: "goldstein-otp", pointMax: 25, pointFloor: 25 })]]);
     const r = computeUserScore({
       accomplishments: [], solves: [],
-      events: [{ challenge: "goldstein-otp", bucket: "12345", scoredAt: "2026-08-05T19:00:00Z" }],
+      events: [{ challenge: "goldstein-otp", bucket: "12345", points: 100, scoredAt: "2026-08-05T19:00:00Z" }],
       configs,
     });
     expect(r.breakdown.flagPoints).toBe(25); // retuned from historical 100
+    expect(r.days.ctf).toBe(1);
+  });
+
+  it("abandoned perPlayerMax claim rows (no ordinal, no points) value 0 and do not light the ctf day", () => {
+    const configs = new Map([["phone", cfg({ challenge: "phone", pointMax: 200, pointFloor: 100 })]]);
+    const r = computeUserScore({
+      accomplishments: [], solves: [],
+      // R1 claimScoreEvent persisted this row; R2 overPerPlayerMax rejected it
+      // before recordScoreEvent ever ran — no `points`, no `ordinal`.
+      events: [{ challenge: "phone", bucket: "12345", scoredAt: "2026-08-05T19:00:00Z" }],
+      configs,
+    });
+    expect(r.breakdown.flagPoints).toBe(0);
+    expect(r.days.ctf).toBe(0);
+    expect(r.counts.solves).toBe(1); // row still counted, just valued/dated as never-admitted
   });
 
   it("over-globalMax ordinals value 0 but still light the ctf day", () => {
