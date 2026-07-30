@@ -707,6 +707,30 @@ Plans:
 - [x] 66-06-PLAN.md — [meshtk repo] internal/keycache: cache-first GetItem resolver + singleflight/negative/circuit-breaker + ported table-tests + Go key-parity (MRAD-06) [wave 1]
 - [x] 66-07-PLAN.md — [meshtk repo] decryptPKI + reply-encrypt swap to keycache behind fallback flag + KeyCacheConfig wiring + security-regression test (MRAD-07, MRAD-08) [wave 2]
 
+### Phase 70: gpx-studio Shared Dialog Shell (Map Layers + My Maps)
+
+**Goal:** Replace gpx.defcon.run studio's two inconsistent surfaces — the hover-opened layers popover (title-less, three competing collapse affordances, native-tooltip stutter) and the My Maps dialog (cryptic icon-strip actions, muddled hierarchy, bolted-on footer) — with two centered dialogs built from ONE shared component kit, per the approved design contract `.planning/sketches/006-shared-dialog-shell/DESIGN.md` and winning mockup (Sketch 006 Variant B "Carded sections"). Presentation-layer only: all layer/data wiring (PublicOverlaysLayer, MyConRunsLayer, CommunityRoutesLayer, cloud-sync) is untouched. Delivery is FULLY AUTONOMOUS end-to-end: implement → quality gates → PR → CI release (buildpub.yml) → CI deploy (deploy.yml) → Playwright prod probe, using the standing ship flow in `.claude/worktrees` memory (`reference_gpx_studio_ui_dev_recipe`).
+**Depends on:** shadcn-svelte Dialog primitives already in `gpx-studio/website/src/lib/components/ui/`; existing LayerControl/PublicOverlays/MyConRuns/CommunityRoutes/CloudStorage/StravaStrip components; DESIGN.md + mockup as canonical refs.
+**Out of scope:** check-in filter semantics (window/match/types unchanged), layer data classes, mobile FAB menu, My Maps folder navigation internals, any run.gpx webapp (Next.js) changes.
+**Requirements:**
+
+  - **DLGS-01** — Shared dialog kit in `gpx-studio/website/src/lib/components/dialog-shell/`: Shell (icon+title+optional subtitle, ✕, Esc/outside-click close, ~420px, body scroll ≤~72vh), Section (left rotating chevron ▾/▸, uppercase tracked label, optional trailing count/⋯menu/master-checkbox; carded treatment: surface-2 card, 1px border, 8px radius; master OFF → collapse+dim+cascade), Row (checkbox/radio · color dot or icon · label · trailing), Chips (segmented single-select + multi-select with type-color tint), HintBar (fixed bottom strip showing hovered/focused row's description).
+  - **DLGS-02** — Map Layers dialog replaces the LayerControl hover popover: opens on CLICK of the layers button (hover-open/mouseleave-close and the svelte:window composedPath handler deleted); sections BASEMAP (radio rows) → USER CHECK-INS (master in header; segmented Hour/Today/Whole con + handle search + type chips) → DEF CON 34 ROUTES → RABBIT ROUTES → MY DEF CON RUNS → COMMUNITY ROUTES; empty sections hidden; `quickStartAction` routes/runners opens the dialog; all layer-instance wiring in LayerControl.svelte preserved.
+  - **DLGS-03** — My Maps rebuilt on the shared shell: MY FILES section FIRST (count badge + header ⋯ menu: New folder / Refresh / Export all) then SHARED WITH YOU (folder rows, SHARED badge, ›); file rows show labeled Edit + ⋯ menu (Share / Assign day / Save as Route / Export GPX / Delete) replacing the five-icon strip (fade-in on hover/focus on pointer devices, always visible on touch); footer = quiet helper text left + primary "👟 Add run" right; hint bar below footer.
+  - **DLGS-04** — Stutter eliminated: zero native `title=` tooltips on route/file rows (descriptions flow to the hint bar via data-hint); no hover-open anywhere.
+  - **DLGS-05** — StravaStrip card chips made explicit: imported-untagged shows actionable "Pick a day" chip; never-imported shows "+ Import" chip; tagged cards unchanged (✓ day).
+  - **DLGS-06** — Autonomous ship + prod verification: vitest (webapp) green, svelte-check delta zero NEW errors on touched files (baseline ~26–30 upstream), build-frontend.sh clean; PR opened + squash-merged (--admin, standing flow); `buildpub.yml -f apps=run.gpx -f regions=use1` (check for in-flight same-app runs first) then `deploy.yml -f region=us-east-1 -f pr_number=skip -f invalidate_cache=true`; Playwright prod probe confirms: layers button click-opens dialog, no `title` attrs in route rows, My Maps section order + footer Add run, hint bar updates on hover.
+
+**Success Criteria** (what must be TRUE):
+
+  1. Clicking the layers control opens a "Map Layers" dialog whose six sections all share one collapse affordance; toggling a group's master checkbox off collapses and dims it exactly as before; basemap switching, per-route toggles, check-in filters all still drive the map identically.
+  2. Mousing across the route list produces NO floating tooltip and no flicker; route descriptions appear in the dialog's bottom hint bar.
+  3. My Maps shows MY FILES above SHARED WITH YOU, labeled row actions (Edit + labeled ⋯ menu), header ⋯ housing New folder/Refresh/Export all, and Add run as the footer primary — with every existing action still functional (share, day-assign, route-publish, export, delete).
+  4. All five StravaStrip card states read as actionable or done ("Pick a day" / "+ Import" / ✓ day) and open the same popover modes as today.
+  5. gpx v0.0.10x is LIVE on use1 with the above verified by an automated Playwright probe against https://gpx.defcon.run — no human step anywhere between "plan approved" and "probe green" except the standing PR-merge authorization granted for this phase.
+
+**Plans:** TBD
+
 ---
 
 <details>
