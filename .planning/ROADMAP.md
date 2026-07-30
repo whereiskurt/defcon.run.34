@@ -805,7 +805,7 @@ Plans:
   3. A CONNECT carrying a Will cannot deliver an unclamped `hop_limit` broadcast to the broker on either codec.
   4. The 3.1.1 path stays byte-identical (`proxy_v4_golden_test.go` unchanged and green) and live fleet traffic is uninterrupted across the deploy.
 
-**Plans:** 7 plans
+**Plans:** 7/7 plans complete
 
 All seven run **strictly sequentially** (waves 1-7): every code plan edits the same upstream
 `~/working/meshtk` working tree, so two agents compiling and committing at once would produce
