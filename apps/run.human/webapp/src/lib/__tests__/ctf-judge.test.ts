@@ -11,8 +11,10 @@ import { hashAnswer } from "../ctf-hash";
  *   - claimSolve does a real map-keyed attribute_not_exists check (first caller
  *     wins → claimed:true; later callers → claimed:false + the stored prior award),
  *   - allocateOrdinal is a real incrementing per-challenge counter,
- *   - accrue sums into a per-user total,
  *   - overAttemptLimit is a per-(challenge,user) counter.
+ *
+ * The judge no longer writes RunUser (points-consistency, Task 6) — `accrue`/
+ * `reaccrue` are gone from `CtfStore`. Downstream rescoring is Tasks 7-10's job.
  */
 
 const FLAG = "s3cr3t-defcon-flag";
@@ -43,7 +45,6 @@ function makeStore(
 ) {
   const solves = new Map<string, Stored>(); // `${challenge}|${user}` → award
   const ordinals = new Map<string, number>(); // challenge → solveCount
-  const userScore = new Map<string, { points: number; solves: number }>();
   const attempts = new Map<string, number>(); // `${challenge}|${user}` → count
   const scoreEventClaims = new Set<string>(); // `${challenge}|${user}|${bucket}` → claimed
   const scoreEvents: Array<{
@@ -97,17 +98,6 @@ function makeStore(
     async recordScore({ challenge, user, ordinal, points, firstBlood }) {
       solves.set(key(challenge, user), { challenge, user, ordinal, points, firstBlood });
     },
-    async accrue({ user, points }) {
-      const s = userScore.get(user) ?? { points: 0, solves: 0 };
-      s.points += points;
-      s.solves += 1;
-      userScore.set(user, s);
-    },
-    async reaccrue({ user, delta }) {
-      const s = userScore.get(user) ?? { points: 0, solves: 0 };
-      s.points += delta; // net adjustment; solve count is NOT bumped
-      userScore.set(user, s);
-    },
     async claimScoreEvent({ challenge, user, bucket }) {
       // attribute_not_exists(sk) once-per-window claim, mirroring claimSolve.
       const k = `${challenge}|${user}|${bucket}`;
@@ -123,13 +113,13 @@ function makeStore(
     },
   };
 
-  return { store, solves, ordinals, userScore, attempts, scoreEvents, state };
+  return { store, solves, ordinals, attempts, scoreEvents, state };
 }
 
 describe("judgeSolve — concurrency & gap-free ordinals (SC-2)", () => {
   it("distinct new users get distinct, gap-free ordinals and each scores once", async () => {
     const ctf = fixtureCtf();
-    const { store, ordinals, userScore, state } = makeStore(ctf);
+    const { store, ordinals, solves, state } = makeStore(ctf);
     const users = ["u1", "u2", "u3", "u4", "u5"];
 
     // Genuinely concurrent submissions of the correct flag.
@@ -148,12 +138,8 @@ describe("judgeSolve — concurrency & gap-free ordinals (SC-2)", () => {
     // Exactly one solver is first blood; each user scored exactly once.
     expect(results.filter((r) => r.firstBlood)).toHaveLength(1);
     for (const user of users) {
-      expect(userScore.get(user)?.solves).toBe(1);
+      expect(solves.has(`${CHALLENGE}|${user}`)).toBe(true);
     }
-    // Per-user totals sum to the expected points (each scored once, no double-count).
-    const sumPerUser = users.reduce((acc, u) => acc + (userScore.get(u)?.points ?? 0), 0);
-    const sumResults = results.reduce((acc, r) => acc + r.points, 0);
-    expect(sumPerUser).toBe(sumResults);
     expect(results.every((r) => r.solved)).toBe(true);
   });
 });
@@ -161,7 +147,7 @@ describe("judgeSolve — concurrency & gap-free ordinals (SC-2)", () => {
 describe("judgeSolve — idempotent re-trigger (SC-2)", () => {
   it("same-user double-submit returns the PRIOR points/ordinal and never re-scores", async () => {
     const ctf = fixtureCtf();
-    const { store, ordinals, userScore, state } = makeStore(ctf);
+    const { store, ordinals, state } = makeStore(ctf);
     const call = () =>
       judgeSolve({ user: "solo", challenge: CHALLENGE, guess: FLAG, channel: "qr" }, { store, now: 0, log: () => {} });
 
@@ -183,11 +169,9 @@ describe("judgeSolve — idempotent re-trigger (SC-2)", () => {
     expect(third.ordinal).toBe(1);
     expect(third.points).toBe(firstPoints);
 
-    // The ordinal counter and user total never moved past the first solve.
+    // The ordinal counter never moved past the first solve.
     expect(ordinals.get(CHALLENGE)).toBe(1); // Ctf.solveCount did NOT double-increment
     expect(state.allocateCalls).toBe(1); // claim-before-allocate: losers never allocate
-    expect(userScore.get("solo")?.points).toBe(firstPoints); // RunUser.ctfScore unchanged
-    expect(userScore.get("solo")?.solves).toBe(1);
   });
 });
 
@@ -256,7 +240,7 @@ describe("judgeSolve — pre-hashed guess path (guessHash) parity", () => {
       { store: rawStore, now: 0, log: () => {} },
     );
 
-    const { store: hashStore, ordinals, userScore } = makeStore(fixtureCtf());
+    const { store: hashStore, ordinals } = makeStore(fixtureCtf());
     const hashed = await judgeSolve(
       { user: "u1", challenge: CHALLENGE, guessHash: hashAnswer(FLAG), channel: "qr" },
       { store: hashStore, now: 0, log: () => {} },
@@ -266,7 +250,6 @@ describe("judgeSolve — pre-hashed guess path (guessHash) parity", () => {
     expect(hashed.solved).toBe(true);
     expect(hashed.firstBlood).toBe(true);
     expect(ordinals.get(CHALLENGE)).toBe(1);
-    expect(userScore.get("u1")?.solves).toBe(1);
   });
 
   it("a wrong guessHash returns the identical NON_SOLVE shape (no claim, no allocate)", async () => {
@@ -281,7 +264,7 @@ describe("judgeSolve — pre-hashed guess path (guessHash) parity", () => {
   });
 
   it("the hashed path is idempotent — a re-claim returns the prior award, never re-scores", async () => {
-    const { store, ordinals, userScore, state } = makeStore(fixtureCtf());
+    const { store, ordinals, state } = makeStore(fixtureCtf());
     const call = () =>
       judgeSolve(
         { user: "solo", challenge: CHALLENGE, guessHash: hashAnswer(FLAG), channel: "qr" },
@@ -293,7 +276,6 @@ describe("judgeSolve — pre-hashed guess path (guessHash) parity", () => {
     expect(second.points).toBe(first.points);
     expect(ordinals.get(CHALLENGE)).toBe(1);
     expect(state.allocateCalls).toBe(1);
-    expect(userScore.get("solo")?.solves).toBe(1);
   });
 
   it("guessHash takes precedence: a correct hash solves even with an empty/absent guess", async () => {
@@ -385,5 +367,34 @@ describe("log hygiene — the raw guess is NEVER logged (SC-3)", () => {
     const dump = JSON.stringify(log.mock.calls);
     expect(dump).not.toContain(FLAG); // raw guess never present
     expect(dump).not.toContain(guessHash); // the submitted hash never present either
+  });
+});
+
+describe("judgeSolve — grant (server-caller, points-consistency Task 6)", () => {
+  it("grant skips answer validation but still claims once-ever", async () => {
+    const ctf = fixtureCtf();
+    const { store } = makeStore(ctf);
+    const r1 = await judgeSolve(
+      { user: "u1", challenge: CHALLENGE, channel: "qr", grant: true },
+      { store, now: 0, log: () => {} },
+    );
+    expect(r1.solved).toBe(true);
+    expect(r1.ordinal).toBe(1);
+    // replay: same user grants again → prior award echoed, no new ordinal.
+    const r2 = await judgeSolve(
+      { user: "u1", challenge: CHALLENGE, channel: "qr", grant: true },
+      { store, now: 0, log: () => {} },
+    );
+    expect(r2.ordinal).toBe(1);
+  });
+
+  it("grant does NOT bypass the enabled gate", async () => {
+    const ctf = fixtureCtf({ enabled: false });
+    const { store } = makeStore(ctf);
+    const res = await judgeSolve(
+      { user: "u1", challenge: CHALLENGE, channel: "qr", grant: true },
+      { store, now: 0, log: () => {} },
+    );
+    expect(res).toEqual({ solved: false, points: 0, ordinal: null, firstBlood: false, capped: false });
   });
 });

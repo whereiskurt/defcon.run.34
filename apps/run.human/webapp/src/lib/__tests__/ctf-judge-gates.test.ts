@@ -20,7 +20,6 @@ import { totpAt } from "../ctf-otp";
  *   - allocateOrdinal is a real global per-challenge counter → globalMax is
  *     enforced off the ordinal, never a partition query.
  *   - overPerPlayerMax counts THIS player's ledger rows for THIS challenge.
- *   - accrue sums into a per-user total (CtfScoreEvent accrues just like CtfSolve).
  *
  * Every gate FAILURE must return the SAME NON_SOLVE shape (indistinguishable —
  * SC-4 / the covert-channel invariant).
@@ -73,7 +72,6 @@ function makeStore(ctf: JudgeCtf | null) {
   const solves = new Map<string, StoredSolve>(); // `${c}|${u}` static CtfSolve
   const events = new Map<string, StoredEvent>(); // `${c}|${u}|${b}` ledger
   const ordinals = new Map<string, number>(); // challenge → solveCount
-  const userScore = new Map<string, { points: number; solves: number }>();
   const attempts = new Map<string, number>();
   const state = { allocateCalls: 0 };
   const sKey = (c: string, u: string) => `${c}|${u}`;
@@ -114,17 +112,6 @@ function makeStore(ctf: JudgeCtf | null) {
     async recordScore({ challenge, user, ordinal, points, firstBlood }) {
       solves.set(sKey(challenge, user), { challenge, user, ordinal, points, firstBlood });
     },
-    async accrue({ user, points }) {
-      const s = userScore.get(user) ?? { points: 0, solves: 0 };
-      s.points += points;
-      s.solves += 1;
-      userScore.set(user, s);
-    },
-    async reaccrue({ user, delta }) {
-      const s = userScore.get(user) ?? { points: 0, solves: 0 };
-      s.points += delta; // net-delta re-score; ctfSolves untouched (main #619)
-      userScore.set(user, s);
-    },
 
     // --- flag-types ops ---
     async hasScoreFor({ challenge, user }) {
@@ -156,7 +143,7 @@ function makeStore(ctf: JudgeCtf | null) {
     },
   };
 
-  return { store, solves, events, ordinals, userScore, attempts, state };
+  return { store, solves, events, ordinals, attempts, state };
 }
 
 // A 6-digit code guaranteed NOT to match any code in the ±1 skew window at `now`.
@@ -178,7 +165,7 @@ function wrongOtpCode(nowSeconds: number): string {
 // ---------------------------------------------------------------------------
 describe("gate — static parity (SC-1)", () => {
   it("a row with no answerType routes through CtfSolve unchanged (never touches the ledger)", async () => {
-    const { store, solves, events, ordinals, userScore } = makeStore(fixtureCtf());
+    const { store, solves, events, ordinals } = makeStore(fixtureCtf());
     const res = await judgeSolve(
       { user: "u1", challenge: CHALLENGE, guess: FLAG, channel: "qr" },
       { store, now: 0, log: () => {} },
@@ -191,8 +178,6 @@ describe("gate — static parity (SC-1)", () => {
     expect(solves.size).toBe(1);
     expect(events.size).toBe(0);
     expect(ordinals.get(CHALLENGE)).toBe(1);
-    expect(userScore.get("u1")?.solves).toBe(1);
-    expect(userScore.get("u1")?.points).toBe(res.points);
   });
 });
 
@@ -264,7 +249,7 @@ describe("gate — otp answer-type dispatch (CTFT-04)", () => {
     });
 
   it("a valid current TOTP code solves", async () => {
-    const { store, events, userScore } = makeStore(ctf());
+    const { store, events } = makeStore(ctf());
     const code = totpAt(OTP_SECRET, nowSec, { period: OTP_PERIOD });
     const res = await judgeSolve(
       { user: "u1", challenge: CHALLENGE, guess: code, channel: "qr" },
@@ -273,7 +258,6 @@ describe("gate — otp answer-type dispatch (CTFT-04)", () => {
     expect(res.solved).toBe(true);
     expect(res.points).toBeGreaterThan(0);
     expect(events.size).toBe(1); // scored onto the ledger, not CtfSolve
-    expect(userScore.get("u1")?.solves).toBe(1);
   });
 
   it("an invalid code is an indistinguishable NON_SOLVE (never touches the ledger)", async () => {
@@ -302,8 +286,8 @@ describe("gate — atomic once-per-window (SC-3)", () => {
       perPlayerMax: 100,
     });
 
-  it("two concurrent identical rolling-code submits in the same bucket accrue EXACTLY once", async () => {
-    const { store, events, userScore, ordinals, state } = makeStore(ctf());
+  it("two concurrent identical rolling-code submits in the same bucket score EXACTLY once", async () => {
+    const { store, events, ordinals, state } = makeStore(ctf());
     const code = totpAt(OTP_SECRET, sec1, { period: OTP_PERIOD });
 
     const [a, b] = await Promise.all([
@@ -323,15 +307,14 @@ describe("gate — atomic once-per-window (SC-3)", () => {
     expect(scored).toHaveLength(1);
     expect(missed).toHaveLength(1);
     expect(missed[0]).toEqual(NON_SOLVE);
-    // The ledger holds ONE row for this window; the user accrued once.
+    // The ledger holds ONE row for this window.
     expect(events.size).toBe(1);
-    expect(userScore.get("u1")?.solves).toBe(1);
     expect(ordinals.get(CHALLENGE)).toBe(1);
     expect(state.allocateCalls).toBe(1); // claim-before-allocate: the loser never allocated
   });
 
   it("a submit in the NEXT window scores again", async () => {
-    const { store, events, userScore } = makeStore(ctf());
+    const { store, events } = makeStore(ctf());
     const code1 = totpAt(OTP_SECRET, sec1, { period: OTP_PERIOD });
     const first = await judgeSolve(
       { user: "u1", challenge: CHALLENGE, guess: code1, channel: "qr" },
@@ -349,10 +332,10 @@ describe("gate — atomic once-per-window (SC-3)", () => {
     expect(second.solved).toBe(true);
     expect(second.points).toBeGreaterThan(0);
 
-    // Two distinct windows ⇒ two ledger rows ⇒ two accruals.
+    // Two distinct windows ⇒ two ledger rows.
     expect(events.size).toBe(2);
-    expect(userScore.get("u1")?.solves).toBe(2);
-    expect(userScore.get("u1")?.points).toBe(first.points + second.points);
+    const total = [...events.values()].reduce((acc, e) => acc + e.points, 0);
+    expect(total).toBe(first.points + second.points);
   });
 });
 
@@ -365,7 +348,7 @@ describe("gate — perPlayerMax (SC-3)", () => {
     fixtureCtf({ perPlayerIntervalHours: 1, perPlayerMax: 2 });
 
   it("scores at most perPlayerMax times, then withholds (indistinguishable)", async () => {
-    const { store, userScore } = makeStore(ctf());
+    const { store, events } = makeStore(ctf());
     const base = 1_700_000_000_000;
     const submit = (now: number) =>
       judgeSolve(
@@ -380,19 +363,22 @@ describe("gate — perPlayerMax (SC-3)", () => {
     expect(r1.solved).toBe(true);
     expect(r2.solved).toBe(true);
     expect(r3).toEqual(NON_SOLVE);
-    expect(userScore.get("u1")?.solves).toBe(2); // capped at 2 accruals
+    // window 3's once-per-window claim still creates a row before the perPlayerMax
+    // gate rejects it (claim-before-cap), so only the SCORED rows are capped at 2.
+    const scoredEvents = [...events.values()].filter((e) => e.points > 0);
+    expect(scoredEvents).toHaveLength(2);
   });
 });
 
 // ---------------------------------------------------------------------------
-// (6) globalMax — the (globalMax+1)-th event awards 0 / no accrue (T-53-03-03).
+// (6) globalMax — the (globalMax+1)-th event awards 0 / no award (T-53-03-03).
 // ---------------------------------------------------------------------------
 describe("gate — globalMax hard cutoff (SC-3)", () => {
   const ctf = () =>
     fixtureCtf({ perPlayerIntervalHours: 1, globalMax: 1 });
 
-  it("the second global scoring event returns points 0 / no accrue, via the atomic ordinal", async () => {
-    const { store, userScore, ordinals } = makeStore(ctf());
+  it("the second global scoring event returns points 0, via the atomic ordinal", async () => {
+    const { store, ordinals } = makeStore(ctf());
     const now = 1_700_000_000_000;
 
     const a = await judgeSolve(
@@ -414,37 +400,7 @@ describe("gate — globalMax hard cutoff (SC-3)", () => {
     expect(b.points).toBe(0); // ...but awards nothing (globalMax=1)
     expect(b.capped).toBe(true);
 
-    // The global ordinal advanced; only uA accrued.
+    // The global ordinal advanced.
     expect(ordinals.get(CHALLENGE)).toBe(2);
-    expect(userScore.get("uA")?.points).toBe(a.points);
-    expect(userScore.get("uB")).toBeUndefined(); // no accrue for the capped event
-  });
-});
-
-// ---------------------------------------------------------------------------
-// (7) accrual parity — CtfScoreEvent sums into the per-user total like CtfSolve.
-// ---------------------------------------------------------------------------
-describe("gate — CtfScoreEvent accrual parity (SC-6)", () => {
-  const HOUR_MS = 3600 * 1000;
-  it("a player's ledger events sum into RunUser.ctfScore exactly as CtfSolve would", async () => {
-    const { store, userScore, events } = makeStore(
-      fixtureCtf({ perPlayerIntervalHours: 1, perPlayerMax: 10 }),
-    );
-    const base = 1_700_000_000_000;
-    const r1 = await judgeSolve(
-      { user: "u1", challenge: CHALLENGE, guess: FLAG, channel: "qr" },
-      { store, now: base, log: () => {} },
-    );
-    const r2 = await judgeSolve(
-      { user: "u1", challenge: CHALLENGE, guess: FLAG, channel: "qr" },
-      { store, now: base + HOUR_MS, log: () => {} },
-    );
-
-    expect(r1.solved).toBe(true);
-    expect(r2.solved).toBe(true);
-    expect(events.size).toBe(2);
-    // The per-user total is the exact sum of the two scoring events.
-    expect(userScore.get("u1")?.solves).toBe(2);
-    expect(userScore.get("u1")?.points).toBe(r1.points + r2.points);
   });
 });

@@ -86,8 +86,8 @@ export async function handleCovert(req: Request, deps: CovertDeps = {}): Promise
     const getSession = deps.getSession ?? defaultGetSession;
     const session = await getSession();
     // Player key = the Auth.js adapter uuid (`RunUser.userId` space), never the
-    // OIDC sub: judgeSolve accrues `RunUser.ctfScore` on this row and the CTF
-    // leaderboard joins on it, so the covert credit MUST key on `session.user.id`.
+    // OIDC sub: the solve event is keyed on this row and the CTF leaderboard
+    // joins on it, so the covert credit MUST key on `session.user.id`.
     const userId = session?.user?.id;
     const player =
       typeof userId === "string" && userId.length > 0 ? userId : null;
@@ -95,8 +95,9 @@ export async function handleCovert(req: Request, deps: CovertDeps = {}): Promise
     // Signed-in: judge the covert solve. A credited (points > 0) solve — first
     // hit OR idempotent replay of a prior award — renders the win sheet; every
     // other result (wrong, disabled, capped-to-0) renders the decoy. A CTF-admin
-    // operator re-fire re-scores against the current config and bypasses the
-    // attempt cap (see judgeSolve `admin`), so operators can test the egg loop.
+    // operator bypasses the attempt cap (see judgeSolve `admin`), so operators
+    // can test the egg loop; an already-solved flag always echoes the frozen
+    // prior award — the judge no longer re-scores in place (points-consistency).
     if (player) {
       const judge = deps.judge ?? judgeSolve;
       const result = await judge({ user: player, challenge, guess, channel: "covert", admin: isCtfAdmin(session) });
