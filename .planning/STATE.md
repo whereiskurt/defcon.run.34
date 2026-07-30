@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
 status: Ready to plan
-stopped_at: Completed 69-06-PLAN.md (meshtk upstream PR #29 merged @ 8747f1da; monorepo vendor-sync PR #1106 merged @ f7d19592; both behind fully green mechanical merge gates; VERSION untouched at v0.0.75)
-last_updated: "2026-07-30T14:55:42.879Z"
+stopped_at: "Completed 69-07-PLAN.md — meshtk v0.0.76 LIVE on run-mqtt-use1-dc34:119 (buildpub 30556427674, deploy 30556951618); 7/7 probes PASS post-fix vs 5/5 defect probes FAIL pre-fix; MQFX-05 + MQFX-06 satisfied; Phase 69 COMPLETE"
+last_updated: "2026-07-30T15:57:33.131Z"
 last_activity: 2026-07-30
 progress:
   total_phases: 31
-  completed_phases: 18
+  completed_phases: 19
   total_plans: 88
-  completed_plans: 84
-  percent: 58
+  completed_plans: 85
+  percent: 61
 current_phase: 70
 current_phase_name: gpx-studio-shared-dialog-shell-map-layers-my-maps
 ---
@@ -148,6 +148,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 69-05: empty-filter-list SUBSCRIBE refusal lives in the HAND parser only — paho accepts an empty subscription list (probed), so widening fail-closed to frames the codec reads fine is outside MQFX-04
 - [Phase ?]: 69-05: CONNECT failure branches N=4 answered with malformed-packet 0x81 not 0x84 (the proxy DOES speak level 5; 0x84 to a level-5 CONNECT is the mqttastic retry loop); answered=0x81 added to each MQTT5_PARSE_FAIL line
 - [Phase ?]: 69-05: retired accepted risk T-68-06-05 — only a SUBSCRIBE whose own length prefixes contradict its bytes now fails closed, and the client gets a DISCONNECT reason code instead of a silent close
+- [Phase ?]: 69-07: deployed with pr_number=skip, never latest — an UNRELATED run.human Release PR (#1109) was dispatched mid-rolling-replace, so latest would have --admin-merged another team's work outside the Phase-69 waiver
+- [Phase ?]: 69-07: the probe script was NOT edited between the PRE baseline and the POST contrast, even to fix loose prose — identical committed bytes outrank cosmetics, which is what makes the contrast a measurement
+- [Phase ?]: 69-07: the ECS drain gate is polling the OLD task to STOPPED — deploy.yml went green at 15:32:13Z but the old task served every long-lived MQTT connection until 15:41:35Z
 
 ### Pending Todos
 
@@ -157,11 +160,12 @@ None.
 
 - [v1.4 / Phase 19 — HARDWARE-IN-LOOP]: **tlora-t3s3 flashMode 'dio' boot** — verify the explicit branch (`use-flash.ts:104-106`) produces a bootable tlora-t3s3 device. Only remaining v1.4 open item — Kurt didn't have a tlora-t3s3 during 2026-07-02 hardware verification.
 - 39-06 Task 2 live SC-3 proof pending operator: run copy:import with STRAPI_WRITE_TOKEN in both apps, then edit one common.* CMS row and confirm wording changes in BOTH bib and run.human live
+- 69-07 FINDING (non-blocking): the Meshtastic Apple/iOS client (username e9ced815b0ee, node !174e59c8) sets an MQTT Will on every reconnect, so accepted risk T-69-03-05 has turned real — 8 action=WILL_STRIPPED lines in ~16 min post-deploy. Blast radius measured as ZERO: will_topic=/will has no subscribers anywhere on the fleet and will_bytes=6 carries no ServiceEnvelope. If a consumer is ever wanted, route that Will through the decider rather than dropping it.
 
 ## Session Continuity
 
-Last session: 2026-07-30T14:55:42.871Z
-Stopped at: Completed 69-06-PLAN.md (meshtk upstream PR #29 merged @ 8747f1da behind a 9/9 gate; monorepo vendor-sync PR #1106 merged @ f7d19592 behind a 7/7 gate re-run at merge time; VERSION untouched at v0.0.75 — 69-07 releases and deploys)
+Last session: 2026-07-30T15:57:33.043Z
+Stopped at: Completed 69-07-PLAN.md — meshtk v0.0.76 LIVE on run-mqtt-use1-dc34:119 (buildpub 30556427674, deploy 30556951618); 7/7 probes PASS post-fix vs 5/5 defect probes FAIL pre-fix; MQFX-05 + MQFX-06 satisfied; Phase 69 COMPLETE
 Resume file: None
 
 ## Operator Next Steps
@@ -227,3 +231,4 @@ Resume file: None
 | Phase 69 P04 | 35m | 2 tasks | 4 files |
 | Phase 69 P05 | 30m | 2 tasks | 6 files |
 | Phase 69 P06 | ~12m | 3 tasks | 18 files |
+| Phase 69 P07 | ~50m | 3 tasks | 4 files |
