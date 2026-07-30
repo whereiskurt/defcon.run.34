@@ -25,6 +25,7 @@ const mockAuth = vi.fn();
 const mockRevalidateAdmin = vi.fn();
 const mockGetSubByAdapterUserId = vi.fn();
 const mockBustDrillCache = vi.fn();
+const mockRescoreBestEffort = vi.fn();
 
 vi.mock("@/config/auth", () => ({
   auth: (...a: unknown[]) => mockAuth(...a),
@@ -36,6 +37,9 @@ vi.mock("@/entities/auth-user", () => ({
 }));
 vi.mock("@/lib/leaderboard-drill-cache", () => ({
   bustDrillCache: (...a: unknown[]) => mockBustDrillCache(...a),
+}));
+vi.mock("@/lib/rescore", () => ({
+  rescoreBestEffort: (...a: unknown[]) => mockRescoreBestEffort(...a),
 }));
 vi.mock("@/config", () => ({
   config: { auth: { internalSecret: "s3cr3t" } },
@@ -61,6 +65,7 @@ beforeEach(() => {
   mockRevalidateAdmin.mockReset();
   mockGetSubByAdapterUserId.mockReset();
   mockBustDrillCache.mockReset();
+  mockRescoreBestEffort.mockReset();
   global.fetch = vi.fn();
 });
 
@@ -135,6 +140,7 @@ describe("POST /api/admin/users/[userId]/recalculate", () => {
       })
     );
     expect(mockBustDrillCache).toHaveBeenCalledWith("runner-9");
+    expect(mockRescoreBestEffort).toHaveBeenCalledWith("runner-9");
   });
 
   it("502s when the upstream reconcile call fails, without busting the cache", async () => {
@@ -150,6 +156,7 @@ describe("POST /api/admin/users/[userId]/recalculate", () => {
     expect(res.status).toBe(502);
     expect(await res.json()).toEqual({ error: "reconcile failed" });
     expect(mockBustDrillCache).not.toHaveBeenCalled();
+    expect(mockRescoreBestEffort).not.toHaveBeenCalled();
   });
 
   it("502s when the upstream fetch itself throws", async () => {
@@ -161,5 +168,6 @@ describe("POST /api/admin/users/[userId]/recalculate", () => {
     expect(res.status).toBe(502);
     expect(await res.json()).toEqual({ error: "reconcile failed" });
     expect(mockBustDrillCache).not.toHaveBeenCalled();
+    expect(mockRescoreBestEffort).not.toHaveBeenCalled();
   });
 });

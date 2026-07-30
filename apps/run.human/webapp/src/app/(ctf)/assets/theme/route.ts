@@ -3,6 +3,7 @@ import { buildDecoySheet, buildWinSheet } from "@/lib/ctf-covert-css";
 import { isCtfAdmin } from "@/lib/admin-gate";
 import { normalizeChallenge } from "@/lib/qr-admin";
 import { judgeSolve } from "@/lib/ctf-judge";
+import { rescoreBestEffort } from "@/lib/rescore";
 
 /**
  * The COVERT text/css channel (CTF-07/08/09) at `/use1/assets/theme`.
@@ -60,6 +61,7 @@ type CovertSession = { user?: { id?: string; services?: string[] } } | null;
 export interface CovertDeps {
   getSession?: () => Promise<CovertSession>;
   judge?: typeof judgeSolve;
+  rescore?: typeof rescoreBestEffort;
 }
 
 /** Lazy default so the test seam (and route import) never loads NextAuth. */
@@ -101,6 +103,10 @@ export async function handleCovert(req: Request, deps: CovertDeps = {}): Promise
     if (player) {
       const judge = deps.judge ?? judgeSolve;
       const result = await judge({ user: player, challenge, guess, channel: "covert", admin: isCtfAdmin(session) });
+      if (result.solved === true) {
+        const rescore = deps.rescore ?? rescoreBestEffort;
+        await rescore(player);
+      }
       if (result.solved && result.points > 0) return cssResponse(buildWinSheet(result.points));
       return cssResponse(buildDecoySheet());
     }

@@ -103,6 +103,7 @@ function makeDeps(opts: {
   log: (o: unknown) => void;
   userId: string | null;
   services?: string[];
+  rescore?: (userId: string) => Promise<void>;
 }): Deps {
   return {
     getSession: async () =>
@@ -111,6 +112,7 @@ function makeDeps(opts: {
       // `services` drives the CTF-admin override gate (isCtfAdmin).
       opts.userId ? { user: { id: opts.userId, services: opts.services } } : null,
     judge: (input) => judgeSolve(input, { store: opts.store, now: 0, log: opts.log }),
+    rescore: opts.rescore ?? (async () => {}),
   };
 }
 
@@ -127,6 +129,7 @@ async function run(opts: {
   ctf?: JudgeCtf | null;
   log?: (o: unknown) => void;
   ctxOverride?: ReturnType<typeof makeCtfStore>;
+  rescore?: (userId: string) => Promise<void>;
 }) {
   const ctx = opts.ctxOverride ?? makeCtfStore(opts.ctf ?? fixtureCtf());
   const log = opts.log ?? (() => {});
@@ -137,6 +140,7 @@ async function run(opts: {
       log,
       userId: opts.userId,
       services: opts.services,
+      rescore: opts.rescore,
     }),
   );
   const body = await res.text();
@@ -325,5 +329,40 @@ describe("covert route — log hygiene (CTF-08, T-46-05)", () => {
     const garbageLog = vi.fn();
     await run({ v: "garbage", userId: "u1", log: garbageLog });
     expect(garbageLog).not.toHaveBeenCalled();
+  });
+});
+
+describe("covert route — rescore wiring (points-consistency)", () => {
+  it("a credited win fires rescoreBestEffort(player)", async () => {
+    const rescore = vi.fn(async () => {});
+    await run({ v: winV(), userId: "u1", rescore });
+    expect(rescore).toHaveBeenCalledWith("u1");
+  });
+
+  it("a wrong guess never fires rescore", async () => {
+    const rescore = vi.fn(async () => {});
+    await run({ v: wrongV(), userId: "u1", rescore });
+    expect(rescore).not.toHaveBeenCalled();
+  });
+
+  it("an unauth fire never fires rescore", async () => {
+    const rescore = vi.fn(async () => {});
+    await run({ v: winV(), userId: null, rescore });
+    expect(rescore).not.toHaveBeenCalled();
+  });
+
+  it("a capped win (points 0, still solved:true) still fires rescore", async () => {
+    const rescore = vi.fn(async () => {});
+    await run({ v: winV(), userId: "u1", ctf: fixtureCtf({ maxSolves: 0 }), rescore });
+    expect(rescore).toHaveBeenCalledWith("u1");
+  });
+
+  it("an already-solved replay fires rescore again (idempotent, harmless)", async () => {
+    const rescore = vi.fn(async () => {});
+    const ctx = makeCtfStore(fixtureCtf());
+    await run({ v: winV(), userId: "u1", ctxOverride: ctx, rescore });
+    await run({ v: winV(), userId: "u1", ctxOverride: ctx, rescore });
+    expect(rescore).toHaveBeenCalledTimes(2);
+    expect(rescore).toHaveBeenCalledWith("u1");
   });
 });

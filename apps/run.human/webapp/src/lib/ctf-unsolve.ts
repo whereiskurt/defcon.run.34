@@ -13,8 +13,8 @@
  *
  *   1. Counter math must FLOOR at 0. DynamoDB atomic ADD cannot clamp, so the
  *      executor read-modify-writes through {@link computeCounterUpdate} — a
- *      decrement can never persist a negative score/solve count (mirrors
- *      updateRunUserActivityCounts).
+ *      decrement can never persist a negative score/solve count (the same
+ *      floor-at-0 discipline the old activity rollup writer used to apply).
  *
  *   2. Ctf.solveCount / ordinal integrity. Deleting a solve must NOT rewind
  *      solveCount when OTHER runners still hold solves on that challenge — that
