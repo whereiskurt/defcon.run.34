@@ -3,16 +3,21 @@ import { TOKEN_RE } from "./short-token";
 import { pairKey, applyScoreDelta } from "./social-rank";
 import { RunnerToken } from "@/entities/runner-token";
 import { RunUser, getUserByHash } from "@/entities/run-user";
-import { SocialPair, SocialQuota, SocialEgg } from "@/entities/social";
+import { SocialPair, SocialQuota } from "@/entities/social";
 import { CtfScoreEvent } from "@/entities/ctf";
 
 /**
  * Social-scan judge (runner social QR).
  *
- * Mutual award: scanning another runner's QR credits BOTH parties
- * (+1 socialScore, +1 ctfScore), once per unordered pair per PT day,
- * scanner capped at DAILY_SCAN_CAP successful scans/day. The DC-jack egg is
- * a once-ever +10/+25 for the QR's owner.
+ * Mutual award: scanning another runner's QR credits BOTH parties +1
+ * socialScore, once per unordered pair per PT day, scanner capped at
+ * DAILY_SCAN_CAP successful scans/day. socialScore is a cosmetic meter
+ * (drives the whoami QR rank bands) — it awards ZERO score points. The
+ * scan-day ledger rows exist only to light social streak days; they are
+ * valued (or not) by lib/scoring-engine, never by this module. The
+ * DC-jack egg is routed through lib/ctf-judge (see app/api/social-egg) so
+ * its points, if any, come from the judge's derived scoring, not a
+ * hardcoded constant here.
  *
  * Store seam mirrors lib/ctf-judge.ts: pure judge over an injectable
  * ScanStore; defaultScanStore is the ElectroDB implementation. The
@@ -22,10 +27,6 @@ import { CtfScoreEvent } from "@/entities/ctf";
  */
 
 export const DAILY_SCAN_CAP = 50;
-export const SCAN_SOCIAL_POINTS = 1;
-export const SCAN_CTF_POINTS = 1;
-export const EGG_SOCIAL_POINTS = 10;
-export const EGG_CTF_POINTS = 25;
 
 const HASH_RE = /^[0-9a-f]{64}$/;
 
@@ -48,10 +49,8 @@ export type ScanStore = {
   ): Promise<boolean>;
   /** ADD 1 to the scanner's day counter; returns the NEW count. */
   bumpQuota(userId: string, day: string): Promise<number>;
-  /** Conditional create of the once-ever egg row; false ⇒ already claimed. */
-  claimEggOnce(userId: string, via: string): Promise<boolean>;
-  /** RunUser.patch add socialScore/ctfScore. */
-  award(userId: string, social: number, ctf: number): Promise<void>;
+  /** RunUser.patch add socialScore — the cosmetic meter only. */
+  award(userId: string, social: number): Promise<void>;
   /** CtfScoreEvent ledger row; duplicates swallowed. */
   ledger(
     challenge: string,
@@ -64,15 +63,11 @@ export type ScanStore = {
 };
 
 export type ScanResult =
-  | { ok: true; ownerName: string; remainingToday: number }
+  | { ok: true; ownerId: string; ownerName: string; remainingToday: number }
   | {
       ok: false;
       code: "bad_token" | "not_found" | "self" | "already_today" | "cap";
     };
-
-export type EggResult =
-  | { ok: true; social: number; ctf: number }
-  | { ok: false; code: "already" };
 
 export async function judgeScan(
   input: {
@@ -121,16 +116,16 @@ export async function judgeScan(
   try {
     const scanner = await store.getUser(scannerId);
     await Promise.all([
-      store.award(scannerId, SCAN_SOCIAL_POINTS, SCAN_CTF_POINTS),
-      store.award(owner.userId, SCAN_SOCIAL_POINTS, SCAN_CTF_POINTS),
-      store.ledger("social-scan", scannerId, bucket, SCAN_CTF_POINTS),
-      store.ledger("social-scan", owner.userId, bucket, SCAN_CTF_POINTS),
+      store.award(scannerId, 1),
+      store.award(owner.userId, 1),
+      store.ledger("social-scan", scannerId, bucket, 0),
+      store.ledger("social-scan", owner.userId, bucket, 0),
     ]);
     const scannerOld = scanner?.socialScore ?? 0;
     const ownerOld = owner.socialScore ?? 0;
     await Promise.all([
-      store.scoreDelta(scannerOld, scannerOld + SCAN_SOCIAL_POINTS),
-      store.scoreDelta(ownerOld, ownerOld + SCAN_SOCIAL_POINTS),
+      store.scoreDelta(scannerOld, scannerOld + 1),
+      store.scoreDelta(ownerOld, ownerOld + 1),
     ]);
   } catch (err) {
     console.error("[social-scan] partial award failure (pair claimed)", err);
@@ -138,28 +133,10 @@ export async function judgeScan(
 
   return {
     ok: true,
+    ownerId: owner.userId,
     ownerName: owner.displayName || "a runner",
     remainingToday: Math.max(0, DAILY_SCAN_CAP - count),
   };
-}
-
-export async function claimEgg(
-  userId: string,
-  via: string,
-  store: ScanStore
-): Promise<EggResult> {
-  const claimed = await store.claimEggOnce(userId, via);
-  if (!claimed) return { ok: false, code: "already" };
-  try {
-    const me = await store.getUser(userId);
-    await store.award(userId, EGG_SOCIAL_POINTS, EGG_CTF_POINTS);
-    await store.ledger("jack-egg", userId, "once", EGG_CTF_POINTS);
-    const old = me?.socialScore ?? 0;
-    await store.scoreDelta(old, old + EGG_SOCIAL_POINTS);
-  } catch (err) {
-    console.error("[social-scan] egg award failure (claim burned)", err);
-  }
-  return { ok: true, social: EGG_SOCIAL_POINTS, ctf: EGG_CTF_POINTS };
 }
 
 // ---------------------------------------------------------------------------
@@ -206,18 +183,8 @@ export const defaultScanStore: ScanStore = {
       .go({ response: "all_new" });
     return result.data?.count ?? DAILY_SCAN_CAP + 1;
   },
-  async claimEggOnce(userId, via) {
-    try {
-      await SocialEgg.create({ userId, via }).go();
-      return true;
-    } catch {
-      return false;
-    }
-  },
-  async award(userId, social, ctf) {
-    await RunUser.patch({ userId })
-      .add({ socialScore: social, ctfScore: ctf })
-      .go();
+  async award(userId, social) {
+    await RunUser.patch({ userId }).add({ socialScore: social }).go();
   },
   async ledger(challenge, user, bucket, points) {
     try {

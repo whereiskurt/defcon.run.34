@@ -35,6 +35,12 @@ export interface ScoringConfig {
   firstBloodBonus: number;
   /** Optional active-window ceilings; first half-open [from,to) match wins. */
   timeTiers?: TimeTier[];
+  /**
+   * When true, solvers beyond maxSolves get pointFloor instead of 0 — decay
+   * runs over the first maxSolves solvers, then the value is flat forever.
+   * Used by the DC34 payphone flags (200→100 over 25 solvers).
+   */
+  floorAfterMax?: boolean;
 }
 
 /** Coerce a Date | number clock to epoch ms; defaults to Date.now(). */
@@ -73,7 +79,7 @@ export function computePoints(
   ctf: ScoringConfig,
   now?: Date | number,
 ): number {
-  if (n > ctf.maxSolves) return 0; // over the cap → no points
+  if (n > ctf.maxSolves) return ctf.floorAfterMax ? ctf.pointFloor : 0; // over the cap → floor or 0
 
   const ceiling = activeTierCeiling(toMs(now), ctf.timeTiers) ?? ctf.pointMax;
   const span = ceiling - ctf.pointFloor;

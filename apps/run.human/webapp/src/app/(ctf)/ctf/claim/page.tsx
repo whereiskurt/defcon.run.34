@@ -4,6 +4,7 @@ import { isCtfAdmin } from "@/lib/admin-gate";
 import { normalizeChallenge } from "@/lib/qr-admin";
 import { judgeSolve } from "@/lib/ctf-judge";
 import { createPending, claimPending } from "@/lib/ctf-pending";
+import { rescoreBestEffort } from "@/lib/rescore";
 import ClaimClient from "./ClaimClient";
 
 export const runtime = "nodejs";
@@ -62,7 +63,8 @@ export const metadata = {
  * `session.user.authUserId`, never an id from the query/cookie. This is the
  * key space `RunUser.userId` lives in: scoring writes `RunUser.ctfScore` via
  * `RunUser.patch({ userId: user })` and the CTF leaderboard joins on that same
- * RunUser row, so the player id MUST be `session.user.id` to accrue and rank
+ * RunUser row, so the player id MUST be `session.user.id` for the solve — and
+ * the `rescoreBestEffort` it triggers — to land on the right row and rank
  * (using the OIDC sub here patches a nonexistent row → the score is lost). A
  * missing/empty id falls through to the anonymous park-and-claim path (never
  * passes `undefined` to judgeSolve).
@@ -104,6 +106,7 @@ export default async function ClaimPage({
   // nonce is an idempotent non-award (claimPending returns NON_SOLVE).
   if (player && linkNonce) {
     const result = await claimPending(linkNonce, player);
+    if (result.solved === true) await rescoreBestEffort(player);
     return <ClaimClient mode="result" result={result} clearNonce />;
   }
 
@@ -114,8 +117,9 @@ export default async function ClaimPage({
   }
 
   // (A) SIGNED-IN + params → judge the solve now. A CTF-admin operator re-submit
-  // re-scores against the current config (idempotent) and bypasses the attempt
-  // cap — see judgeSolve `admin`. Non-admins are unaffected.
+  // bypasses the attempt cap — see judgeSolve `admin` — but does NOT re-score an
+  // already-solved flag in place; it always echoes the frozen prior award.
+  // Non-admins are unaffected.
   if (player && challenge && guess) {
     const result = await judgeSolve({
       user: player,
@@ -124,6 +128,7 @@ export default async function ClaimPage({
       channel: "qr",
       admin: isCtfAdmin(session),
     });
+    if (result.solved === true) await rescoreBestEffort(player);
     return <ClaimClient mode="result" result={result} />;
   }
 
@@ -139,6 +144,7 @@ export default async function ClaimPage({
     const nonce = cookieStore.get("ctf_pending")?.value;
     if (nonce) {
       const result = await claimPending(nonce, player);
+      if (result.solved === true) await rescoreBestEffort(player);
       return <ClaimClient mode="result" result={result} clearNonce />;
     }
   }

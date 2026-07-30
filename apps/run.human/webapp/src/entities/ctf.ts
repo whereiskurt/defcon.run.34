@@ -102,6 +102,9 @@ export const CtfScoreEvent = new Entity(
       // Time-window token; makes the sk once-per-window (see scoreBucket).
       bucket: { type: "string", required: true },
       points: { type: "number" },
+      // The global solve ordinal allocated for this event (frozen history; the
+      // derived scoring engine re-values from it). Absent on pre-DC34 rows.
+      ordinal: { type: "number" },
       channel: { type: ["qr", "covert"] as const },
       scoredAt: { type: "string" }, // UTC-ISO
       tierCeiling: { type: "number" }, // audit: ceiling in effect at score time
@@ -332,6 +335,7 @@ export type CtfScoreEventItem = {
   user: string;
   bucket: string;
   points?: number;
+  ordinal?: number;
   channel?: "qr" | "covert";
   scoredAt?: string;
   tierCeiling?: number;

@@ -42,6 +42,14 @@ describe("globalScore", () => {
   it("reads an empty row as 0 (never NaN/throw)", () => {
     expect(globalScore({})).toBe(0);
   });
+
+  it("prefers the derived score over the legacy activity+ctf sum (points-consistency)", () => {
+    expect(globalScore({ score: 725, activityScore: 3, ctfScore: 9 })).toBe(725);
+  });
+
+  it("falls back to activityScore + ctfScore when score is unset (not yet rescored)", () => {
+    expect(globalScore({ activityScore: 3, ctfScore: 9 })).toBe(12);
+  });
 });
 
 describe("POINTS", () => {

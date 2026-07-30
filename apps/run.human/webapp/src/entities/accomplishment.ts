@@ -1,6 +1,6 @@
 import { Entity, type EntityItem } from "electrodb";
 import { electroClient, ELECTRO_TABLE } from "./client";
-import { updateRunUserActivityCounts } from "./run-user";
+import { rescoreBestEffort } from "@/lib/rescore";
 
 /**
  * Accomplishment ElectroDB Entity (Phase 49, LDBR-01)
@@ -232,6 +232,8 @@ export interface CreateAccomplishmentInput {
   completedAt: number;
   year?: number;
   isPrivate?: boolean;
+  // Audit trail only — recorded on the row but the scoring engine (rescoreUser)
+  // derives points itself from the ledger; this value is never read back into a score.
   points: number;
   checkInId?: string;
   gpxFileId?: string;
@@ -262,14 +264,9 @@ function externalIdFor(
  *
  * IDEMPOTENT (T-49-05): the id is deterministic (`accomplishmentIdFor`), so a
  * replayed create lands on the same primary sk. We `get` that id first; if the
- * row already exists we return it WITHOUT a second write or a second rollup
- * bump — no double-scoring. Only a genuinely new row bumps
- * `RunUser.activityScore` / `activityCounts.<source>` via
- * updateRunUserActivityCounts (the sole rollup writer, increment:true).
- *
- * All three sources (checkin/gpx/strava) bump `RunUser.activityScore` /
- * `activityCounts.<source>` via updateRunUserActivityCounts (the sole rollup
- * writer, increment:true).
+ * row already exists we return it WITHOUT a second write or a second rescore —
+ * no double-scoring. Only a genuinely new row fires `rescoreBestEffort`
+ * (points-consistency) to recompute the user's derived score from the ledger.
  *
  * SERVER-ONLY — do not import into a client component.
  */
@@ -333,15 +330,8 @@ export async function createAccomplishment(input: CreateAccomplishmentInput) {
     metadata,
   }).go();
 
-  // Bump the rollup exactly once, only for a genuinely new row. All three
-  // sources (checkin/gpx/strava) join the rollup — the enum already restricts
-  // `source` to those, so no guard is needed here.
-  await updateRunUserActivityCounts(userId, {
-    source,
-    pointsDelta: points,
-    completedAt,
-    increment: true,
-  });
+  // Recompute the derived score exactly once, only for a genuinely new row.
+  await rescoreBestEffort(userId);
 
   return result.data;
 }
@@ -360,11 +350,9 @@ export async function getAccomplishmentsByUser(userId: string) {
  * Delete an accomplishment row and reverse its rollup contribution (LDBR-01).
  *
  * IDEMPOTENT (T-49-07): gets the row first; if it is already gone this is a
- * no-op with NO decrement — so deleting a missing/foreign row can never drift
- * the rollup negative. Otherwise it deletes the row and decrements the rollup
- * exactly once (updateRunUserActivityCounts, increment:false — floored at 0 by
- * the mutator). All three sources (checkin/gpx/strava) are wired on the rollup
- * side, same as create — the enum already restricts `row.source` to those.
+ * no-op with NO rescore — so deleting a missing/foreign row can never drift
+ * the derived score. Otherwise it deletes the row and fires `rescoreBestEffort`
+ * (points-consistency) exactly once so the score reflects the ledger minus this row.
  *
  * SERVER-ONLY — do not import into a client component.
  */
@@ -374,16 +362,10 @@ export async function deleteAccomplishment(
 ) {
   const existing = await Accomplishment.get({ userId, accomplishmentId }).go();
   if (!existing.data) {
-    return; // idempotent no-op - nothing to delete, nothing to decrement
+    return; // idempotent no-op - nothing to delete, nothing to rescore
   }
-  const row = existing.data;
 
   await Accomplishment.delete({ userId, accomplishmentId }).go();
 
-  await updateRunUserActivityCounts(userId, {
-    source: row.source,
-    pointsDelta: row.metadata?.points ?? 0,
-    completedAt: row.completedAt,
-    increment: false,
-  });
+  await rescoreBestEffort(userId);
 }

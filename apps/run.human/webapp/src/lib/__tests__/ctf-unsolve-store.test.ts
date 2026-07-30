@@ -1,17 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 /**
- * ctf-unsolve-store orchestration test. The pure decisions are proven in
- * ctf-unsolve.test.ts; this locks how applyPlan WIRES them through the entities:
- *   - the ctfSolves decrement counts BOTH ledgers (CtfSolve + CtfScoreEvent),
- *     so a repeatable flag (0 solve rows, N score events) is not left inflated
- *     (the review's finding [0]);
- *   - Ctf.solveCount is reset ONLY where the target was the sole solver, and the
- *     sole-solver test reads the PRE-delete count;
- *   - a user zero sets both counters to 0.
+ * ctf-unsolve-store orchestration test. The pure sole-solver decision is
+ * proven in ctf-unsolve.test.ts; this locks how applyPlan WIRES the ElectroDB
+ * deletes to rescoreUser (points-consistency's SOLE writer of RunUser score
+ * fields) and to the sole-solver Ctf.solveCount reset:
+ *   - rescoreUser is called exactly once per unsolve action, AFTER the row
+ *     deletes, so it always re-derives from the post-delete ledger;
+ *   - a phantom userId (no RunUser row) skips rescoreUser rather than letting
+ *     its patch (item-must-exist) throw;
+ *   - Ctf.solveCount is reset ONLY where the target was the sole solver, and
+ *     the sole-solver test reads the PRE-delete count.
  *
- * The ElectroDB entities are mocked with chainable stubs; we assert on the exact
- * objects handed to RunUser.patch().set() and Ctf.patch().set().
+ * The ElectroDB entities are mocked with chainable stubs; rescoreUser itself
+ * is mocked outright — its own math is proven by rescore.ts's own tests.
  */
 
 const h = vi.hoisted(() => {
@@ -22,10 +24,14 @@ const h = vi.hoisted(() => {
     solveRows: [] as Array<{ challenge: string; user: string; points?: number }>,
     eventRows: [] as Array<{ challenge: string; user: string; bucket: string; points?: number }>,
     primaryCounts: {} as Record<string, number>, // challenge -> total CtfSolve rows
-    user: null as { ctfScore?: number; ctfSolves?: number } | null,
+    userExists: true,
     ctfExists: {} as Record<string, boolean>,
+    rescoreResult: { score: 0, counts: { solves: 0 } } as {
+      score: number;
+      counts: { solves: number };
+    },
     // spies
-    runUserSet: vi.fn(),
+    rescoreUser: vi.fn(),
     ctfPatchSet: vi.fn(),
     solveDelete: vi.fn(),
     eventDelete: vi.fn(),
@@ -74,14 +80,15 @@ vi.mock("@/entities/qr", () => ({
 }));
 
 vi.mock("@/entities/run-user", () => ({
-  getRunUser: vi.fn(() => Promise.resolve(h.user)),
-  RunUser: {
-    patch: vi.fn(() => ({
-      set: (obj: unknown) => {
-        h.runUserSet(obj);
-        return h.goOf({});
-      },
-    })),
+  getRunUser: vi.fn((userId: string) =>
+    Promise.resolve(h.userExists ? { userId } : null)
+  ),
+}));
+
+vi.mock("@/lib/rescore", () => ({
+  rescoreUser: (userId: string) => {
+    h.rescoreUser(userId);
+    return Promise.resolve(h.rescoreResult);
   },
 }));
 
@@ -95,53 +102,64 @@ beforeEach(() => {
   h.solveRows = [];
   h.eventRows = [];
   h.primaryCounts = {};
-  h.user = { ctfScore: 0, ctfSolves: 0 };
+  h.userExists = true;
   h.ctfExists = {};
-  h.runUserSet.mockReset();
+  h.rescoreResult = { score: 0, counts: { solves: 0 } };
+  h.rescoreUser.mockReset();
   h.ctfPatchSet.mockReset();
   h.solveDelete.mockReset();
   h.eventDelete.mockReset();
   h.attemptDelete.mockReset();
 });
 
-describe("unsolveChallenge — repeatable flag (finding [0])", () => {
-  it("decrements ctfSolves by the score-event count, not the (zero) CtfSolve count", async () => {
-    // A repeatable challenge: NO CtfSolve rows, 3 score events × 10 pts.
+describe("unsolveChallenge — rescore wiring (finding [0] repeatable flag)", () => {
+  it("calls rescoreUser once, after the deletes, and reports its result", async () => {
+    // A repeatable challenge: NO CtfSolve rows, 3 score events.
     h.eventRows = [
       { challenge: "daily", user: "u1", bucket: "b1", points: 10 },
       { challenge: "daily", user: "u1", bucket: "b2", points: 10 },
       { challenge: "daily", user: "u1", bucket: "b3", points: 10 },
     ];
-    h.user = { ctfScore: 40, ctfSolves: 3 };
     h.primaryCounts = { daily: 0 };
+    h.rescoreResult = { score: 10, counts: { solves: 0 } };
 
     const r = await unsolveChallenge("u1", "Daily");
 
-    // 40 - 30 = 10 ; 3 - 3 = 0 (the bug left ctfSolves at 3).
-    expect(h.runUserSet).toHaveBeenCalledWith({ ctfScore: 10, ctfSolves: 0 });
+    expect(h.rescoreUser).toHaveBeenCalledTimes(1);
+    expect(h.rescoreUser).toHaveBeenCalledWith("u1");
     expect(h.eventDelete).toHaveBeenCalledTimes(3);
     expect(r.removedScoreEvents).toBe(3);
     expect(r.removedSolves).toBe(0); // reported = actual CtfSolve rows
+    expect(r.nextScore).toBe(10);
+    expect(r.nextSolves).toBe(0);
+  });
+
+  it("skips rescoreUser for a phantom userId (no RunUser row) instead of throwing", async () => {
+    h.solveRows = [{ challenge: "alpha", user: "u1", points: 50 }];
+    h.primaryCounts = { alpha: 1 };
+    h.userExists = false;
+
+    const r = await unsolveChallenge("u1", "alpha");
+
+    expect(h.rescoreUser).not.toHaveBeenCalled();
+    expect(r.nextScore).toBe(0);
+    expect(r.nextSolves).toBe(0);
   });
 });
 
-describe("unsolveChallenge — static flag", () => {
-  it("decrements by the single CtfSolve row's points and 1 solve, floored at 0", async () => {
+describe("unsolveChallenge — static flag / sole-solver reset", () => {
+  it("leaves Ctf.solveCount untouched when another solver still holds the challenge", async () => {
     h.solveRows = [{ challenge: "alpha", user: "u1", points: 50 }];
-    h.user = { ctfScore: 50, ctfSolves: 1 };
     h.primaryCounts = { alpha: 2 }; // another solver exists → NOT sole
     h.ctfExists = { alpha: true };
 
     await unsolveChallenge("u1", "alpha");
 
-    expect(h.runUserSet).toHaveBeenCalledWith({ ctfScore: 0, ctfSolves: 0 });
-    // Multi-solver challenge → solveCount left untouched (ordinals preserved).
     expect(h.ctfPatchSet).not.toHaveBeenCalled();
   });
 
   it("resets Ctf.solveCount to 0 when the target is the SOLE solver", async () => {
     h.solveRows = [{ challenge: "solo", user: "u1", points: 20 }];
-    h.user = { ctfScore: 20, ctfSolves: 1 };
     h.primaryCounts = { solo: 1 }; // sole solver
     h.ctfExists = { solo: true };
 
@@ -153,7 +171,6 @@ describe("unsolveChallenge — static flag", () => {
 
   it("skips the solveCount reset when the Ctf config row is gone (no 500)", async () => {
     h.solveRows = [{ challenge: "ghost", user: "u1", points: 20 }];
-    h.user = { ctfScore: 20, ctfSolves: 1 };
     h.primaryCounts = { ghost: 1 };
     h.ctfExists = { ghost: false }; // config deleted, solve lingered
 
@@ -165,24 +182,27 @@ describe("unsolveChallenge — static flag", () => {
 });
 
 describe("unsolveUser", () => {
-  it("zeroes both counters and deletes every row across both ledgers", async () => {
+  it("rescores exactly once and deletes every row across both ledgers", async () => {
     h.solveRows = [
       { challenge: "alpha", user: "u1", points: 50 },
       { challenge: "beta", user: "u1", points: 30 },
     ];
     h.eventRows = [{ challenge: "daily", user: "u1", bucket: "b1", points: 10 }];
-    h.user = { ctfScore: 90, ctfSolves: 3 };
     h.primaryCounts = { alpha: 1, beta: 2, daily: 0 };
     h.ctfExists = { alpha: true };
+    h.rescoreResult = { score: 0, counts: { solves: 0 } };
 
     const r = await unsolveUser("u1");
 
-    expect(h.runUserSet).toHaveBeenCalledWith({ ctfScore: 0, ctfSolves: 0 });
+    expect(h.rescoreUser).toHaveBeenCalledTimes(1);
+    expect(h.rescoreUser).toHaveBeenCalledWith("u1");
     expect(h.solveDelete).toHaveBeenCalledTimes(2);
     expect(h.eventDelete).toHaveBeenCalledTimes(1);
     // Only the sole-solver challenge (alpha) is reset; beta (2 solvers) is not.
     expect(r.solveCountReset).toEqual(["alpha"]);
     expect(r.removedSolves).toBe(2);
     expect(r.removedScoreEvents).toBe(1);
+    expect(r.nextScore).toBe(0);
+    expect(r.nextSolves).toBe(0);
   });
 });

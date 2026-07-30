@@ -3,6 +3,7 @@ import { auth } from "@auth";
 import { assertNotLockedLive } from "@/lib/live-lockout";
 import { isQrAdmin } from "@/lib/admin-gate";
 import { judgeScan, defaultScanStore } from "@/lib/social-scan";
+import { rescoreBestEffort } from "@/lib/rescore";
 
 /**
  * POST /api/social-scan — mutual scan award.
@@ -39,6 +40,10 @@ export async function POST(req: NextRequest) {
   );
 
   if (result.ok) {
+    await Promise.all([
+      rescoreBestEffort(session.user.id),
+      rescoreBestEffort(result.ownerId),
+    ]);
     return NextResponse.json(result);
   }
   const responses: Record<string, { status: number; message: string }> = {

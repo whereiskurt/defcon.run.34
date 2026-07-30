@@ -17,7 +17,7 @@ import { hashAnswer } from "../ctf-hash";
  *
  * SC1: two concurrent submissions of the SAME unclaimed code → EXACTLY one solve.
  * SC2: a used/unknown code is a NON_SOLVE indistinguishable from a wrong answer;
- *      a valid code scores through the ledger+accrue path.
+ *      a valid code scores through the ledger.
  * The guess/codeHash is NEVER passed to the logger.
  *
  * ⚠ DB-write coverage note: the fake `recordScoreEvent` is a plain array push
@@ -53,15 +53,14 @@ export function wordlistCtf(overrides: Partial<JudgeCtf> = {}): JudgeCtf {
 /**
  * An in-memory CtfStore whose `claimCode` models the conditional single-use claim
  * over a Map seeded with the pre-loaded (unclaimed) codeHashes. `recordScoreEvent`
- * records the ledger row; `accrue` sums per-user.
+ * records the ledger row.
  */
 export function makeWordlistStore(ctf: JudgeCtf | null, seededCodes: string[]) {
   const codes = new Map<string, { claimedBy?: string }>();
   for (const c of seededCodes) codes.set(hashAnswer(c), {});
   const ordinals = new Map<string, number>();
-  const userScore = new Map<string, { points: number; solves: number }>();
   const ledger: Array<{ challenge: string; user: string; bucket: string; points: number }> = [];
-  const state = { accrueCalls: 0, claimCodeCalls: 0, recordScoreEventCalls: 0 };
+  const state = { claimCodeCalls: 0, recordScoreEventCalls: 0 };
 
   const store: CtfStore = {
     async getCtf() {
@@ -83,18 +82,6 @@ export function makeWordlistStore(ctf: JudgeCtf | null, seededCodes: string[]) {
     async recordScore() {
       /* unused on wordlist path */
     },
-    async reaccrue({ user, delta }) {
-      const s = userScore.get(user) ?? { points: 0, solves: 0 };
-      s.points += delta; // net-delta re-score; ctfSolves untouched (main #619)
-      userScore.set(user, s);
-    },
-    async accrue({ user, points }) {
-      state.accrueCalls++;
-      const s = userScore.get(user) ?? { points: 0, solves: 0 };
-      s.points += points;
-      s.solves += 1;
-      userScore.set(user, s);
-    },
     async recordScoreEvent({ challenge, user, bucket, points }) {
       state.recordScoreEventCalls++;
       ledger.push({ challenge, user, bucket, points });
@@ -111,7 +98,7 @@ export function makeWordlistStore(ctf: JudgeCtf | null, seededCodes: string[]) {
     },
   };
 
-  return { store, codes, ordinals, userScore, ledger, state };
+  return { store, codes, ordinals, ledger, state };
 }
 
 describe("judgeSolve wordlist — two-claimers-one-wins race (SC1)", () => {
@@ -128,12 +115,11 @@ describe("judgeSolve wordlist — two-claimers-one-wins race (SC1)", () => {
     expect(winners).toHaveLength(1); // EXACTLY one winner
     expect(losers).toHaveLength(1); // EXACTLY one non-solve
     expect(winners[0].points).toBeGreaterThan(0);
-    expect(state.accrueCalls).toBe(1); // exactly one accrue
     expect(ledger).toHaveLength(1); // exactly one ledger row written
   });
 
   it("a SECOND distinct code by the same user still scores (per-code single-use, not per-user once)", async () => {
-    const { store, ledger, state } = makeWordlistStore(wordlistCtf(), [CODE, CODE2]);
+    const { store, ledger } = makeWordlistStore(wordlistCtf(), [CODE, CODE2]);
 
     const first = await judgeSolve(
       { user: "u1", challenge: CHALLENGE, guess: CODE, channel: "qr" },
@@ -146,7 +132,6 @@ describe("judgeSolve wordlist — two-claimers-one-wins race (SC1)", () => {
 
     expect(first.solved).toBe(true);
     expect(second.solved).toBe(true);
-    expect(state.accrueCalls).toBe(2);
     expect(ledger).toHaveLength(2);
     // Each code maps to its OWN ledger row keyed by that code's hash.
     expect(new Set(ledger.map((l) => l.bucket)).size).toBe(2);
@@ -155,18 +140,17 @@ describe("judgeSolve wordlist — two-claimers-one-wins race (SC1)", () => {
 
 describe("judgeSolve wordlist — used/unknown code ⇒ non-solve (SC2, claimCode semantics)", () => {
   it("an UNKNOWN code (no pre-loaded row) is a non-solve", async () => {
-    const { store, ledger, state } = makeWordlistStore(wordlistCtf(), [CODE]);
+    const { store, ledger } = makeWordlistStore(wordlistCtf(), [CODE]);
     const r = await judgeSolve(
       { user: "u1", challenge: CHALLENGE, guess: "totally-unknown-code", channel: "qr" },
       { store, now: 0, log: () => {} },
     );
     expect(r.solved).toBe(false);
-    expect(state.accrueCalls).toBe(0);
     expect(ledger).toHaveLength(0);
   });
 
   it("an ALREADY-claimed code is a non-solve on the second submit", async () => {
-    const { store, state } = makeWordlistStore(wordlistCtf(), [CODE]);
+    const { store, ledger } = makeWordlistStore(wordlistCtf(), [CODE]);
     const first = await judgeSolve(
       { user: "u1", challenge: CHALLENGE, guess: CODE, channel: "qr" },
       { store, now: 0, log: () => {} },
@@ -177,13 +161,13 @@ describe("judgeSolve wordlist — used/unknown code ⇒ non-solve (SC2, claimCod
     );
     expect(first.solved).toBe(true);
     expect(second.solved).toBe(false);
-    expect(state.accrueCalls).toBe(1);
+    expect(ledger).toHaveLength(1); // only the first submit wrote a ledger row
   });
 });
 
 describe("judgeSolve wordlist — scoring, indistinguishability & covert (SC2/SC4)", () => {
-  it("a valid code scores points>0, writes ONE ledger row keyed by codeHash, and accrues once", async () => {
-    const { store, userScore, ledger, state } = makeWordlistStore(wordlistCtf(), [CODE]);
+  it("a valid code scores points>0, writes ONE ledger row keyed by codeHash", async () => {
+    const { store, ledger } = makeWordlistStore(wordlistCtf(), [CODE]);
     const r = await judgeSolve(
       { user: "u1", challenge: CHALLENGE, guess: CODE, channel: "qr" },
       { store, now: 0, log: () => {} },
@@ -192,8 +176,6 @@ describe("judgeSolve wordlist — scoring, indistinguishability & covert (SC2/SC
     expect(r.points).toBeGreaterThan(0);
     expect(ledger).toHaveLength(1);
     expect(ledger[0].bucket).toBe(hashAnswer(CODE)); // ledger row keyed by the codeHash
-    expect(state.accrueCalls).toBe(1);
-    expect(userScore.get("u1")?.solves).toBe(1);
   });
 
   it("a used/unknown code returns the EXACT NON_SOLVE a wrong static answer yields + the SAME no-solve log (no guess/codeHash leak)", async () => {
@@ -226,8 +208,8 @@ describe("judgeSolve wordlist — scoring, indistinguishability & covert (SC2/SC
     expect(ledger[0].bucket).toBe(hashAnswer(CODE)); // covert derives codeHash from guessHash
   });
 
-  it("honors globalMax: a claim past the global cap is solved:true/points:0/capped with NO accrue", async () => {
-    const { store, state } = makeWordlistStore(wordlistCtf({ globalMax: 1 }), [CODE, CODE2]);
+  it("honors globalMax: a claim past the global cap is solved:true/points:0/capped with NO award", async () => {
+    const { store } = makeWordlistStore(wordlistCtf({ globalMax: 1 }), [CODE, CODE2]);
     const first = await judgeSolve(
       { user: "u1", challenge: CHALLENGE, guess: CODE, channel: "qr" },
       { store, now: 0, log: () => {} },
@@ -239,6 +221,5 @@ describe("judgeSolve wordlist — scoring, indistinguishability & covert (SC2/SC
     expect(first.solved).toBe(true);
     expect(first.points).toBeGreaterThan(0);
     expect(second).toMatchObject({ solved: true, points: 0, capped: true });
-    expect(state.accrueCalls).toBe(1); // the capped claim did NOT accrue
   });
 });

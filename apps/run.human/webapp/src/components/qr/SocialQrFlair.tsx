@@ -37,8 +37,10 @@ interface Props {
  * lives outside the white card except the capped translucent scanline.
  *
  * Hidden DC-jack egg: hold the center logo 1.5s (charge ring appears at
- * 200ms) or triple-tap it → POST /api/social-egg (+10 social / +25 CTF,
- * once ever). No visual cue before discovery.
+ * 200ms) or triple-tap it → POST /api/social-egg (awards CTF points once
+ * ever; the response body's `ok` field is the source of truth, not HTTP
+ * status — a 200 with `{ ok: false }` means nothing was awarded). No visual
+ * cue before discovery.
  */
 export default function SocialQrFlair({ hash, eqrFallback, social, alt }: Props) {
   const p = flairParams(social.band.tier);
@@ -77,13 +79,24 @@ export default function SocialQrFlair({ hash, eqrFallback, social, alt }: Props)
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ via }),
         });
-        if (res.ok) {
-          showToast("⚑ COVERT CHANNEL FOUND // +10 SOCIAL · +25 CTF", 4200);
+        // The server always answers HTTP 200 — a non-solve is `{ ok: false }`
+        // in the BODY, not an HTTP error. Branch on the body, never res.ok.
+        const body: { ok?: boolean; points?: number } | null = await res
+          .json()
+          .catch(() => null);
+        if (body?.ok) {
+          const award =
+            typeof body.points === "number" && body.points > 0
+              ? ` // +${body.points} CTF`
+              : "";
+          showToast(`⚑ COVERT CHANNEL FOUND${award}`, 4200);
         } else {
-          showToast("COVERT CHANNEL ALREADY DRAINED", 2200);
+          setEggClaimed(false); // not actually awarded — allow a retry
+          showToast("COVERT CHANNEL SEALED — TRY AGAIN", 2200);
         }
       } catch {
-        showToast("COVERT CHANNEL ALREADY DRAINED", 2200);
+        setEggClaimed(false);
+        showToast("COVERT CHANNEL SEALED — TRY AGAIN", 2200);
       }
     },
     [eggClaimed, showToast]

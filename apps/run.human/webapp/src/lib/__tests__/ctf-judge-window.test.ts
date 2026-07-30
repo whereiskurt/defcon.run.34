@@ -75,7 +75,6 @@ function makeStore(
 ) {
   const solves = new Map<string, StoredSolve>();
   const ordinals = new Map<string, number>();
-  const userScore = new Map<string, { points: number; solves: number }>();
   const state = { overAttemptCalls: 0 };
   const sKey = (c: string, u: string) => `${c}|${u}`;
 
@@ -113,20 +112,9 @@ function makeStore(
     async recordScore({ challenge, user, ordinal, points, firstBlood }) {
       solves.set(sKey(challenge, user), { challenge, user, ordinal, points, firstBlood });
     },
-    async accrue({ user, points }) {
-      const s = userScore.get(user) ?? { points: 0, solves: 0 };
-      s.points += points;
-      s.solves += 1;
-      userScore.set(user, s);
-    },
-    async reaccrue({ user, delta }) {
-      const s = userScore.get(user) ?? { points: 0, solves: 0 };
-      s.points += delta; // net-delta re-score; ctfSolves untouched (main #619)
-      userScore.set(user, s);
-    },
   };
 
-  return { store, solves, ordinals, userScore, state };
+  return { store, solves, ordinals, state };
 }
 
 // Capture every emitted log line as its JSON string so we can assert the raw
@@ -141,7 +129,7 @@ function makeLogCapture() {
 // ---------------------------------------------------------------------------
 describe("window gate — backward compat (SC-1)", () => {
   it("a row with NO scoreWindow and a correct guess scores exactly as today", async () => {
-    const { store, solves, userScore } = makeStore(fixtureCtf());
+    const { store, solves } = makeStore(fixtureCtf());
     const res = await judgeSolve(
       { user: "u1", challenge: CHALLENGE, guess: FLAG, channel: "qr" },
       { store, now: WINTER_OUTSIDE, log: () => {} }, // clock is irrelevant with no window
@@ -151,7 +139,6 @@ describe("window gate — backward compat (SC-1)", () => {
     expect(res.firstBlood).toBe(true);
     expect(res.points).toBeGreaterThan(0);
     expect(solves.size).toBe(1);
-    expect(userScore.get("u1")?.solves).toBe(1);
   });
 });
 
@@ -160,7 +147,7 @@ describe("window gate — backward compat (SC-1)", () => {
 // ---------------------------------------------------------------------------
 describe("window gate — inside the window (SC-1)", () => {
   it("a correct guess when now is INSIDE the window scores", async () => {
-    const { store, userScore } = makeStore(
+    const { store } = makeStore(
       fixtureCtf({ scoreWindow: DEFCON_RUN_HOURS }),
     );
     const res = await judgeSolve(
@@ -169,7 +156,7 @@ describe("window gate — inside the window (SC-1)", () => {
     );
     expect(res.solved).toBe(true);
     expect(res.points).toBeGreaterThan(0);
-    expect(userScore.get("u1")?.solves).toBe(1);
+    expect(res.ordinal).toBe(1);
   });
 });
 

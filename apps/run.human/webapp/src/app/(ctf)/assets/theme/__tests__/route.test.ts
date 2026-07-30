@@ -52,7 +52,6 @@ type Stored = PriorAward & { challenge: string; user: string };
 function makeCtfStore(ctf: JudgeCtf | null) {
   const solves = new Map<string, Stored>();
   const ordinals = new Map<string, number>();
-  const userScore = new Map<string, { points: number; solves: number }>();
   const attempts = new Map<string, number>();
   const state = { allocateCalls: 0 };
   const key = (c: string, u: string) => `${c}|${u}`;
@@ -92,20 +91,9 @@ function makeCtfStore(ctf: JudgeCtf | null) {
     async recordScore({ challenge, user, ordinal, points, firstBlood }) {
       solves.set(key(challenge, user), { challenge, user, ordinal, points, firstBlood });
     },
-    async accrue({ user, points }) {
-      const s = userScore.get(user) ?? { points: 0, solves: 0 };
-      s.points += points;
-      s.solves += 1;
-      userScore.set(user, s);
-    },
-    async reaccrue({ user, delta }) {
-      const s = userScore.get(user) ?? { points: 0, solves: 0 };
-      s.points += delta; // net adjustment; solve count is NOT bumped
-      userScore.set(user, s);
-    },
   };
 
-  return { store, solves, ordinals, userScore, state };
+  return { store, solves, ordinals, state };
 }
 
 type Deps = Parameters<typeof handleCovert>[1];
@@ -115,6 +103,7 @@ function makeDeps(opts: {
   log: (o: unknown) => void;
   userId: string | null;
   services?: string[];
+  rescore?: (userId: string) => Promise<void>;
 }): Deps {
   return {
     getSession: async () =>
@@ -123,6 +112,7 @@ function makeDeps(opts: {
       // `services` drives the CTF-admin override gate (isCtfAdmin).
       opts.userId ? { user: { id: opts.userId, services: opts.services } } : null,
     judge: (input) => judgeSolve(input, { store: opts.store, now: 0, log: opts.log }),
+    rescore: opts.rescore ?? (async () => {}),
   };
 }
 
@@ -139,6 +129,7 @@ async function run(opts: {
   ctf?: JudgeCtf | null;
   log?: (o: unknown) => void;
   ctxOverride?: ReturnType<typeof makeCtfStore>;
+  rescore?: (userId: string) => Promise<void>;
 }) {
   const ctx = opts.ctxOverride ?? makeCtfStore(opts.ctf ?? fixtureCtf());
   const log = opts.log ?? (() => {});
@@ -149,6 +140,7 @@ async function run(opts: {
       log,
       userId: opts.userId,
       services: opts.services,
+      rescore: opts.rescore,
     }),
   );
   const body = await res.text();
@@ -163,7 +155,7 @@ describe("covert route — outcome bodies (CTF-07/08/09)", () => {
     const { res, body, ctx } = await run({ v: winV(), userId: "u1" });
     expect(res.status).toBe(200);
     expect(body).toContain(AWARD_PROP);
-    expect(ctx.userScore.get("u1")?.solves).toBe(1);
+    expect(ctx.solves.has(`${CHALLENGE}|u1`)).toBe(true);
   });
 
   it("signed-in + wrong → decoy sheet, no award property", async () => {
@@ -171,7 +163,7 @@ describe("covert route — outcome bodies (CTF-07/08/09)", () => {
     expect(res.status).toBe(200);
     expect(body).toBe(buildDecoySheet());
     expect(body).not.toContain(AWARD_PROP);
-    expect(ctx.userScore.size).toBe(0);
+    expect(ctx.solves.size).toBe(0);
   });
 
   it("unauth + any v → decoy, awards NOTHING and parks NOTHING (no anonymous footprint)", async () => {
@@ -183,7 +175,7 @@ describe("covert route — outcome bodies (CTF-07/08/09)", () => {
     // allocated, no score, no parked pending. The covert channel awards ONLY a
     // live-signed-in visitor, so a logged-out visit is a pure no-op.
     expect(ctx.state.allocateCalls).toBe(0);
-    expect(ctx.userScore.size).toBe(0);
+    expect(ctx.solves.size).toBe(0);
   });
 
   it("garbage / missing v → decoy, no judge, no throw", async () => {
@@ -219,7 +211,7 @@ describe("covert route — outcome bodies (CTF-07/08/09)", () => {
     );
     const body = await res.text();
     expect(body).toContain(AWARD_PROP); // credited despite the extra param
-    expect(ctx.userScore.get("u1")?.solves).toBe(1);
+    expect(ctx.solves.has(`${CHALLENGE}|u1`)).toBe(true);
   });
 
   it("idempotent re-fire: second win returns the prior award and never double-scores", async () => {
@@ -230,7 +222,6 @@ describe("covert route — outcome bodies (CTF-07/08/09)", () => {
     expect(second.body).toContain(AWARD_PROP);
     expect(second.body).toBe(first.body); // same award value re-rendered
     expect(ctx.state.allocateCalls).toBe(1); // ordinal allocated once
-    expect(ctx.userScore.get("u1")?.solves).toBe(1); // scored once
   });
 });
 
@@ -252,8 +243,12 @@ describe("covert route — CTF-admin operator override wiring", () => {
     expect(admin.body).toContain(AWARD_PROP); // cap bypassed → credited win
   });
 
-  it("an admin re-fire re-scores against the CURRENT config (idempotent) via the covert channel", async () => {
-    // A mutable-ctf store so the operator can lower the ceiling between fires.
+  it("an admin re-fire on an already-solved flag echoes the FROZEN prior award, unaffected by a live config change", async () => {
+    // The admin re-submit-in-place override was removed (points-consistency
+    // Task 6) — accrue/reaccrue are gone from CtfStore, so an already-solved
+    // flag ALWAYS returns the frozen prior award, admin or not. Re-deriving a
+    // player's score against live config is now rescoreBestEffort's job
+    // (Tasks 7-10), which the judge/route never call directly.
     const ref: { current: JudgeCtf } = { current: fixtureCtf({ pointMax: 500 }) };
     const ctx = makeCtfStore(ref.current);
     // Point the fake's getCtf at the mutable ref (makeCtfStore captured a copy).
@@ -268,9 +263,8 @@ describe("covert route — CTF-admin operator override wiring", () => {
     const secondAward = second.body.match(/--accent-ramp:\s*(\d+)/)?.[1];
 
     expect(second.body).toContain(AWARD_PROP); // still celebrates
-    expect(secondAward).not.toBe(firstAward); // re-scored to the live config
+    expect(secondAward).toBe(firstAward); // frozen — NOT re-scored to the live config
     expect(ctx.state.allocateCalls).toBe(1); // ordinal reused; solveCount not bumped
-    expect(ctx.userScore.get("op")?.solves).toBe(1); // idempotent — one solve
   });
 });
 
@@ -335,5 +329,40 @@ describe("covert route — log hygiene (CTF-08, T-46-05)", () => {
     const garbageLog = vi.fn();
     await run({ v: "garbage", userId: "u1", log: garbageLog });
     expect(garbageLog).not.toHaveBeenCalled();
+  });
+});
+
+describe("covert route — rescore wiring (points-consistency)", () => {
+  it("a credited win fires rescoreBestEffort(player)", async () => {
+    const rescore = vi.fn(async () => {});
+    await run({ v: winV(), userId: "u1", rescore });
+    expect(rescore).toHaveBeenCalledWith("u1");
+  });
+
+  it("a wrong guess never fires rescore", async () => {
+    const rescore = vi.fn(async () => {});
+    await run({ v: wrongV(), userId: "u1", rescore });
+    expect(rescore).not.toHaveBeenCalled();
+  });
+
+  it("an unauth fire never fires rescore", async () => {
+    const rescore = vi.fn(async () => {});
+    await run({ v: winV(), userId: null, rescore });
+    expect(rescore).not.toHaveBeenCalled();
+  });
+
+  it("a capped win (points 0, still solved:true) still fires rescore", async () => {
+    const rescore = vi.fn(async () => {});
+    await run({ v: winV(), userId: "u1", ctf: fixtureCtf({ maxSolves: 0 }), rescore });
+    expect(rescore).toHaveBeenCalledWith("u1");
+  });
+
+  it("an already-solved replay fires rescore again (idempotent, harmless)", async () => {
+    const rescore = vi.fn(async () => {});
+    const ctx = makeCtfStore(fixtureCtf());
+    await run({ v: winV(), userId: "u1", ctxOverride: ctx, rescore });
+    await run({ v: winV(), userId: "u1", ctxOverride: ctx, rescore });
+    expect(rescore).toHaveBeenCalledTimes(2);
+    expect(rescore).toHaveBeenCalledWith("u1");
   });
 });

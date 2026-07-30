@@ -3,6 +3,7 @@ import { requireAdmin, revalidateAdmin } from "@/lib/admin-gate";
 import { config } from "@/config";
 import { getSubByAdapterUserId } from "@/entities/auth-user";
 import { bustDrillCache } from "@/lib/leaderboard-drill-cache";
+import { rescoreBestEffort } from "@/lib/rescore";
 
 /**
  * POST /api/admin/users/[userId]/recalculate — admin per-user "Recalculate
@@ -12,7 +13,8 @@ import { bustDrillCache } from "@/lib/leaderboard-drill-cache";
  * adapter userId to its OIDC sub, asks run.gpx's
  * `POST /api/gpx/internal/reconcile` (secret-gated, same trust model as
  * `api/internal/accomplishment/reconcile/route.ts`) to reconcile that
- * runner's Accomplishment rows against its own source of truth, then busts
+ * runner's Accomplishment rows against its own source of truth, rescores the
+ * user's derived score (rescoreBestEffort, points-consistency), then busts
  * this user's leaderboard drill cache so the admin drill-down reflects the
  * change on next read instead of waiting out the 60s TTL.
  *
@@ -72,6 +74,11 @@ export async function POST(
 
     const data = (await res.json()) as { created: number; deleted: number };
     bustDrillCache(userId);
+    // The reconcile's own accomplishment writes each fire a rescore, but an
+    // explicit call here also covers the zero-change case — e.g. the scoring
+    // config was retuned and this user's ledger needs revaluing even though
+    // reconcile created/deleted nothing.
+    await rescoreBestEffort(userId);
 
     return Response.json({
       ok: true,

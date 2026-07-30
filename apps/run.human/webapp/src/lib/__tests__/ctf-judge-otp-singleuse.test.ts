@@ -17,7 +17,7 @@ import { applyOtpClaim, otpCodeHash, otpClaimTtlSeconds } from "../ctf-otp-claim
  *   SC2 — default-off (singleUse absent) still credits MULTIPLE users (regression).
  *   SC3 — claim carries the TTL; the winner scores via recordScoreEvent(bucket=codeHash).
  *   SC4 — consumed/re-submit ⇒ indistinguishable NON_SOLVE (same log, no leak),
- *         no double-accrue; a wrong code never touches the claim.
+ *         no double-award; a wrong code never touches the claim.
  */
 
 const CHALLENGE = "goldstein-otp";
@@ -62,8 +62,7 @@ function makeStore(ctf: JudgeCtf | null) {
   const events = new Map<string, StoredEvent>(); // `${c}|${u}|${b}`
   const otpClaims = new Map<string, { claimedBy: string }>(); // codeHash → winner
   const ordinals = new Map<string, number>();
-  const userScore = new Map<string, { points: number; solves: number }>();
-  const calls = { accrue: 0, allocate: 0, claimOtp: 0, recordEvent: 0 };
+  const calls = { allocate: 0, claimOtp: 0, recordEvent: 0 };
   const claimArgs: Array<{ codeHash: string; ttl: number; user: string }> = [];
   const eKey = (c: string, u: string, b: string) => `${c}|${u}|${b}`;
 
@@ -79,13 +78,6 @@ function makeStore(ctf: JudgeCtf | null) {
       const n = (ordinals.get(challenge) ?? 0) + 1;
       ordinals.set(challenge, n);
       return n;
-    },
-    async accrue({ user, points }) {
-      calls.accrue++;
-      const s = userScore.get(user) ?? { points: 0, solves: 0 };
-      s.points += points;
-      s.solves += 1;
-      userScore.set(user, s);
     },
     // repeatable (shared OTP) ops — used by the default-off regression path
     async claimScoreEvent({ challenge, user, bucket }) {
@@ -113,10 +105,9 @@ function makeStore(ctf: JudgeCtf | null) {
       return { claimed: true };
     },
     async recordScore() {},
-    async reaccrue() {},
   };
 
-  return { store, events, otpClaims, userScore, calls, claimArgs };
+  return { store, events, otpClaims, calls, claimArgs };
 }
 
 const NOW = 1_700_000_400_000; // epoch ms (a multiple of the 120s period boundary)
@@ -138,9 +129,9 @@ function wrongCode(): string {
 }
 
 describe("single-use OTP — winner scores once (SC1/SC3)", () => {
-  it("a valid unclaimed code scores via the codeHash-keyed ledger + one accrue", async () => {
+  it("a valid unclaimed code scores via the codeHash-keyed ledger", async () => {
     const ctf = singleUseOtpCtf({ effect: { kind: "otp-enroll", otpauth: "otpauth://x" } });
-    const { store, events, userScore, calls, claimArgs } = makeStore(ctf);
+    const { store, events, claimArgs } = makeStore(ctf);
 
     const res = await judgeSolve(
       { user: "u1", challenge: CHALLENGE, guess: validCode(), channel: "qr" },
@@ -151,9 +142,7 @@ describe("single-use OTP — winner scores once (SC1/SC3)", () => {
     expect(res.points).toBe(100);
     expect(res.ordinal).toBe(1);
     expect(res.effect).toEqual({ kind: "otp-enroll", otpauth: "otpauth://x" });
-    // exactly one accrue + one ledger row keyed by the codeHash (not a time bucket).
-    expect(calls.accrue).toBe(1);
-    expect(userScore.get("u1")?.points).toBe(100);
+    // one ledger row keyed by the codeHash (not a time bucket).
     const codeHash = otpCodeHash(validCode());
     expect(events.get(`${CHALLENGE}|u1|${codeHash}`)?.points).toBe(100);
     // the claim carried the correct DynamoDB TTL.
@@ -164,7 +153,7 @@ describe("single-use OTP — winner scores once (SC1/SC3)", () => {
 
 describe("single-use OTP — global first-come (SC1)", () => {
   it("two concurrent submissions of the same code by two players → exactly one winner", async () => {
-    const { store, calls, userScore } = makeStore(singleUseOtpCtf());
+    const { store, calls } = makeStore(singleUseOtpCtf());
     const code = validCode();
 
     const [a, b] = await Promise.all([
@@ -177,11 +166,8 @@ describe("single-use OTP — global first-come (SC1)", () => {
     expect(winners).toHaveLength(1);
     expect(losers).toHaveLength(1);
     expect(losers[0]).toEqual(NON_SOLVE);
-    // exactly one accrue total; the two claimers hit the seam but only one wins.
-    expect(calls.accrue).toBe(1);
+    // the two claimers hit the seam but only one wins.
     expect(calls.claimOtp).toBe(2);
-    const scored = [...userScore.values()].filter((s) => s.points > 0);
-    expect(scored).toHaveLength(1);
   });
 
   it("a second player submitting the same code sequentially → indistinguishable NON_SOLVE (same log, no leak)", async () => {
@@ -214,9 +200,9 @@ describe("single-use OTP — global first-come (SC1)", () => {
   });
 });
 
-describe("single-use OTP — no double-accrue on winner re-submit (SC4)", () => {
-  it("the winner re-submitting the same code → NON_SOLVE, accrue called exactly once", async () => {
-    const { store, calls } = makeStore(singleUseOtpCtf());
+describe("single-use OTP — no double-award on winner re-submit (SC4)", () => {
+  it("the winner re-submitting the same code → NON_SOLVE, no second award", async () => {
+    const { store } = makeStore(singleUseOtpCtf());
     const code = validCode();
 
     const first = await judgeSolve({ user: "u1", challenge: CHALLENGE, guess: code, channel: "qr" }, { store, now: NOW });
@@ -224,7 +210,6 @@ describe("single-use OTP — no double-accrue on winner re-submit (SC4)", () => 
 
     expect(first.solved).toBe(true);
     expect(again).toEqual(NON_SOLVE);
-    expect(calls.accrue).toBe(1); // NOT 2 — no double-award
   });
 });
 
@@ -241,7 +226,7 @@ describe("single-use OTP — a wrong code never claims (SC4)", () => {
 });
 
 describe("single-use OTP — globalMax (SC3)", () => {
-  it("a claim past globalMax is capped (solved, points 0, no accrue)", async () => {
+  it("a claim past globalMax is capped (solved, points 0, no award)", async () => {
     // globalMax 1: the FIRST winning claim awards, the SECOND (a distinct valid
     // code from the +1-skew window, so a distinct claim key) allocates ordinal 2
     // and is capped. Two distinct current-window-valid codes are needed so BOTH
@@ -257,13 +242,12 @@ describe("single-use OTP — globalMax (SC3)", () => {
 
     const second = await judgeSolve({ user: "u2", challenge: CHALLENGE, guess: c2, channel: "qr" }, { store: s.store, now: NOW });
     expect(second).toEqual({ solved: true, points: 0, ordinal: 2, firstBlood: false, capped: true });
-    expect(s.userScore.get("u2")).toBeUndefined(); // no accrue past globalMax
   });
 });
 
 describe("shared OTP regression — default-off unchanged (SC2)", () => {
   it("a non-single-use OTP flag credits MULTIPLE users for the same code; claimOtpCode never called", async () => {
-    const { store, calls, userScore } = makeStore(sharedOtpCtf());
+    const { store, calls } = makeStore(sharedOtpCtf());
     const code = validCode();
 
     const a = await judgeSolve({ user: "u1", challenge: CHALLENGE, guess: code, channel: "qr" }, { store, now: NOW });
@@ -274,8 +258,6 @@ describe("shared OTP regression — default-off unchanged (SC2)", () => {
     expect(b.solved).toBe(true);
     expect(b.points).toBe(100);
     // BOTH users scored (shared) — the single-use claim seam was never touched.
-    expect(userScore.get("u1")?.points).toBe(100);
-    expect(userScore.get("u2")?.points).toBe(100);
     expect(calls.claimOtp).toBe(0);
   });
 });

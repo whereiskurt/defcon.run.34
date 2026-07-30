@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach } from "vitest";
 
 import {
   judgeScan,
-  claimEgg,
   DAILY_SCAN_CAP,
   type ScanStore,
   type SocialUser,
@@ -12,7 +11,7 @@ const NOW = Date.parse("2026-08-06T18:00:00Z"); // 11:00 PDT → day 2026-08-06
 const HASH_B =
   "b".repeat(64).slice(0, 64);
 
-type Awarded = { userId: string; social: number; ctf: number };
+type Awarded = { userId: string; social: number };
 
 function makeFakeStore(users: SocialUser[]) {
   const byToken = new Map<string, SocialUser>();
@@ -23,9 +22,13 @@ function makeFakeStore(users: SocialUser[]) {
   const state = {
     pairs: new Set<string>(),
     quotas: new Map<string, number>(),
-    eggs: new Set<string>(),
     awards: [] as Awarded[],
-    ledgers: [] as Array<{ challenge: string; user: string; bucket: string }>,
+    ledgers: [] as Array<{
+      challenge: string;
+      user: string;
+      bucket: string;
+      points: number;
+    }>,
     deltas: [] as Array<[number, number]>,
     byToken,
     byHash,
@@ -53,16 +56,11 @@ function makeFakeStore(users: SocialUser[]) {
       state.quotas.set(key, next);
       return next;
     },
-    async claimEggOnce(userId) {
-      if (state.eggs.has(userId)) return false;
-      state.eggs.add(userId);
-      return true;
+    async award(userId, social) {
+      state.awards.push({ userId, social });
     },
-    async award(userId, social, ctf) {
-      state.awards.push({ userId, social, ctf });
-    },
-    async ledger(challenge, user, bucket) {
-      state.ledgers.push({ challenge, user, bucket });
+    async ledger(challenge, user, bucket, points) {
+      state.ledgers.push({ challenge, user, bucket, points });
     },
     async scoreDelta(oldScore, newScore) {
       state.deltas.push([oldScore, newScore]);
@@ -101,17 +99,18 @@ describe("judgeScan", () => {
     );
     expect(result).toEqual({
       ok: true,
+      ownerId: "owner",
       ownerName: "Bunny",
       remainingToday: DAILY_SCAN_CAP - 1,
     });
     expect(fake.state.awards).toEqual([
-      { userId: "scanner", social: 1, ctf: 1 },
-      { userId: "owner", social: 1, ctf: 1 },
+      { userId: "scanner", social: 1 },
+      { userId: "owner", social: 1 },
     ]);
     const bucket = "2026-08-06#owner_scanner";
     expect(fake.state.ledgers).toEqual([
-      { challenge: "social-scan", user: "scanner", bucket },
-      { challenge: "social-scan", user: "owner", bucket },
+      { challenge: "social-scan", user: "scanner", bucket, points: 0 },
+      { challenge: "social-scan", user: "owner", bucket, points: 0 },
     ]);
     expect(fake.state.deltas).toEqual([
       [3, 4],
@@ -229,24 +228,5 @@ describe("judgeScan", () => {
       fake.store
     );
     expect(result).toEqual({ ok: false, code: "not_found" });
-  });
-});
-
-describe("claimEgg", () => {
-  it("awards +10/+25 once and only once", async () => {
-    const fake = makeFakeStore([
-      { userId: "u1", displayName: "U", socialScore: 5 },
-    ]);
-    const first = await claimEgg("u1", "hold", fake.store);
-    expect(first).toEqual({ ok: true, social: 10, ctf: 25 });
-    expect(fake.state.awards).toEqual([{ userId: "u1", social: 10, ctf: 25 }]);
-    expect(fake.state.ledgers).toEqual([
-      { challenge: "jack-egg", user: "u1", bucket: "once" },
-    ]);
-    expect(fake.state.deltas).toEqual([[5, 15]]);
-
-    const second = await claimEgg("u1", "tap", fake.store);
-    expect(second).toEqual({ ok: false, code: "already" });
-    expect(fake.state.awards).toHaveLength(1);
   });
 });

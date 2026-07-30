@@ -2,8 +2,9 @@
  * Pure leaderboard scoring module (LDBR-03 / LDBR-12).
  *
  * Single source of truth for how the leaderboard (Phase 51) ranks runners:
- * the point constants, the read-time `globalScore = activityScore + ctfScore`
- * sum, and the DC33 rank comparator.
+ * the point constants, the read-time `globalScore` (derived `score` when
+ * present, else the legacy `activityScore + ctfScore` sum), and the DC33 rank
+ * comparator.
  *
  * This module is intentionally PURE — no database, no network, no ORM/entity
  * coupling, no import from the CTF judge worktree. It reads `ctfScore` / `ctfSolves`
@@ -34,15 +35,17 @@ export type ScorableUser = {
   ctfScore?: number;
   /** Read-only CTF solve count, owned by the CTF judge worktree (LDBR-12). */
   ctfSolves?: number;
+  /** Derived total (points-consistency), written only by rescoreUser. */
+  score?: number;
 };
 
 /**
- * Read-time global score: activity score plus the read-only CTF score.
- * Degrades to `activityScore` when `ctfScore` is unset, and to 0 for an empty
- * row (never NaN/throw) — SC #2.
+ * Read-time global score. The derived `score` field (points-consistency,
+ * written only by rescoreUser) wins; rows not yet rescored (created before
+ * the one-time backfill ran) fall back to the legacy activity+ctf sum.
  */
 export function globalScore(u: ScorableUser): number {
-  return (u.activityScore ?? 0) + (u.ctfScore ?? 0);
+  return u.score ?? (u.activityScore ?? 0) + (u.ctfScore ?? 0);
 }
 
 /**

@@ -14,6 +14,7 @@ const mockAuth = vi.fn();
 const mockJudge = vi.fn();
 const mockCreatePending = vi.fn();
 const mockClaimPending = vi.fn();
+const mockRescoreBestEffort = vi.fn();
 
 vi.mock("@/config/auth", () => ({ auth: (...a: unknown[]) => mockAuth(...a) }));
 vi.mock("@/lib/admin-gate", () => ({ isCtfAdmin: () => false }));
@@ -27,8 +28,12 @@ vi.mock("@/lib/ctf-pending", () => ({
   createPending: (...a: unknown[]) => mockCreatePending(...a),
   claimPending: (...a: unknown[]) => mockClaimPending(...a),
 }));
+vi.mock("@/lib/rescore", () => ({
+  rescoreBestEffort: (...a: unknown[]) => mockRescoreBestEffort(...a),
+}));
+const mockCookieGet = vi.fn<() => { value: string } | undefined>(() => undefined);
 vi.mock("next/headers", () => ({
-  cookies: async () => ({ get: () => undefined }),
+  cookies: async () => ({ get: () => mockCookieGet() }),
 }));
 // The page returns <ClaimClient …/> WITHOUT rendering it (server component
 // return value), so assertions read the returned element's props directly.
@@ -47,6 +52,9 @@ beforeEach(() => {
   mockJudge.mockReset();
   mockCreatePending.mockReset();
   mockClaimPending.mockReset();
+  mockRescoreBestEffort.mockReset();
+  mockCookieGet.mockReset();
+  mockCookieGet.mockReturnValue(undefined);
 });
 
 describe("ClaimPage ?nonce branches", () => {
@@ -59,6 +67,7 @@ describe("ClaimPage ?nonce branches", () => {
     expect(mockClaimPending).toHaveBeenCalledTimes(1);
     expect(mockClaimPending).toHaveBeenCalledWith("n1", "user-1");
     expect(el.props).toMatchObject({ mode: "result", result: AWARD, clearNonce: true });
+    expect(mockRescoreBestEffort).toHaveBeenCalledWith("user-1");
   });
 
   it("the nonce branch wins over c/v params (judgeSolve untouched)", async () => {
@@ -80,5 +89,39 @@ describe("ClaimPage ?nonce branches", () => {
     expect(mockCreatePending).not.toHaveBeenCalled();
     expect(mockJudge).not.toHaveBeenCalled();
     expect(el.props).toMatchObject({ mode: "signin", nonce: "n2" });
+    expect(mockRescoreBestEffort).not.toHaveBeenCalled();
+  });
+});
+
+describe("ClaimPage rescore wiring on solved results", () => {
+  it("(A) signed-in + c/v → judgeSolve solved:true fires rescoreBestEffort(player)", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "user-2" } });
+    mockJudge.mockResolvedValue(AWARD);
+
+    await ClaimPage(params({ c: "goldstein", v: "GUESS" }));
+
+    expect(mockJudge).toHaveBeenCalledTimes(1);
+    expect(mockRescoreBestEffort).toHaveBeenCalledWith("user-2");
+  });
+
+  it("(A) signed-in + c/v → a non-solve result does NOT fire rescoreBestEffort", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "user-2" } });
+    mockJudge.mockResolvedValue({ solved: false, points: 0, ordinal: null, firstBlood: false, capped: false });
+
+    await ClaimPage(params({ c: "goldstein", v: "WRONG" }));
+
+    expect(mockJudge).toHaveBeenCalledTimes(1);
+    expect(mockRescoreBestEffort).not.toHaveBeenCalled();
+  });
+
+  it("(B) signed-in return with a parked cookie nonce → solved claimPending fires rescoreBestEffort(player)", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "user-3" } });
+    mockCookieGet.mockReturnValue({ value: "parked-nonce" });
+    mockClaimPending.mockResolvedValue(AWARD);
+
+    await ClaimPage(params({}));
+
+    expect(mockClaimPending).toHaveBeenCalledWith("parked-nonce", "user-3");
+    expect(mockRescoreBestEffort).toHaveBeenCalledWith("user-3");
   });
 });

@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@auth";
 import { assertNotLockedLive } from "@/lib/live-lockout";
-import { claimEgg, defaultScanStore } from "@/lib/social-scan";
+import { judgeSolve } from "@/lib/ctf-judge";
+import { rescoreBestEffort } from "@/lib/rescore";
 
 /**
- * POST /api/social-egg — once-ever DC-jack egg claim for the session user.
- * Body: { via?: "hold" | "tap" }.
+ * POST /api/social-egg — DC-jack egg claim for the session user, routed
+ * through the judge (grant: server has already proven the gesture
+ * out-of-band). Idempotent-ok: a replay is still `solved: true` (the
+ * judge returns the prior award, never re-scores) so it responds the
+ * same as a first claim.
+ * Body: { via?: "hold" | "tap" } — accepted for compatibility, unused.
  */
-export async function POST(req: NextRequest) {
+export async function POST(_req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ message: "Sign in first" }, { status: 401 });
@@ -16,20 +21,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Account locked out" }, { status: 403 });
   }
 
-  let via = "hold";
-  try {
-    const body = await req.json();
-    if (body?.via === "tap") via = "tap";
-  } catch {
-    // default via
-  }
-
-  const result = await claimEgg(session.user.id, via, defaultScanStore);
-  if (result.ok) {
-    return NextResponse.json(result);
-  }
-  return NextResponse.json(
-    { message: "COVERT CHANNEL ALREADY DRAINED", code: "already" },
-    { status: 409 }
+  const userId = session.user.id;
+  const result = await judgeSolve(
+    { user: userId, challenge: "jack-egg", channel: "qr", grant: true },
+    {}
   );
+  if (!result.solved) {
+    return NextResponse.json({ ok: false });
+  }
+  await rescoreBestEffort(userId);
+  return NextResponse.json({ ok: true, points: result.points });
 }
