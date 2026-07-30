@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
 status: Ready to plan
-stopped_at: "Completed 69-02-PLAN.md (meshtk per-connection panic containment: CR-01 layer 3)"
-last_updated: "2026-07-30T13:53:17.739Z"
+stopped_at: Completed 69-03-PLAN.md (meshtk Last-Will strip on both codecs + InspectorLogger sanitizer)
+last_updated: "2026-07-30T14:08:02.765Z"
 last_activity: 2026-07-30
 progress:
   total_phases: 31
   completed_phases: 18
   total_plans: 88
-  completed_plans: 80
+  completed_plans: 81
   percent: 58
 current_phase: 70
 current_phase_name: gpx-studio-shared-dialog-shell-map-layers-my-maps
@@ -138,6 +138,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 70-05: basemaps render as a flat radio list via flattenLayerTree, so the Map Layers dialog has exactly one collapse affordance per section
 - [Phase ?]: 69-01: RewritePayloadString signature (error, bool) -> error; nil Decoded/Cipher guarded; the parsed Data is mutated IN PLACE (not a three-field rebuild) so reply_id/emoji/dest/source/request_id/want_response and protobuf unknown fields survive — Bitfield (meshtk#21 pre-hop drop) is subsumed not removed; marshal happens BEFORE PayloadVariant is reassigned because on a decoded packet the parsed Data is reachable through that same variant. RewriteHelloGoodbye now declines when !WasEncrypted || Cipher == nil and CONSUMES the rewrite error (log + return false), so a failed censor can no longer report Rewrote while the original bytes forward. Upstream branch fix/shared-chain-hardening off origin/main@609a5c5, commits 72c5506/2f62e61/ce07c66; NOT pushed, PR'd, vendor-synced or deployed. 5 cross-codec regression tests (9 cases) with one SHARED six-field assertion so 3.1.1 and v5 cannot drift, plus a deferred-recover wrapper so a SIGSEGV regression is a named failure; v4 golden byte-unedited and green; go.mod/go.sum/vendor diff empty. RED proven by throwaway probe before the fix (panic + all six fields zeroed) and by reverting rules.go alone. ⚠️CR-01 layer 3 (recover() around the per-connection goroutine) deliberately OUT of scope — a panic anywhere else in the read loop still takes the process.
 - [Phase 69]: 69-02: CR-01 layer 3 closed — recoverConn deferred at all four per-connection goroutine entries (handleProxy, handleBackend, handleProxyV5, handleBackendV5) plus both cmd.go accept-loop spawns; upstream branch fix/shared-chain-hardening commits 82e790f/1182a2f, NOT pushed/PR'd/vendor-synced. Before this there was NO recover() in the proxy path, so any panic in a connection goroutine was a process kill dropping every connected radio. ⭐PROD GREP for 69-07: action=PANIC_RECOVERED (expect ZERO) — single emission site in proxy.go, format 'action=PANIC_RECOVERED, label=%s, remote=%s, panic=%v, stack=%s' with labels proxy_uplink_v4/proxy_downlink_v4/proxy_uplink_v5/proxy_downlink_v5/accept_proxy/accept_protobuf. Recover is at goroutine ENTRY only, NEVER per loop iteration (a per-iteration recover would keep serving a connection whose invariants just broke). handleProxyV5 carries its own recover though it runs on handleProxy's goroutine so the INNERMOST recover wins and the label attributes the crash to the right codec. The stack goes through Config.Log (logrus TextFormatter, which QUOTES) and never through InspectorLogger (SimpleFormatter, no quoting) — proven non-forgeable by panicking with a value containing a newline + a fake BLOCK line, which rendered as an escaped \n inside the quoted msg= with no second log line. recoverConn guards nil conn/Config/Log because a second panic inside a deferred recover handler is unrecoverable and would reintroduce the exact failure. 3 tests (proxy_recover_test.go) each assert on the recovered LOG LINE not on the call returning, each handler runs in its OWN goroutine so a regression crashes the test binary rather than failing politely; the v4 test then DISARMS the decider and serves a second connection on the same ServerCmd to prove the process keeps serving. RED proven by deleting the four defers (binary crashed with the sentinel), restored via targeted git checkout — NOT git stash (prohibited, shared across worktrees). v4 golden byte-unedited and green; go.mod/go.sum/vendor and internal/embedded diffs all empty.
+- [Phase 69]: 69-03: Last-Will bypass (68-REVIEW CR-02) + log injection (WR-05) closed UPSTREAM on fix/shared-chain-hardening (commits e7a9fc1/165e6fb/0495193/9421ae8/52ded86/764710a; NOT pushed, PR'd, vendor-synced). Before this, grep -c Will returned ZERO in BOTH inspect.go and inspect_v5.go — neither codec had ever inspected a Will, and a Will ServiceEnvelope with HopLimit 7/HopStart 9 reached mosquitto inside a 140-byte forwarded CONNECT (RED probe reproduced the review's exact byte count). The BROKER publishes a Will on disconnect, so its payload can NEVER traverse handleV5PublishUplink/inspectV5Publish/PacketDecider/RewriteHopLimit/BlockInvalidEncryption/the censor — a client-chosen uninspected uplink on any topic, replayable by reconnect-and-drop, defeating the exact RF flood-radius control RewriteHopLimit exists for. DECISION: STRIP not inspect — the fleet does not use MQTT Wills, and routing the payload through the decider would build a second quieter inspection path (the defect class this phase closes). All Will fields cleared in ONE assignment because the vendored v5 Pack dereferences WillProperties unconditionally inside its if c.WillFlag branch. PROD GREP for 69-07: action=WILL_STRIPPED (expect ZERO; non-zero names a real Will user by username=/ip=/protocol_version=), identical field names in identical order on both codecs — v5 'action=WILL_STRIPPED, ip=%s, protocol_version=5, username=%s, will_topic=%s, will_bytes=%d' and the 3.1.1 mirror with protocol_version=4; only a LENGTH is logged, never the payload. Placement DIFFERS by codec deliberately: inspectV5Connect returns early on every rejection so its strip sits on the ALLOW path next to the TopicAliasMaximum suppression; the 3.1.1 branch falls through to a caller that decides whether to forward, so its strip is gated on NOTHING (covers passthrough, cannot be bypassed by a future edit to that decision). WR-05 half: new logsafe.go logSafe/logSafeList applied at all 18 InspectorLogger client-string boundaries. Quoting is CONDITIONAL not a blanket strconv.Quote — a blanket quote moves every ALLOW/AUTH_REJECT/MQTT5_CONNECT line and breaks mqtt5_probe.py's client_id=<id> substring correlation; triggers are runes <0x20 or 0x7f, >128 runes (rune-wise slice), or a space/comma/quote/equals that would break the key=value grammar. So a QUOTED value in production is itself the tamper signal. mqtt_topic switched from %+v to %s of logSafeList and is asserted byte-identical against fmt.Sprintf('%+v', topics). Config.Log lines are OUT of scope (logrus TextFormatter already quotes — 69-02 proved that). The password is NOT routed through the sanitizer (grep-gated 0) — passing it would imply it is loggable-with-care; it is not loggable at all. 16 new tests; the decisive ones wire the REAL SimpleFormatter because every other harness in the package uses TextFormatter, which quotes — exactly why WR-05 shipped undetected. RED proven twice: a throwaway probe pre-fix (2 log lines; 140 forwarded bytes) and by reverting only the call sites (139 bytes on 3.1.1). git stash NEVER used (prohibited, shared across worktrees). v4 golden confirmed Will-less BEFORE the edit and byte-unedited/green; go.mod/go.sum/vendor and internal/embedded diffs all empty; zero pre-existing test files edited. DEVIATIONS (shape only): format args split one-per-line because grep -c counts LINES not occurrences; one comment reworded so grep -n 'action=WILL_STRIPPED' inspect.go returns exactly 1.
 
 ### Pending Todos
 
@@ -150,8 +151,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-30T13:53:17.732Z
-Stopped at: Completed 69-02-PLAN.md (meshtk per-connection panic containment: CR-01 layer 3)
+Last session: 2026-07-30T14:08:02.756Z
+Stopped at: Completed 69-03-PLAN.md (meshtk Last-Will strip on both codecs + InspectorLogger sanitizer)
 Resume file: None
 
 ## Operator Next Steps
@@ -213,3 +214,4 @@ Resume file: None
 | Phase 70 P05 | ~25m | 2 tasks | 3 files |
 | Phase 69 P01 | ~25m | 3 tasks | 5 files |
 | Phase 69 P02 | ~20m | 2 tasks | 4 files |
+| Phase 69 P03 | ~25m | 3 tasks | 5 files |

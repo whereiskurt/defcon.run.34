@@ -818,7 +818,7 @@ rather than merge on any red item.
 
 - [x] 69-01-PLAN.md — Rewrite-helper hardening: nil-cipher guards in `RewriteHelloGoodbye` + `RewritePayloadString`, in-place `Data` mutation so `reply_id`/`emoji`/`dest`/`source`/`request_id`/`want_response` survive, `proto.Marshal` error propagated, cross-codec regression suite incl. a v5-driven field-preservation assertion (MQFX-01 layers 1-2, MQFX-02)
 - [x] 69-02-PLAN.md — Per-connection panic containment: `recover()` at all four read-loop entries plus both accept-loop spawns, `action=PANIC_RECOVERED` telemetry, panicking-decider containment tests (MQFX-01 layer 3)
-- [ ] 69-03-PLAN.md — Last-Will strip on both codecs (`action=WILL_STRIPPED` with `protocol_version`) + `logSafe`/`logSafeList` sanitizer at every InspectorLogger client-string site (MQFX-03, MQFX-04d)
+- [x] 69-03-PLAN.md — Last-Will strip on both codecs (`action=WILL_STRIPPED` with `protocol_version`) + `logSafe`/`logSafeList` sanitizer at every InspectorLogger client-string site (MQFX-03, MQFX-04d)
 - [ ] 69-04-PLAN.md — v5 hand-parse PUBLISH parity: bounded topic-alias scan that never gates inspection, sanitized `action=MQTT5_ALIAS_SCAN_INDETERMINATE`, misleading test name retired (MQFX-04a/e)
 - [ ] 69-05-PLAN.md — Property-agnostic SUBSCRIBE seam reaching the decider (behaviorally proven), malformed-packet CONNACK on every enumerated CONNECT failure branch with `answered=` telemetry (MQFX-04b/c)
 - [ ] 69-06-PLAN.md — Upstream meshtk PR + gated merge, vendor-sync with per-file byte parity against the merge sha plus a reverse-direction new-file check, `embedded.go` proven unchanged, CI overlay composition built locally, two hard mechanical merge gates (MQFX-05)
