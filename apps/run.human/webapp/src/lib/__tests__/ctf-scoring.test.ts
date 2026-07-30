@@ -120,4 +120,14 @@ describe("computePoints", () => {
     // n==2: frac = 1 - 1/3 = 0.6666..., base = 100*0.6666... = 66.66... → round 67.
     expect(computePoints(2, c, OUTSIDE)).toBe(67);
   });
+
+  it("floorAfterMax: over-cap solvers get the floor, not zero", () => {
+    const cfg = { pointMax: 200, pointFloor: 100, maxSolves: 25, firstBloodBonus: 0, floorAfterMax: true };
+    expect(computePoints(1, cfg)).toBe(200);
+    expect(computePoints(25, cfg)).toBe(100);
+    expect(computePoints(26, cfg)).toBe(100);   // floor forever
+    expect(computePoints(500, cfg)).toBe(100);
+    // default behavior unchanged:
+    expect(computePoints(26, { ...cfg, floorAfterMax: undefined })).toBe(0);
+  });
 });

@@ -666,6 +666,7 @@ function narrowCtf(row: {
   pointMax?: number;
   pointFloor?: number;
   maxSolves?: number;
+  floorAfterMax?: boolean;
   firstBloodBonus?: number;
   timeTiers?: Array<{ from?: string; to?: string; ceiling?: number }>;
   maxAttempts?: number;
@@ -708,6 +709,7 @@ function narrowCtf(row: {
     pointMax: row.pointMax ?? 0,
     pointFloor: row.pointFloor ?? 0,
     maxSolves: row.maxSolves ?? 0,
+    floorAfterMax: row.floorAfterMax,
     firstBloodBonus: row.firstBloodBonus ?? 0,
     timeTiers,
     maxAttempts: row.maxAttempts,

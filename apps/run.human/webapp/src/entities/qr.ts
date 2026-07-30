@@ -150,6 +150,9 @@ export const Ctf = new Entity(
       // CtfSolve/ordinal path); it shapes how points decay per solver. It is NOT
       // the hard global scoring cutoff — that is `globalMax` (flag-types Slice 1a).
       maxSolves: { type: "number" }, // cap AND curve denominator (N)
+      // Decay-to-flat opt-in: n > maxSolves lands on pointFloor instead of 0.
+      // See computePoints (ctf-scoring.ts). Absent/false ⇒ unchanged (0 past cap).
+      floorAfterMax: { type: "boolean" },
       firstBloodBonus: { type: "number" }, // flat bonus for n == 1
       // --- Flag-types framework (Slice 1a, CTFT-01) — ALL OPTIONAL/ADDITIVE ------
       // A shipped row with NONE of these behaves exactly as a `static` flag today.
