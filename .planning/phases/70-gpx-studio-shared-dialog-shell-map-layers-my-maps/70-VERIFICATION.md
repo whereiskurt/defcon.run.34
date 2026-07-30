@@ -1,11 +1,18 @@
 ---
 phase: 70-gpx-studio-shared-dialog-shell-map-layers-my-maps
 verified: 2026-07-30T22:54:12Z
-status: human_needed
-score: 20/21 must-haves verified
-behavior_unverified: 1
+status: passed
+score: 21/21 must-haves verified
+behavior_unverified: 0
 overrides_applied: 0
 re_verification: yes
+behavior_unverified_resolved:
+  - item: "Master checkbox auto-folds its section (ROADMAP SC-1 collapse-on-visibility-transition)"
+    resolved_by: "UAT test 6, Kurt 2026-07-30: \"it folds, works, things are fine\""
+    note: >-
+      Confirmed by hand, not by the probe. Assertion 15 clicks section chevrons and
+      never a master checkbox, so the `prev !== undefined && prev !== group.visible`
+      branch is still unexercised automatically. Probe-coverage gap, not a defect.
 re_verification_detail:
   previous_verified: 2026-07-30T14:04:05Z
   previous_status: gaps_found
