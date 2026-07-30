@@ -71,7 +71,10 @@ const VERIFY = process.argv.includes("--verify");
 const MODE = CONFIRM ? "WRITE" : VERIFY ? "VERIFY (DRY-RUN)" : "DRY-RUN";
 
 // ── Flag definition (the ONLY row this script ever touches) ──────────────────
-const CHALLENGE = "didhtp1";
+// CTF_CHALLENGE override (2026-07-27): the per-DID phone games (didhtp3234 /
+// didhtp3283 / didhtp8283, each with its own SSM seed via CTF_OTP_SSM_PARAM)
+// reuse this script one slug at a time. Default stays didhtp1.
+const CHALLENGE = process.env.CTF_CHALLENGE || "didhtp1";
 const OTP_PARAMS = { digits: 6, period: 120, algorithm: "SHA1", skew: 1 } as const;
 const CLAIM_BASE = process.env.CTF_CLAIM_BASE || "https://run.defcon.run/use1";
 
