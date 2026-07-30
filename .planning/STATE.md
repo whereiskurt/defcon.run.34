@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
 status: Ready to plan
-stopped_at: "Completed 69-01-PLAN.md (meshtk shared-chain criticals: nil cipher + Data field loss)"
-last_updated: "2026-07-30T13:40:22.223Z"
+stopped_at: "Completed 69-02-PLAN.md (meshtk per-connection panic containment: CR-01 layer 3)"
+last_updated: "2026-07-30T13:53:17.739Z"
 last_activity: 2026-07-30
 progress:
   total_phases: 31
   completed_phases: 18
   total_plans: 88
-  completed_plans: 79
+  completed_plans: 80
   percent: 58
 current_phase: 70
 current_phase_name: gpx-studio-shared-dialog-shell-map-layers-my-maps
@@ -137,6 +137,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 70-05: Map Layers opens on click only — hover-open, mouseleave-close and the hand-rolled window containment check are deleted (DLGS-04 stutter fix)
 - [Phase ?]: 70-05: basemaps render as a flat radio list via flattenLayerTree, so the Map Layers dialog has exactly one collapse affordance per section
 - [Phase ?]: 69-01: RewritePayloadString signature (error, bool) -> error; nil Decoded/Cipher guarded; the parsed Data is mutated IN PLACE (not a three-field rebuild) so reply_id/emoji/dest/source/request_id/want_response and protobuf unknown fields survive — Bitfield (meshtk#21 pre-hop drop) is subsumed not removed; marshal happens BEFORE PayloadVariant is reassigned because on a decoded packet the parsed Data is reachable through that same variant. RewriteHelloGoodbye now declines when !WasEncrypted || Cipher == nil and CONSUMES the rewrite error (log + return false), so a failed censor can no longer report Rewrote while the original bytes forward. Upstream branch fix/shared-chain-hardening off origin/main@609a5c5, commits 72c5506/2f62e61/ce07c66; NOT pushed, PR'd, vendor-synced or deployed. 5 cross-codec regression tests (9 cases) with one SHARED six-field assertion so 3.1.1 and v5 cannot drift, plus a deferred-recover wrapper so a SIGSEGV regression is a named failure; v4 golden byte-unedited and green; go.mod/go.sum/vendor diff empty. RED proven by throwaway probe before the fix (panic + all six fields zeroed) and by reverting rules.go alone. ⚠️CR-01 layer 3 (recover() around the per-connection goroutine) deliberately OUT of scope — a panic anywhere else in the read loop still takes the process.
+- [Phase 69]: 69-02: CR-01 layer 3 closed — recoverConn deferred at all four per-connection goroutine entries (handleProxy, handleBackend, handleProxyV5, handleBackendV5) plus both cmd.go accept-loop spawns; upstream branch fix/shared-chain-hardening commits 82e790f/1182a2f, NOT pushed/PR'd/vendor-synced. Before this there was NO recover() in the proxy path, so any panic in a connection goroutine was a process kill dropping every connected radio. ⭐PROD GREP for 69-07: action=PANIC_RECOVERED (expect ZERO) — single emission site in proxy.go, format 'action=PANIC_RECOVERED, label=%s, remote=%s, panic=%v, stack=%s' with labels proxy_uplink_v4/proxy_downlink_v4/proxy_uplink_v5/proxy_downlink_v5/accept_proxy/accept_protobuf. Recover is at goroutine ENTRY only, NEVER per loop iteration (a per-iteration recover would keep serving a connection whose invariants just broke). handleProxyV5 carries its own recover though it runs on handleProxy's goroutine so the INNERMOST recover wins and the label attributes the crash to the right codec. The stack goes through Config.Log (logrus TextFormatter, which QUOTES) and never through InspectorLogger (SimpleFormatter, no quoting) — proven non-forgeable by panicking with a value containing a newline + a fake BLOCK line, which rendered as an escaped \n inside the quoted msg= with no second log line. recoverConn guards nil conn/Config/Log because a second panic inside a deferred recover handler is unrecoverable and would reintroduce the exact failure. 3 tests (proxy_recover_test.go) each assert on the recovered LOG LINE not on the call returning, each handler runs in its OWN goroutine so a regression crashes the test binary rather than failing politely; the v4 test then DISARMS the decider and serves a second connection on the same ServerCmd to prove the process keeps serving. RED proven by deleting the four defers (binary crashed with the sentinel), restored via targeted git checkout — NOT git stash (prohibited, shared across worktrees). v4 golden byte-unedited and green; go.mod/go.sum/vendor and internal/embedded diffs all empty.
 
 ### Pending Todos
 
@@ -149,8 +150,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-30T13:40:12.268Z
-Stopped at: Completed 69-01-PLAN.md (meshtk shared-chain criticals: nil cipher + Data field loss)
+Last session: 2026-07-30T13:53:17.732Z
+Stopped at: Completed 69-02-PLAN.md (meshtk per-connection panic containment: CR-01 layer 3)
 Resume file: None
 
 ## Operator Next Steps
@@ -211,3 +212,4 @@ Resume file: None
 | Phase 70 P04 | 35m | 3 tasks | 1 files |
 | Phase 70 P05 | ~25m | 2 tasks | 3 files |
 | Phase 69 P01 | ~25m | 3 tasks | 5 files |
+| Phase 69 P02 | ~20m | 2 tasks | 4 files |
