@@ -22,7 +22,10 @@
     // Mirrors PublicOverlays: the group master toggle drives the collapse state
     // on an actual ON/OFF transition, without fighting a manual chevron click.
     // `undefined` marks a group this mount has not seen yet — see PublicOverlays for
-    // why the first sighting seeds the baseline instead of writing collapse.
+    // why the first sighting seeds the baseline instead of writing collapse. Restored
+    // visibility rides in on that same seed: the layer commits `myConRunGroups` once,
+    // atomically, with the persisted per-run values already applied, so a restore is
+    // never seen as an ON/OFF transition and never rewrites the collapse store.
     let prevGroupVisible: Record<string, boolean> = {};
     $effect(() => {
         for (const group of $myConRunGroups) {

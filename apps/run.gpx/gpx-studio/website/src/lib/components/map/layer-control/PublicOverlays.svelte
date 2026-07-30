@@ -61,6 +61,11 @@
     // `undefined !== visible` for every group and immediately overwrite the restored
     // value with `!visible` — the same bug in a subtler form. A genuine ON/OFF transition
     // after the seed still drives the collapse, which is the §9 behaviour.
+    //
+    // That seed is also what lets VISIBILITY be restored from localStorage without
+    // disturbing collapse: the layer commits `publicOverlayGroups` once, atomically, with
+    // the restored values already applied, so this effect's first sighting of every group
+    // IS the restored value — a seed, not a transition, and nothing is written.
     let prevGroupVisible: Record<string, boolean> = {};
     $effect(() => {
         for (const group of $publicOverlayGroups) {
@@ -74,8 +79,20 @@
 
     // Same idiom for the check-ins block. Turning the master off now folds the filter body
     // away instead of unmounting it, so the collapse affordance stays usable afterwards.
+    //
+    // The `available` gate is the check-ins equivalent of the per-group seeding above, and
+    // it matters now that visibility is RESTORED from localStorage: before the manifest
+    // lands the store reads `{available:false, visible:false}`, so a mount that happened
+    // during the fetch would seed `false` and then see the restored `true` as a genuine
+    // ON transition — rewriting the persisted collapse state on a plain page load. Waiting
+    // for `available` means the first value this effect ever seeds from is the restored
+    // one. Clearing the sentinel when it goes away keeps a remove()/add() cycle honest.
     let prevCheckinsVisible: boolean | undefined;
     $effect(() => {
+        if (!$publicCheckIns.available) {
+            prevCheckinsVisible = undefined;
+            return;
+        }
         const prev = prevCheckinsVisible;
         prevCheckinsVisible = $publicCheckIns.visible;
         if (prev !== undefined && prev !== $publicCheckIns.visible) {
