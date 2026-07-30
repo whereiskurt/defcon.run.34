@@ -110,9 +110,12 @@
     // Con-day save dialog state (Task 10)
     let conDayDialogFile: CloudFile | null = null;
 
-    // Version history state
-    let fileVersions: FileVersion[] = [];
-    let versionHistoryCurrent: number = 1;
+    // Version history state. Keyed BY fileId, deliberately: a single shared buffer
+    // let one row render (and action) another row's versions whenever a fetch failed
+    // or two hover-opened submenus overlapped. Reading `fileVersions[file.fileId]`
+    // makes that cross-file render structurally impossible, not merely unlikely.
+    let fileVersions: Record<string, FileVersion[]> = {};
+    let versionHistoryCurrent: Record<string, number> = {};
     let loadingVersions = false;
     let loadingVersionsFileId: string | null = null;
 
@@ -382,14 +385,26 @@
     async function fetchVersionHistory(file: CloudFile) {
         if (loadingVersionsFileId === file.fileId) return;
 
+        // Drop THIS file's cached list before the await, so a slow or failing fetch
+        // shows "Loading..." then "No versions found" for this row rather than
+        // whatever the previously-opened row left behind.
+        fileVersions[file.fileId] = [];
+        fileVersions = fileVersions;
+        versionHistoryCurrent[file.fileId] = 0;
+        versionHistoryCurrent = versionHistoryCurrent;
+
         loadingVersionsFileId = file.fileId;
         loadingVersions = true;
         error = null;
         try {
             const { versions, current } = await getFileVersions(file.fileId);
-            fileVersions = versions;
-            versionHistoryCurrent = current;
+            fileVersions[file.fileId] = versions;
+            fileVersions = fileVersions;
+            versionHistoryCurrent[file.fileId] = current;
+            versionHistoryCurrent = versionHistoryCurrent;
         } catch (e) {
+            fileVersions[file.fileId] = [];
+            fileVersions = fileVersions;
             error = e instanceof Error ? e.message : 'Failed to load version history';
         } finally {
             loadingVersions = false;
@@ -924,13 +939,13 @@
                                                                 <Loader2 class="h-4 w-4 animate-spin" />
                                                                 Loading...
                                                             </div>
-                                                        {:else if fileVersions.length === 0}
+                                                        {:else if (fileVersions[file.fileId] ?? []).length === 0}
                                                             <div class="px-2 py-3 text-sm text-muted-foreground">
                                                                 No versions found
                                                             </div>
                                                         {:else}
                                                             <div class="max-h-64 overflow-y-auto">
-                                                                {#each [...fileVersions].reverse() as ver}
+                                                                {#each [...(fileVersions[file.fileId] ?? [])].reverse() as ver}
                                                                     <DropdownMenu.Item
                                                                         class="flex justify-between items-center cursor-pointer {!ver.exists ? 'opacity-50' : ''}"
                                                                         disabled={!ver.exists}
@@ -938,7 +953,7 @@
                                                                     >
                                                                         <span class="flex items-center gap-2">
                                                                             <span class="font-medium">v{ver.version}</span>
-                                                                            {#if ver.version === versionHistoryCurrent}
+                                                                            {#if ver.version === versionHistoryCurrent[file.fileId]}
                                                                                 <span class="text-xs bg-primary text-primary-foreground px-1 rounded">current</span>
                                                                             {/if}
                                                                         </span>
