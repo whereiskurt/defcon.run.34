@@ -86,11 +86,19 @@ describe("PATCH /api/bib rabbit-name sync wiring", () => {
     expect(mockMaybeSync).not.toHaveBeenCalled();
   });
 
+  // willPayInPerson: false — turning the pledge ON now 403s while bib sales
+  // are closed (lib/bib-sales.ts); un-pledging still exercises the branch.
   it("does NOT fire the sync on a pledge-only patch", async () => {
-    const res = await PATCH(patch({ willPayInPerson: true }));
+    const res = await PATCH(patch({ willPayInPerson: false }));
     expect(res.status).toBe(200);
     expect(mockUpdateWillPay).toHaveBeenCalled();
     expect(mockMaybeSync).not.toHaveBeenCalled();
+  });
+
+  it("403s a pledge-ON patch while bib sales are closed", async () => {
+    const res = await PATCH(patch({ willPayInPerson: true }));
+    expect(res.status).toBe(403);
+    expect(mockUpdateWillPay).not.toHaveBeenCalled();
   });
 
   it("still returns 200 when the sync reports failure (fail-open)", async () => {
