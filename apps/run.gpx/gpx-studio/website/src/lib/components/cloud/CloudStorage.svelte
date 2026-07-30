@@ -110,9 +110,12 @@
     // Con-day save dialog state (Task 10)
     let conDayDialogFile: CloudFile | null = null;
 
-    // Version history state
-    let fileVersions: FileVersion[] = [];
-    let versionHistoryCurrent: number = 1;
+    // Version history state. Keyed BY fileId, deliberately: a single shared buffer
+    // let one row render (and action) another row's versions whenever a fetch failed
+    // or two hover-opened submenus overlapped. Reading `fileVersions[file.fileId]`
+    // makes that cross-file render structurally impossible, not merely unlikely.
+    let fileVersions: Record<string, FileVersion[]> = {};
+    let versionHistoryCurrent: Record<string, number> = {};
     let loadingVersions = false;
     let loadingVersionsFileId: string | null = null;
 
@@ -382,14 +385,26 @@
     async function fetchVersionHistory(file: CloudFile) {
         if (loadingVersionsFileId === file.fileId) return;
 
+        // Drop THIS file's cached list before the await, so a slow or failing fetch
+        // shows "Loading..." then "No versions found" for this row rather than
+        // whatever the previously-opened row left behind.
+        fileVersions[file.fileId] = [];
+        fileVersions = fileVersions;
+        versionHistoryCurrent[file.fileId] = 0;
+        versionHistoryCurrent = versionHistoryCurrent;
+
         loadingVersionsFileId = file.fileId;
         loadingVersions = true;
         error = null;
         try {
             const { versions, current } = await getFileVersions(file.fileId);
-            fileVersions = versions;
-            versionHistoryCurrent = current;
+            fileVersions[file.fileId] = versions;
+            fileVersions = fileVersions;
+            versionHistoryCurrent[file.fileId] = current;
+            versionHistoryCurrent = versionHistoryCurrent;
         } catch (e) {
+            fileVersions[file.fileId] = [];
+            fileVersions = fileVersions;
             error = e instanceof Error ? e.message : 'Failed to load version history';
         } finally {
             loadingVersions = false;
@@ -563,11 +578,29 @@
     }
 
     // Footer: "+ Add run" hands off to the QuickStart hub (Strava / file doors).
+    // Belt-and-braces guard: the footer is not rendered on the gate screens (see the
+    // `footer={...}` prop below), but QuickStartHub only mounts when the same two
+    // conditions hold — firing this without them would latch `quickStartOpen` at true
+    // with no consumer mounted to reset it.
     function openAddRun() {
+        if (!get(isAuthenticated) || !get(hasGpxStudioAccess)) return;
         closeCloudStorage();
         quickStartOpen.set(true);
     }
 </script>
+
+<!-- Footer actions. Declared out here and handed to DialogShell as a PROP rather than
+     as an implicit child snippet: DialogShell draws the footer chrome with `{#if footer}`,
+     and a snippet is always truthy, so guarding inside the snippet body would still leave
+     an empty bordered strip on the gate screens. Passing `undefined` drops the whole row.
+     The gate is the same pair of conditions QuickStartHub's `canShow` derives from, so
+     "Add run" can never paint on a screen where it would be a dead end. -->
+{#snippet addRunFooter()}
+    <span class="text-[11px] text-muted-foreground">GPX up to 10mb</span>
+    <Button onclick={openAddRun}>
+        <span class="mr-2 text-[13px] leading-none" aria-hidden="true">👟</span>Add run
+    </Button>
+{/snippet}
 
 <DialogShell
     open={$cloudStorageOpen}
@@ -575,6 +608,7 @@
     dialogId="mymaps"
     heading="My Maps"
     subheading={$breadcrumbs.length > 1 ? $breadcrumbs[$breadcrumbs.length - 1].name : 'Your DEF CON run folder'}
+    footer={$isAuthenticated && $hasGpxStudioAccess ? addRunFooter : undefined}
 >
     {#snippet icon()}<Cloud class="h-[17px] w-[17px]" />{/snippet}
 
@@ -905,13 +939,13 @@
                                                                 <Loader2 class="h-4 w-4 animate-spin" />
                                                                 Loading...
                                                             </div>
-                                                        {:else if fileVersions.length === 0}
+                                                        {:else if (fileVersions[file.fileId] ?? []).length === 0}
                                                             <div class="px-2 py-3 text-sm text-muted-foreground">
                                                                 No versions found
                                                             </div>
                                                         {:else}
                                                             <div class="max-h-64 overflow-y-auto">
-                                                                {#each [...fileVersions].reverse() as ver}
+                                                                {#each [...(fileVersions[file.fileId] ?? [])].reverse() as ver}
                                                                     <DropdownMenu.Item
                                                                         class="flex justify-between items-center cursor-pointer {!ver.exists ? 'opacity-50' : ''}"
                                                                         disabled={!ver.exists}
@@ -919,7 +953,7 @@
                                                                     >
                                                                         <span class="flex items-center gap-2">
                                                                             <span class="font-medium">v{ver.version}</span>
-                                                                            {#if ver.version === versionHistoryCurrent}
+                                                                            {#if ver.version === versionHistoryCurrent[file.fileId]}
                                                                                 <span class="text-xs bg-primary text-primary-foreground px-1 rounded">current</span>
                                                                             {/if}
                                                                         </span>
@@ -989,13 +1023,6 @@
             </Section>
         {/if}
     {/if}
-
-    {#snippet footer()}
-        <span class="text-[11px] text-muted-foreground">GPX up to 10mb</span>
-        <Button onclick={openAddRun}>
-            <span class="mr-2 text-[13px] leading-none" aria-hidden="true">👟</span>Add run
-        </Button>
-    {/snippet}
 </DialogShell>
 
 <ShareDialog bind:open={shareDialogOpen} file={fileToShare} onSubmitChange={refreshFiles} />

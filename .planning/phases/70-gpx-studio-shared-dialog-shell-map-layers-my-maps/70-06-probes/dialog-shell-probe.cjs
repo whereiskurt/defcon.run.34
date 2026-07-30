@@ -3,10 +3,19 @@
  * Phase 70 / DLGS-06 — production probe for the shared dialog shell.
  *
  * Drives the LIVE gpx.defcon.run studio in headless Chromium and asserts the
- * twelve DOM contracts from 70-UI-SPEC.md §8: click-to-open (and NOT hover-to-open)
+ * thirteen DOM contracts from 70-UI-SPEC.md §8: click-to-open (and NOT hover-to-open)
  * on the Map Layers dialog, zero native hover-tooltip attributes inside layer rows
  * and file rows, Map Layers section order, hint-bar default plus hint-bar update on
  * hover, Esc dismissal, and the My Maps section order plus its footer action.
+ *
+ * Assertion 13 runs a SECOND pass in a fresh context whose session stub carries no
+ * `gpxstudio` service, so My Maps renders its access-denied gate. It asserts the
+ * footer's "Add run" button is absent there — the Phase 70 regression recorded in
+ * .planning/todos/…-my-maps-footer-gate-regression.md, where the button closed the
+ * dialog, opened nothing (QuickStartHub gates on the same two conditions), and left
+ * `quickStartOpen` latched true. Assertions 1-12 stub a session WITH the service and
+ * therefore never touch either gate screen, which is why they went 12/12 green while
+ * the defect was live.
  *
  * The denominator is a fixed literal. A sub-check whose subject legitimately does
  * not exist in production data scores as a pass and says so in the transcript, so
@@ -33,7 +42,7 @@ const path = require('path');
 const { execSync } = require('child_process');
 const { chromium } = require('/Users/khundeck/working/defcon.run.34/apps/run.auth/e2e/node_modules/playwright-core');
 
-const TOTAL = 12;
+const TOTAL = 13;
 const TARGET = 'https://gpx.defcon.run/use1/studio/app';
 const EXECUTABLE = `${process.env.HOME}/Library/Caches/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-mac-arm64/chrome-headless-shell`;
 const OUT_DIR = __dirname;
@@ -74,6 +83,92 @@ function sha() {
     }
 }
 
+// The two session shapes the probe drives. GRANTED is what assertions 1-12 have
+// always used. DENIED keeps a real user (so the store reports authenticated) but
+// drops the service claim, which is exactly what lands My Maps on its access-denied
+// gate — the branch assertion 13 exists to cover.
+const SESSION_GRANTED = {
+    user: {
+        id: 'probe-user',
+        email: 'probe@defcon.run',
+        name: 'Probe Runner',
+        services: ['gpxstudio'],
+        hasStrava: false,
+    },
+};
+const SESSION_DENIED = {
+    user: {
+        id: 'probe-user-nogate',
+        email: 'probe-nogate@defcon.run',
+        name: 'Probe Runner (no service)',
+        services: [],
+        hasStrava: false,
+    },
+};
+
+// Route stubs. Playwright resolves the most recently registered matching handler
+// first, so the broad catch-alls are registered before the narrow handlers that must
+// win. Both passes share this function verbatim — only `session` differs.
+async function installRoutes(page, session) {
+    await page.route('**/use1/api/gpx/**', (r) =>
+        r.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+    );
+    await page.route('**/use1/api/user/**', (r) =>
+        r.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+    );
+    await page.route('**/use1/api/auth/**', (r) =>
+        r.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+    );
+    // Real public manifest data, so the DEF CON 34 / Rabbit route groups render.
+    await page.route('**/use1/api/gpx/public/**', (r) => r.continue());
+    await page.route('**/use1/api/user/mapbox-token*', (r) =>
+        r.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ token }),
+        })
+    );
+    await page.route('**/use1/api/auth/session*', (r) =>
+        r.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+                ...session,
+                expires: new Date(Date.now() + 3600_000).toISOString(),
+            }),
+        })
+    );
+    await page.route('**/use1/api/gpx/files*', (r) =>
+        r.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+                files: [
+                    {
+                        fileId: 'probe-file-1',
+                        fileName: 'probe-route.gpx',
+                        fileSize: 20480,
+                        version: 1,
+                        trackCount: 1,
+                        createdAt: Date.now() - 86_400_000,
+                        updatedAt: Date.now() - 3_600_000,
+                    },
+                ],
+            }),
+        })
+    );
+    await page.route('**/use1/api/gpx/folders*', (r) =>
+        r.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+                folders: [],
+                globalFolders: [{ folderId: 'probe-global', folderName: 'DEF CON 34 Maps' }],
+            }),
+        })
+    );
+}
+
 async function main() {
     console.log('='.repeat(78));
     console.log('Phase 70 DLGS-06 — shared dialog shell production probe');
@@ -94,72 +189,7 @@ async function main() {
         const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
         const page = await context.newPage();
 
-        // Route stubs. Playwright resolves the most recently registered matching
-        // handler first, so the broad catch-alls are registered before the narrow
-        // handlers that must win.
-        await page.route('**/use1/api/gpx/**', (r) =>
-            r.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
-        );
-        await page.route('**/use1/api/user/**', (r) =>
-            r.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
-        );
-        await page.route('**/use1/api/auth/**', (r) =>
-            r.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
-        );
-        // Real public manifest data, so the DEF CON 34 / Rabbit route groups render.
-        await page.route('**/use1/api/gpx/public/**', (r) => r.continue());
-        await page.route('**/use1/api/user/mapbox-token*', (r) =>
-            r.fulfill({
-                status: 200,
-                contentType: 'application/json',
-                body: JSON.stringify({ token }),
-            })
-        );
-        await page.route('**/use1/api/auth/session*', (r) =>
-            r.fulfill({
-                status: 200,
-                contentType: 'application/json',
-                body: JSON.stringify({
-                    user: {
-                        id: 'probe-user',
-                        email: 'probe@defcon.run',
-                        name: 'Probe Runner',
-                        services: ['gpxstudio'],
-                        hasStrava: false,
-                    },
-                    expires: new Date(Date.now() + 3600_000).toISOString(),
-                }),
-            })
-        );
-        await page.route('**/use1/api/gpx/files*', (r) =>
-            r.fulfill({
-                status: 200,
-                contentType: 'application/json',
-                body: JSON.stringify({
-                    files: [
-                        {
-                            fileId: 'probe-file-1',
-                            fileName: 'probe-route.gpx',
-                            fileSize: 20480,
-                            version: 1,
-                            trackCount: 1,
-                            createdAt: Date.now() - 86_400_000,
-                            updatedAt: Date.now() - 3_600_000,
-                        },
-                    ],
-                }),
-            })
-        );
-        await page.route('**/use1/api/gpx/folders*', (r) =>
-            r.fulfill({
-                status: 200,
-                contentType: 'application/json',
-                body: JSON.stringify({
-                    folders: [],
-                    globalFolders: [{ folderId: 'probe-global', folderName: 'DEF CON 34 Maps' }],
-                }),
-            })
-        );
+        await installRoutes(page, SESSION_GRANTED);
 
         const response = await page.goto(TARGET, {
             waitUntil: 'domcontentloaded',
@@ -427,6 +457,49 @@ async function main() {
             else bad(12, L12, `inner=${counts.inner} self=${counts.self}`);
         } catch (e) {
             bad(12, L12, String(e.message).split('\n')[0]);
+        }
+
+        // ---- 13. footer must NOT paint on the gate screen ------------------------
+        // Second pass, fresh context: same stubs, session WITHOUT the gpxstudio
+        // service. My Maps then renders its access-denied gate, where "Add run" is a
+        // dead end (QuickStartHub's canShow derives from the same two conditions).
+        // Reaching the gate is asserted explicitly — a dialog that never opened, or a
+        // body that is not a gate, scores FAIL rather than a vacuous pass.
+        const L13 = 'My Maps hides the Add run footer on the access-denied gate screen';
+        try {
+            const gatedCtx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+            const gated = await gatedCtx.newPage();
+            await installRoutes(gated, SESSION_DENIED);
+            await gated.goto(TARGET, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+            await gated.waitForFunction(() => !!window._map, null, { timeout: 90_000 });
+            await gated.evaluate(() => window._map.setTerrain(null));
+            await gated.keyboard.press('Control+o');
+            await gated
+                .locator('[data-dc34-dialog="mymaps"]')
+                .waitFor({ state: 'visible', timeout: 20_000 });
+            await gated.waitForTimeout(1500);
+            await gated
+                .screenshot({ path: path.join(OUT_DIR, 'shot-mymaps-gated.png'), fullPage: false })
+                .catch(() => {});
+            const seen = await gated.evaluate(() => {
+                const d = document.querySelector('[data-dc34-dialog="mymaps"]');
+                if (!d) return null;
+                const text = (d.textContent || '').replace(/\s+/g, ' ').trim();
+                return {
+                    addRun: [...d.querySelectorAll('button')].filter((b) =>
+                        (b.textContent || '').includes('Add run')
+                    ).length,
+                    onGate: /access denied/i.test(text) || /need to sign in/i.test(text),
+                    text: text.slice(0, 110),
+                };
+            });
+            if (!seen) bad(13, L13, 'My Maps dialog not present on the gated pass');
+            else if (!seen.onGate) bad(13, L13, `not a gate screen — dialog read "${seen.text}"`);
+            else if (seen.addRun === 0) pass(13, L13, `gate reads "${seen.text}"`);
+            else bad(13, L13, `${seen.addRun} "Add run" button(s) on the gate screen`);
+            await gatedCtx.close();
+        } catch (e) {
+            bad(13, L13, String(e.message).split('\n')[0]);
         }
     } finally {
         await browser.close();
