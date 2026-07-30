@@ -23,6 +23,7 @@ outside the white QR card (white-pupil experiments previously broke jsQR).
 | 002 | badge-slots | Where do discrete earned badges (bib-buyer, milestones) live around the QR? | A: Pin Rail | qr, badges |
 | 003 | hud-glow-leader-rank | HUD ring + pin rail synthesis: how thick/blurry does the glow get, and how does relative RANK (percentile, decays as others overtake) + a LEADER №1 state read? | D: Reactor Tuned | qr, flair, glow, rank |
 | 004 | landing-hero-tiles | What DC33-style photo-tile layout should the run.defcon.run landing use? | B: Hero + Strip | landing, tiles, run.human |
+| 006 | shared-dialog-shell | What section/row treatment for the shared Map Layers + My Maps dialog shell (gpx-studio)? | B: Carded sections (MY FILES first, Add run footer) | gpx-studio, dialog, layers, my-maps |
 
 ## Model shift (from 003 intake)
 Tiers are RELATIVE, not absolute: flair is driven by your rank/percentile among all

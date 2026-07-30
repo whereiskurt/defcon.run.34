@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sketch 006 — Shared Dialog Shell (Map Layers + My Maps)</title>
+<link rel="stylesheet" href="../themes/default.css">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--font-sans);
+    background: var(--color-bg);
+    color: var(--color-text);
+    padding-top: 46px; /* variant nav */
+  }
+
+  /* ── variant nav ─────────────────────────────────────── */
+  #variant-nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 9998;
+    background: var(--color-surface); border-bottom: 1px solid var(--color-border);
+    padding: 8px 16px; display: flex; gap: 8px; align-items: center;
+  }
+  #variant-nav .title { font-size: 12px; color: var(--color-text-muted); margin-right: 8px; font-family: var(--font-mono); }
+  .variant-tab {
+    background: transparent; color: var(--color-text-muted);
+    border: 1px solid var(--color-border); border-radius: var(--radius-full);
+    font-size: 12px; padding: 5px 14px; cursor: pointer; transition: all .15s ease;
+  }
+  .variant-tab:hover { color: var(--color-text); border-color: var(--color-text-muted); }
+  .variant-tab.active { color: var(--color-accent); border-color: var(--color-accent); background: rgba(51,255,153,.08); }
+
+  /* ── fake map backdrop ───────────────────────────────── */
+  .stage {
+    position: relative; min-height: calc(100vh - 46px); overflow: hidden;
+    background:
+      radial-gradient(1200px 500px at 70% -10%, rgba(196,21,122,.06), transparent),
+      var(--color-bg);
+  }
+  .stage svg.mapbg { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .55; }
+  .stage .dialogs {
+    position: relative; z-index: 2; display: flex; flex-wrap: wrap; gap: 32px;
+    justify-content: center; align-items: flex-start; padding: 40px 24px 80px;
+  }
+
+  /* ── shared dialog kit ───────────────────────────────── */
+  .dlg {
+    width: 420px; max-width: 94vw;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 18px 50px rgba(0,0,0,.55);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .dlg-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .dlg-head .ico { font-size: 17px; line-height: 1; }
+  .dlg-head h2 { font-size: var(--text-lg); font-weight: 700; letter-spacing: .01em; flex: 1; }
+  .dlg-head .sub { font-size: var(--text-xs); color: var(--color-text-muted); margin-top: 2px; font-weight: 400; }
+  .x-btn {
+    background: none; border: none; color: var(--color-text-muted); font-size: 16px;
+    cursor: pointer; padding: 4px 6px; border-radius: var(--radius-sm); transition: all .15s ease;
+  }
+  .x-btn:hover { color: var(--color-text); background: var(--color-surface-2); }
+
+  .dlg-body { padding: 8px 0; max-height: 560px; overflow-y: auto; }
+
+  /* section */
+  .sec { }
+  .sec-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 16px; cursor: default; user-select: none;
+  }
+  .chev {
+    background: none; border: none; color: var(--color-text-muted); cursor: pointer;
+    width: 18px; height: 18px; display: grid; place-items: center; padding: 0;
+    transition: transform .15s ease, color .15s ease; font-size: 11px;
+  }
+  .chev:hover { color: var(--color-text); }
+  .sec.closed .chev { transform: rotate(-90deg); }
+  .sec-label {
+    flex: 1; font-size: 11px; font-weight: 700; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--color-text-muted); cursor: pointer;
+  }
+  .sec-count { font-size: 11px; color: var(--color-text-muted); font-family: var(--font-mono); }
+  .sec-body { padding: 2px 0 8px; }
+  .sec.closed .sec-body { display: none; }
+  .sec.dimmed .sec-label { opacity: .55; }
+
+  /* rows */
+  .row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 16px 6px 42px; font-size: var(--text-sm);
+    cursor: pointer; transition: background .12s ease;
+  }
+  .row:hover { background: rgba(255,255,255,.04); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .row .lbl { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  input[type="checkbox"], input[type="radio"] {
+    accent-color: var(--color-accent); width: 15px; height: 15px; cursor: pointer; flex-shrink: 0;
+  }
+  .sec-head input[type="checkbox"] { accent-color: var(--color-accent); }
+
+  /* chips */
+  .chiprow { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 16px 4px 42px; }
+  .seg { display: inline-flex; border: 1px solid var(--color-border); border-radius: var(--radius-full); overflow: hidden; }
+  .seg button {
+    background: transparent; border: none; color: var(--color-text-muted);
+    font-size: 12px; padding: 4px 12px; cursor: pointer; transition: all .15s ease;
+  }
+  .seg button + button { border-left: 1px solid var(--color-border); }
+  .seg button.on { background: rgba(51,255,153,.12); color: var(--color-accent); font-weight: 600; }
+  .chip {
+    border: 1px solid var(--color-border); background: transparent; color: var(--color-text-muted);
+    border-radius: var(--radius-full); font-size: 12px; padding: 4px 11px; cursor: pointer; transition: all .15s ease;
+  }
+  .chip:hover { color: var(--color-text); border-color: var(--color-text-muted); }
+  .chip.on { font-weight: 600; }
+  .search {
+    margin: 4px 16px 4px 42px; padding: 5px 10px; width: calc(100% - 58px);
+    background: rgba(255,255,255,.03); border: 1px solid var(--color-border);
+    border-radius: var(--radius-md); color: var(--color-text); font-size: 12px; outline: none;
+    transition: border-color .15s ease;
+  }
+  .search:focus { border-color: var(--color-accent); }
+  .search::placeholder { color: var(--color-text-muted); }
+
+  /* file rows (My Maps) */
+  .frow {
+    display: flex; align-items: center; gap: 12px; padding: 9px 16px;
+    transition: background .12s ease; cursor: default;
+  }
+  .frow:hover { background: rgba(255,255,255,.04); }
+  .frow .fico { font-size: 17px; width: 24px; text-align: center; flex-shrink: 0; }
+  .frow .fmain { flex: 1; min-width: 0; }
+  .frow .fname { font-size: var(--text-sm); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .frow .fmeta { font-size: 11px; color: var(--color-text-muted); margin-top: 1px; }
+  .frow .facts { display: flex; gap: 6px; opacity: 0; transition: opacity .15s ease; }
+  .frow:hover .facts { opacity: 1; }
+  .frow .facts.pinned { opacity: 1; }
+  .btn {
+    border: 1px solid var(--color-border); background: transparent; color: var(--color-text);
+    border-radius: var(--radius-md); font-size: 12px; padding: 4px 12px; cursor: pointer;
+    transition: all .15s ease; white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--color-text-muted); background: rgba(255,255,255,.05); }
+  .btn.primary {
+    background: var(--color-accent); border-color: var(--color-accent); color: #06130c; font-weight: 700;
+  }
+  .btn.primary:hover { filter: brightness(1.1); }
+  .btn.icon { padding: 4px 8px; }
+
+  /* folder rows */
+  .folder .fname { font-weight: 600; }
+  .folder .badge {
+    font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--color-text-muted); border: 1px solid var(--color-border);
+    border-radius: var(--radius-full); padding: 2px 8px;
+  }
+  .folder .arrow { color: var(--color-text-muted); font-size: 14px; }
+
+  /* menus */
+  .menuwrap { position: relative; }
+  .menu {
+    position: absolute; right: 0; top: calc(100% + 4px); z-index: 50; min-width: 168px;
+    background: var(--color-surface-2); border: 1px solid var(--color-border);
+    border-radius: var(--radius-md); box-shadow: 0 10px 30px rgba(0,0,0,.5);
+    padding: 4px; display: none;
+  }
+  .menu.open { display: block; }
+  .menu button {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    background: none; border: none; color: var(--color-text); font-size: 13px;
+    padding: 7px 10px; border-radius: var(--radius-sm); cursor: pointer; text-align: left;
+    transition: background .12s ease;
+  }
+  .menu button:hover { background: rgba(255,255,255,.06); }
+  .menu button.danger { color: var(--color-danger); }
+  .menu .sep { height: 1px; background: var(--color-border); margin: 4px 6px; }
+
+  /* hint bar */
+  .hintbar {
+    border-top: 1px solid var(--color-border);
+    padding: 8px 16px; font-size: 12px; color: var(--color-text-muted);
+    min-height: 33px; display: flex; align-items: center; gap: 8px;
+    background: rgba(0,0,0,.25);
+  }
+  .hintbar .k { font-family: var(--font-mono); font-size: 10px; color: var(--color-accent); opacity: .7; }
+
+  /* footer (variant differences may hide) */
+  .dlg-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border-top: 1px solid var(--color-border);
+  }
+
+  /* toast */
+  #toast {
+    position: fixed; bottom: 64px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--color-surface-2); border: 1px solid var(--color-accent); color: var(--color-text);
+    border-radius: var(--radius-md); padding: 8px 18px; font-size: 13px; opacity: 0;
+    transition: all .25s ease; z-index: 10000; pointer-events: none;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ═══ VARIANT TREATMENTS ═══════════════════════════════ */
+
+  /* A: FLAT — one surface, hairline separators (closest to today's My Maps) */
+  .v-flat .sec + .sec { border-top: 1px solid var(--color-border); }
+
+  /* B: CARDED — each section its own raised card */
+  .v-card .dlg-body { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .v-card .sec {
+    background: var(--color-surface-2); border: 1px solid var(--color-border);
+    border-radius: var(--radius-md); overflow: hidden;
+  }
+  .v-card .sec-head { padding: 10px 12px; }
+  .v-card .sec:not(.closed) .sec-head { border-bottom: 1px solid var(--color-border); }
+  .v-card .row, .v-card .chiprow { padding-left: 34px; }
+  .v-card .search { margin-left: 12px; width: calc(100% - 24px); }
+  .v-card .frow { padding: 9px 12px; }
+
+  /* C: INSET — label outside, rows in an inset well (macOS grouped list) */
+  .v-inset .dlg-body { padding: 14px 14px 10px; }
+  .v-inset .sec { margin-bottom: 14px; }
+  .v-inset .sec-head { padding: 0 2px 6px; }
+  .v-inset .sec-body {
+    background: rgba(0,0,0,.30); border: 1px solid var(--color-border);
+    border-radius: var(--radius-md); padding: 6px 0;
+  }
+  .v-inset .row { padding-left: 14px; }
+  .v-inset .chiprow { padding-left: 14px; }
+  .v-inset .search { margin-left: 14px; width: calc(100% - 28px); }
+  .v-inset .frow { padding: 9px 12px; }
+</style>
+</head>
+<body>
+
+<div id="variant-nav">
+  <span class="title">006 shared-dialog-shell</span>
+  <button class="variant-tab active" data-v="flat" onclick="showVariant('flat', this)">A: Flat sections</button>
+  <button class="variant-tab" data-v="card" onclick="showVariant('card', this)">B: Carded sections ★</button>
+  <button class="variant-tab" data-v="inset" onclick="showVariant('inset', this)">C: Inset groups</button>
+</div>
+
+<div class="stage">
+  <svg class="mapbg" preserveAspectRatio="none" viewBox="0 0 1400 900">
+    <defs><pattern id="g" width="60" height="60" patternUnits="userSpaceOnUse">
+      <path d="M60 0H0V60" fill="none" stroke="#1b1b26" stroke-width="1"/>
+    </pattern></defs>
+    <rect width="1400" height="900" fill="url(#g)"/>
+    <path d="M-20 640 C 300 600, 700 660, 1420 580" stroke="#23233a" stroke-width="26" fill="none"/>
+    <path d="M180 -20 L 240 920" stroke="#23233a" stroke-width="18" fill="none"/>
+    <path d="M100 380 L 520 340 L 760 420 L 1080 380" stroke="#33ff99" stroke-width="4" fill="none" opacity=".5"/>
+    <path d="M420 760 C 560 640, 900 700, 1120 520" stroke="#c4157a" stroke-width="4" fill="none" opacity=".5"/>
+    <path d="M900 180 L 1040 260 L 1240 210" stroke="#ffb347" stroke-width="4" fill="none" opacity=".45"/>
+  </svg>
+  <div class="dialogs" id="dialogs"><!-- rendered by JS --></div>
+</div>
+
+<div id="toast"></div>
+
+<div id="sketch-tools" style="position:fixed;bottom:12px;right:12px;z-index:9999;font-family:system-ui;font-size:12px;background:rgba(0,0,0,0.75);color:#fff;padding:8px 12px;border-radius:8px;opacity:.4;transition:opacity .2s;display:flex;gap:8px;align-items:center;"
+     onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='.4'">
+  <select onchange="document.querySelector('link[href*=themes]').href='../themes/'+this.value+'.css'"
+          style="background:#222;color:#fff;border:1px solid #444;border-radius:4px;font-size:11px;padding:2px 4px;">
+    <option value="default">theme: default</option>
+  </select>
+  <button onclick="setVw(375)" style="background:#222;color:#fff;border:1px solid #444;border-radius:4px;font-size:11px;padding:2px 6px;cursor:pointer;">📱</button>
+  <button onclick="setVw(768)" style="background:#222;color:#fff;border:1px solid #444;border-radius:4px;font-size:11px;padding:2px 6px;cursor:pointer;">▤</button>
+  <button onclick="setVw(0)" style="background:#222;color:#fff;border:1px solid #444;border-radius:4px;font-size:11px;padding:2px 6px;cursor:pointer;">🖥</button>
+</div>
+
+<script>
+/* ── data (real names from prod) ─────────────────────── */
+const BASEMAPS = ['Dark', 'Outdoors', 'Satellite', 'OpenStreetMap'];
+const ROUTES = [
+  ['Big Star', '#e6007a', 'The classic 5K star loop around the Strip core.'],
+  ['East', '#22d3ee', 'Eastern reach out past Paradise and back.'],
+  ['Frankie', '#22c55e', 'A tribute loop for Frankie — flat and fast.'],
+  ['History', '#f4a240', 'Runs past the sites of the earliest DEF CONs.'],
+  ['Little Star', '#8b5cf6', 'A 40K scavenger hunt touching every former DEF CON venue.'],
+  ['LVCC Double Down Salon', '#22c55e', 'Short indoor-adjacent loop by the Double Down.'],
+  ['LVCC Rebar', '#f4a240', 'Rebar art walk on the LVCC campus.'],
+  ['LVCC Indoor', '#34d399', 'Fully indoor option — AC the whole way.'],
+  ['North', '#fb7185', 'North along the Boulevard to the Strat.'],
+  ['Original', '#e6007a', 'The original defcon.run route, unchanged since DC26.'],
+  ['Other Cons', '#22d3ee', 'Hits hotels that host the other hacker summer camp cons.'],
+  ['Sign', '#22c55e', 'Out-and-back to the Welcome to Las Vegas sign.'],
+  ['South', '#f4a240', 'South past the airport fence line.'],
+  ['Tribute', '#8b5cf6', 'In memoriam loop — run it quiet.'],
+  ['West', '#34d399', 'West side wander toward the Arts District.'],
+];
+const RABBITS = [['New York', '#e6007a', 'Rabbit-run route transplanted from NYC.'], ['Japan', '#22d3ee', 'Tokyo rabbit route — far, far off-map.']];
+const MYRUNS = [
+  ['Morning Trail Run', '#fc4c02', 'Imported from Strava · no day assigned yet'],
+  ['Afternoon Run', '#fc4c02', 'Imported from Strava · no day assigned yet'],
+];
+const COMMUNITY = [['Neon Alley 8K', '#a3e635', 'Community route by @hex_rabbit.'], ['Dawn Patrol', '#f472b6', 'Community route by @packetdrift.']];
+const TYPES = [['🐇 Rabbit', '#e6007a'], ['★ Admin', '#f4a240'], ['⚡ Wildhare', '#00c2b8'], ['☆ OG', '#8b5cf6']];
+
+/* ── shared markup builders ───────────────────────────── */
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+
+function section(id, label, opts = {}) {
+  const { master = null, count = '', closed = false, body = '', trailing = '' } = opts;
+  return `<div class="sec ${closed ? 'closed' : ''} ${master === false ? 'dimmed' : ''}" data-sec="${id}">
+    <div class="sec-head">
+      <button class="chev" data-chev="${id}" aria-label="Collapse">▼</button>
+      <span class="sec-label" data-chevlbl="${id}">${label}</span>
+      ${count ? `<span class="sec-count">${count}</span>` : ''}
+      ${trailing}
+      ${master !== null ? `<input type="checkbox" data-master="${id}" ${master ? 'checked' : ''} title="Toggle whole group">` : ''}
+    </div>
+    <div class="sec-body">${body}</div>
+  </div>`;
+}
+
+const routeRow = ([name, color, hint], checked = true) =>
+  `<label class="row" data-hint="${esc(hint)}">
+     <input type="checkbox" ${checked ? 'checked' : ''}>
+     <span class="dot" style="background:${color}"></span>
+     <span class="lbl">${esc(name)}</span>
+   </label>`;
+
+function layersDialog() {
+  return `<div class="dlg" data-dlg="layers">
+    <div class="dlg-head">
+      <span class="ico">◧</span>
+      <h2>Map Layers</h2>
+      <button class="x-btn" onclick="toast('close (mock)')">✕</button>
+    </div>
+    <div class="dlg-body">
+      ${section('base', 'Basemap', { body: BASEMAPS.map((b, i) =>
+        `<label class="row" data-hint="Switch the background map style.">
+           <input type="radio" name="bm" ${i === 0 ? 'checked' : ''}><span class="lbl">${b}</span>
+         </label>`).join('') })}
+      ${section('checkins', 'User Check-ins', { master: true, count: '4', body: `
+        <div class="chiprow"><span class="seg">
+          <button>Hour</button><button>Today</button><button class="on">Whole con</button>
+        </span></div>
+        <input class="search" placeholder="match a handle…" data-hint="Show only check-ins whose handle matches.">
+        <div class="chiprow">${TYPES.map(([t, c]) =>
+          `<button class="chip" data-c="${c}">${t}</button>`).join('')}</div>` })}
+      ${section('dc34', 'DEF CON 34 Routes', { master: true, body: ROUTES.map(r => routeRow(r)).join('') })}
+      ${section('rabbit', 'Rabbit Routes', { master: false, closed: true, body: RABBITS.map(r => routeRow(r, false)).join('') })}
+      ${section('mine', 'My DEF CON Runs', { master: true, body: MYRUNS.map(r => routeRow(r)).join('') })}
+      ${section('community', 'Community Routes', { master: false, closed: true, body: COMMUNITY.map(r => routeRow(r, false)).join('') })}
+    </div>
+    <div class="hintbar"><span class="k">ⓘ</span><span data-hintout>Hover a row for details</span></div>
+  </div>`;
+}
+
+function fileRow(name, meta, hint) {
+  return `<div class="frow" data-hint="${esc(hint)}">
+    <span class="fico">🗺</span>
+    <div class="fmain">
+      <div class="fname">${esc(name)}</div>
+      <div class="fmeta">${meta}</div>
+    </div>
+    <div class="facts">
+      <button class="btn" onclick="toast('Edit ${esc(name)} (mock)')">Edit</button>
+      <div class="menuwrap">
+        <button class="btn icon" data-menubtn>⋯</button>
+        <div class="menu">
+          <button onclick="toast('Share (mock)')">↗ Share</button>
+          <button onclick="toast('Assign day (mock)')">📅 Assign day</button>
+          <button onclick="toast('Save as Route (mock)')">🧭 Save as Route</button>
+          <button onclick="toast('Export GPX (mock)')">⭳ Export GPX</button>
+          <div class="sep"></div>
+          <button class="danger" onclick="toast('Delete (mock)')">🗑 Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function myMapsDialog() {
+  return `<div class="dlg" data-dlg="mymaps">
+    <div class="dlg-head">
+      <span class="ico">☁︎</span>
+      <div style="flex:1">
+        <h2>My Maps</h2>
+        <div class="sub">Your DEF CON run folder</div>
+      </div>
+      <button class="x-btn" onclick="toast('close (mock)')">✕</button>
+    </div>
+    <div class="dlg-body">
+      ${section('files', 'My files', { count: '2', trailing: `
+        <div class="menuwrap">
+          <button class="btn icon" data-menubtn>⋯</button>
+          <div class="menu">
+            <button onclick="toast('New folder (mock)')">🗂 New folder</button>
+            <button onclick="toast('Refresh (mock)')">↻ Refresh</button>
+            <button onclick="toast('Export all (mock)')">⭳ Export all</button>
+          </div>
+        </div>`, body: `
+        ${fileRow('Morning Trail Run.gpx', 'v1 · 1 track · 2mb · Today @ 1:00am', 'Imported from Strava Jul 25 — no con day assigned yet.')}
+        ${fileRow('Afternoon Run.gpx', 'v1 · 1 track · 411kb · Today @ 1:00am', 'Imported from Strava Jul 22 — no con day assigned yet.')}` })}
+      ${section('shared', 'Shared with you', { body: `
+        <div class="frow folder" data-hint="Official route folder — read-only, shown on the map via Map Layers.">
+          <span class="fico">🌐</span>
+          <div class="fmain"><div class="fname">DEF CON 34 Routes</div></div>
+          <span class="badge">shared</span><span class="arrow">›</span>
+        </div>
+        <div class="frow folder" data-hint="Rabbit-run destination routes, curated by the rabbits.">
+          <span class="fico">🌐</span>
+          <div class="fmain"><div class="fname">Rabbit Routes</div></div>
+          <span class="badge">shared</span><span class="arrow">›</span>
+        </div>` })}
+    </div>
+    <div class="dlg-foot">
+      <span style="font-size:11px;color:var(--color-text-muted)">GPX up to 10mb</span>
+      <button class="btn primary" onclick="toast('Add run flow (mock)')">👟 Add run</button>
+    </div>
+    <div class="hintbar"><span class="k">ⓘ</span><span data-hintout>Hover a row for details</span></div>
+  </div>`;
+}
+
+/* ── render + variants ────────────────────────────────── */
+const dialogsEl = document.getElementById('dialogs');
+function render(variant) {
+  dialogsEl.className = 'dialogs v-' + variant;
+  dialogsEl.innerHTML = layersDialog() + myMapsDialog();
+}
+function showVariant(v, tab) {
+  document.querySelectorAll('.variant-tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  render(v);
+}
+render('flat');
+
+/* ── behavior (delegated so it survives re-render) ───── */
+document.addEventListener('click', e => {
+  // collapse chevron / label
+  const chev = e.target.closest('[data-chev],[data-chevlbl]');
+  if (chev) {
+    chev.closest('.sec').classList.toggle('closed');
+    return;
+  }
+  // overflow menus
+  const mb = e.target.closest('[data-menubtn]');
+  document.querySelectorAll('.menu.open').forEach(m => {
+    if (!mb || m !== mb.nextElementSibling) m.classList.remove('open');
+  });
+  if (mb) { mb.nextElementSibling.classList.toggle('open'); return; }
+  // segmented chips (single-select)
+  const segBtn = e.target.closest('.seg button');
+  if (segBtn) {
+    segBtn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('on'));
+    segBtn.classList.add('on');
+    return;
+  }
+  // type chips (multi-select w/ per-type color)
+  const chip = e.target.closest('.chip[data-c]');
+  if (chip) {
+    const c = chip.dataset.c, on = chip.classList.toggle('on');
+    chip.style.borderColor = on ? c : '';
+    chip.style.color = on ? c : '';
+    chip.style.background = on ? c + '22' : '';
+    return;
+  }
+});
+
+// master checkbox: off → collapse + dim (mirrors group-off-collapses behavior)
+document.addEventListener('change', e => {
+  const master = e.target.closest('[data-master]');
+  if (master) {
+    const sec = master.closest('.sec');
+    sec.classList.toggle('closed', !master.checked);
+    sec.classList.toggle('dimmed', !master.checked);
+    // cascade to child checkboxes
+    sec.querySelectorAll('.sec-body input[type=checkbox]').forEach(c => c.checked = master.checked);
+  }
+});
+
+// hint bar (replaces native title tooltips — THE stutter fix)
+document.addEventListener('mouseover', e => {
+  const hinted = e.target.closest('[data-hint]');
+  const dlg = e.target.closest('.dlg');
+  if (!dlg) return;
+  const out = dlg.querySelector('[data-hintout]');
+  if (out) out.textContent = hinted ? hinted.dataset.hint : 'Hover a row for details';
+});
+
+/* ── toolbar utils ────────────────────────────────────── */
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 1400);
+}
+function setVw(w) {
+  dialogsEl.style.maxWidth = w ? w + 'px' : '';
+  dialogsEl.style.margin = w ? '0 auto' : '';
+  if (w && w <= 420) dialogsEl.style.flexDirection = 'column';
+  else dialogsEl.style.flexDirection = '';
+}
+</script>
+</body>
+</html>
