@@ -279,14 +279,32 @@ async function main() {
         }
 
         // ---- 6. hint bar default --------------------------------------------
-        const L6 = 'Hint bar shows its default copy';
+        // Measured with nothing hinted hovered OR focused. Both preconditions are
+        // required: UI-SPEC §7 makes the bar answer to focusin as well as hover, and
+        // the dialog's focus trap lands focus inside the body on open — so the copy
+        // visible the instant the dialog appears is legitimately the focused element's
+        // hint, not the default. Neutralising focus first is what isolates the default,
+        // and asserting it here additionally proves the bar can RETURN to the default
+        // rather than merely being initialised to it.
+        const L6 = 'Hint bar shows its default copy once nothing hinted is hovered or focused';
         try {
+            const onOpen = (
+                await page.locator('[data-dc34-dialog="layers"] [data-hint-out]').textContent()
+            ).trim();
             await page.mouse.move(5, 5);
-            await page.waitForTimeout(250);
+            await page.evaluate(() => {
+                const d = document.querySelector('[data-dc34-dialog="layers"]');
+                const neutral = [...d.querySelectorAll('button, [tabindex]')].find(
+                    (el) => !el.closest('[data-hint]')
+                );
+                if (neutral) neutral.focus();
+                else document.activeElement?.blur?.();
+            });
+            await page.waitForTimeout(350);
             const t = (
                 await page.locator('[data-dc34-dialog="layers"] [data-hint-out]').textContent()
             ).trim();
-            if (t === DEFAULT_HINT) pass(6, L6, `"${t}"`);
+            if (t === DEFAULT_HINT) pass(6, L6, `"${t}" (on open it read "${onOpen}")`);
             else bad(6, L6, `got "${t}"`);
         } catch (e) {
             bad(6, L6, String(e.message).split('\n')[0]);

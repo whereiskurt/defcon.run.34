@@ -1,0 +1,29 @@
+==============================================================================
+Phase 70 DLGS-06 — shared dialog shell production probe
+==============================================================================
+timestamp   : 2026-07-30T13:28:24.342Z
+git sha     : 43ad3439
+target      : https://gpx.defcon.run/use1/studio/app
+buildpub    : https://github.com/whereiskurt/defcon.run.34/actions/runs/30518519521 (run.gpx/use1, success)
+deploy      : https://github.com/whereiskurt/defcon.run.34/actions/runs/30518808844 (us-east-1, pr_number=skip, invalidate_cache=true, success)
+released    : run.gpx v0.0.104 (Release PR #1099, auto-merged by buildpub)
+phase PR    : #1098 squash-merged to main as db85b258
+roll gate   : sentinel data-dc34-layers-btn served by /use1/studio/_app/immutable/chunks/Cj35SVFZ.js on attempt 1/12 at 2026-07-30T13:27:54Z (36 chunks walked)
+bundle etag : W/"3974-19fb1a3dcf0"
+bundle date : Thu, 30 Jul 2026 06:08:54 GMT
+entry chunks: /use1/studio/_app/immutable/entry/start.DeP0ljnw.js /use1/studio/_app/immutable/chunks/B2DdM-4L.js /use1/studio/_app/immutable/chunks/wi-Nb4rh.js /use1/studio/_app/immutable/chunks/C1W43yX3.js
+------------------------------------------------------------------------------
+PASS  1. Layers control button is present
+PASS  2. Hovering the layers button does NOT open the dialog
+PASS  3. Clicking the layers button opens a visible role=dialog
+PASS  4. Zero native hover-tooltip attributes inside layer rows — 15 rows inspected
+PASS  5. Map Layers section order follows the spec — order ok [Basemap | User Check-ins | DEF CON 34 Routes | Rabbit Routes] — PASS (skipped: no My DEF CON Runs / Community Routes in prod data)
+FAIL  6. Hint bar shows its default copy — got "Choose the background map style."
+PASS  7. Hint bar text changes when a hinted row is hovered — "All four classics - North, East, South, West - stitched into one 20K epic."
+PASS  8. Escape closes the Map Layers dialog
+PASS  9. Ctrl+O opens the My Maps dialog
+PASS  10. My Maps puts MY FILES before SHARED WITH YOU — [My files | Other maps | Shared with you]
+PASS  11. My Maps footer carries the Add run button
+PASS  12. Zero native hover-tooltip attributes inside file rows — 2 rows inspected
+------------------------------------------------------------------------------
+RESULT: 11/12 assertions passed
