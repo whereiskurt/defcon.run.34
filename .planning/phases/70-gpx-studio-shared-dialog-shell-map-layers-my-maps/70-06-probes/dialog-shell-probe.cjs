@@ -3,7 +3,7 @@
  * Phase 70 / DLGS-06 — production probe for the shared dialog shell.
  *
  * Drives the LIVE gpx.defcon.run studio in headless Chromium and asserts the
- * fourteen DOM contracts from 70-UI-SPEC.md §8: click-to-open (and NOT hover-to-open)
+ * fifteen DOM contracts from 70-UI-SPEC.md §8: click-to-open (and NOT hover-to-open)
  * on the Map Layers dialog, zero native hover-tooltip attributes inside layer rows
  * and file rows, Map Layers section order, hint-bar default plus hint-bar update on
  * hover, Esc dismissal, and the My Maps section order plus its footer action.
@@ -24,6 +24,14 @@
  * that waits for prod content to be tall enough flakes. Assertions 1-13 never measure
  * geometry, which is why they scored 13/13 green while the body was silently crushing
  * every section flat.
+ *
+ * Assertion 15 covers collapse-state PERSISTENCE across a dialog close/reopen. The
+ * shell portals without forceMount, so closing the dialog removes its whole subtree
+ * from the DOM and every `$state` declared by a component rendered inside it is
+ * destroyed. Sections whose collapse state lived inside that subtree therefore always
+ * reopened at their literal default — the reported "I collapsed it, it always opens
+ * expanded". Assertions 1-14 only ever look at a single open, which is why they scored
+ * 14/14 green while the defect was live.
  *
  * The denominator is a fixed literal. A sub-check whose subject legitimately does
  * not exist in production data scores as a pass and says so in the transcript, so
@@ -50,7 +58,7 @@ const path = require('path');
 const { execSync } = require('child_process');
 const { chromium } = require('/Users/khundeck/working/defcon.run.34/apps/run.auth/e2e/node_modules/playwright-core');
 
-const TOTAL = 14;
+const TOTAL = 15;
 const TARGET = 'https://gpx.defcon.run/use1/studio/app';
 const EXECUTABLE = `${process.env.HOME}/Library/Caches/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-mac-arm64/chrome-headless-shell`;
 const OUT_DIR = __dirname;
@@ -78,6 +86,12 @@ function pass(n, label, note) {
 function skip(n, label, what) {
     passed++;
     console.log(`PASS (skipped: no ${what} in prod data)  ${n}. ${label}`);
+}
+// Same scoring contract as skip(), for a subject whose absence is a COUNT rather than
+// a kind ("only 1 section(s)"). Kept separate so the skip wording stays literal.
+function skipWhy(n, label, why) {
+    passed++;
+    console.log(`PASS (skipped: ${why})  ${n}. ${label}`);
 }
 function bad(n, label, note) {
     console.log(`FAIL  ${n}. ${label}${note ? ` — ${note}` : ''}`);
@@ -570,6 +584,129 @@ async function main() {
             }
         } catch (e) {
             bad(14, L14, String(e.message).split('\n')[0]);
+        }
+
+        // ---- 15. collapse state survives closing and reopening the dialog --------
+        // Open, record every section's chevron aria-expanded, toggle every chevron,
+        // close with Escape (which unmounts the whole portalled subtree), reopen, and
+        // require every section still visible to read back its POST-TOGGLE value.
+        //
+        // Data-volume caveat, hit twice while building this phase: the public route
+        // manifest is racy — the dialog rendered 1 section on one run and 4 on the next.
+        // So the section count is polled until it stops moving before the first toggle,
+        // and a run that genuinely has fewer than two sections scores as a documented
+        // skip rather than asserting something vacuous.
+        const L15 = 'Section collapse state survives closing and reopening Map Layers';
+        try {
+            const readSections = () =>
+                page.evaluate(() => {
+                    const d = document.querySelector('[data-dc34-dialog="layers"]');
+                    if (!d) return [];
+                    return [...d.querySelectorAll('[data-section]')]
+                        .map((s) => {
+                            const c = s.querySelector('[data-section-chevron]');
+                            const l = s.querySelector('[data-section-label]');
+                            return c
+                                ? {
+                                      label: (l ? l.textContent : '').trim(),
+                                      expanded: c.getAttribute('aria-expanded'),
+                                  }
+                                : null;
+                        })
+                        .filter(Boolean);
+                });
+
+            // Poll until the rendered section count holds steady across 3 reads.
+            const settle = async () => {
+                let last = -1;
+                let steady = 0;
+                for (let i = 0; i < 60; i++) {
+                    const n = (await readSections()).length;
+                    steady = n === last ? steady + 1 : 0;
+                    last = n;
+                    if (steady >= 3 && n > 0) break;
+                    await page.waitForTimeout(500);
+                }
+                return last;
+            };
+
+            const openLayers = async () => {
+                await page.click('[data-dc34-layers-btn]');
+                await page
+                    .locator('[data-dc34-dialog="layers"]')
+                    .waitFor({ state: 'visible', timeout: 15_000 });
+                return settle();
+            };
+
+            // Assertions 9-14 left My Maps and/or Map Layers open; start from closed.
+            await page.keyboard.press('Escape');
+            await page.waitForTimeout(700);
+            while ((await page.locator('[data-dc34-dialog="layers"]').count()) > 0) {
+                await page.keyboard.press('Escape');
+                await page.waitForTimeout(500);
+            }
+
+            const n1 = await openLayers();
+            if (n1 < 2) {
+                await page.keyboard.press('Escape');
+                skipWhy(15, L15, `only ${n1} section(s) in prod data`);
+            } else {
+                const before = await readSections();
+
+                // Click every chevron that is still attached. Collapsing a parent removes
+                // its nested sub-sections, so a stale handle is skipped rather than clicked.
+                await page.evaluate(() => {
+                    const d = document.querySelector('[data-dc34-dialog="layers"]');
+                    for (const s of [...d.querySelectorAll('[data-section]')]) {
+                        const c = s.querySelector('[data-section-chevron]');
+                        if (c && c.isConnected) c.click();
+                    }
+                });
+                await page.waitForTimeout(700);
+                const after = await readSections();
+
+                await page.keyboard.press('Escape');
+                await page.waitForTimeout(700);
+                const unmounted =
+                    (await page.locator('[data-dc34-dialog="layers"]').count()) === 0;
+
+                const n2 = await openLayers();
+                const reopened = await readSections();
+
+                // Compare by label. A label that appears more than once in either snapshot
+                // is dropped from the comparison rather than matched ambiguously.
+                const uniq = (arr) => {
+                    const seen = new Map();
+                    for (const s of arr)
+                        seen.set(s.label, seen.has(s.label) ? null : s.expanded);
+                    return seen;
+                };
+                const wantMap = uniq(after);
+                const gotMap = uniq(reopened);
+                const mismatches = [];
+                let compared = 0;
+                for (const [label, want] of wantMap) {
+                    const got = gotMap.get(label);
+                    if (want === null || got === null || got === undefined) continue;
+                    compared++;
+                    if (got !== want)
+                        mismatches.push(`${label}: expected aria-expanded=${want}, got ${got}`);
+                }
+
+                const note =
+                    `${n1} section(s) open#1, toggled ${after.length}, ` +
+                    `unmounted=${unmounted}, ${n2} section(s) on reopen, ` +
+                    `${compared} compared` +
+                    ` [before ${before.map((s) => `${s.label}=${s.expanded}`).join(', ')}]` +
+                    ` [after ${after.map((s) => `${s.label}=${s.expanded}`).join(', ')}]` +
+                    ` [reopen ${reopened.map((s) => `${s.label}=${s.expanded}`).join(', ')}]`;
+
+                if (compared === 0) bad(15, L15, `nothing comparable across reopen — ${note}`);
+                else if (mismatches.length) bad(15, L15, `${mismatches.join('; ')} — ${note}`);
+                else pass(15, L15, note);
+            }
+        } catch (e) {
+            bad(15, L15, String(e.message).split('\n')[0]);
         }
     } finally {
         await browser.close();
