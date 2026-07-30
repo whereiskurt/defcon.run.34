@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
-status: Ready to plan
-stopped_at: "Completed 69-07-PLAN.md — meshtk v0.0.76 LIVE on run-mqtt-use1-dc34:119 (buildpub 30556427674, deploy 30556951618); 7/7 probes PASS post-fix vs 5/5 defect probes FAIL pre-fix; MQFX-05 + MQFX-06 satisfied; Phase 69 COMPLETE"
+status: Phase complete
+stopped_at: "Completed 69-07-PLAN.md — meshtk v0.0.76 LIVE on run-mqtt-use1-dc34:119 (buildpub 30556427674, deploy 30556951618); 7/7 probes PASS post-fix vs 5/5 defect probes FAIL pre-fix; MQFX-05 + MQFX-06 satisfied; Phase 69 COMPLETE. (Phase 70 also complete on main — run.gpx v0.0.104 live, evidence PR docs/70-post-deploy-probe left OPEN.)"
 last_updated: "2026-07-30T16:14:42.756Z"
 last_activity: 2026-07-30
-last_activity_desc: Phase 69 complete, transitioned to Phase 70
+last_activity_desc: Phase 69 complete (meshtk v0.0.76 live); Phase 70 shared dialog shell also complete (run.gpx v0.0.104 live)
 progress:
   total_phases: 31
-  completed_phases: 19
+  completed_phases: 20
   total_plans: 88
-  completed_plans: 85
-  percent: 61
-current_phase: 70
-current_phase_name: gpx-studio-shared-dialog-shell-map-layers-my-maps
+  completed_plans: 86
+  percent: 65
+current_phase: 71
+current_phase_name: gpx-heatmap-layers-dc33-dc34
 ---
 
 # Project State
@@ -141,6 +141,10 @@ Recent decisions affecting current work:
 - [Phase ?]: Phase 70 P04: the footer is a DialogShell prop snippet, which renders unconditionally — so Add run and the helper text are now visible on the unauthenticated and access-denied gate screens too (openAddRun only closes the dialog and opens the QuickStart hub, so nothing privileged is exposed)
 - [Phase ?]: 70-05: Map Layers opens on click only — hover-open, mouseleave-close and the hand-rolled window containment check are deleted (DLGS-04 stutter fix)
 - [Phase ?]: 70-05: basemaps render as a flat radio list via flattenLayerTree, so the Map Layers dialog has exactly one collapse affordance per section
+- [Phase ?]: 70-06: Phase 70 SHIPPED and prod-verified — run.gpx v0.0.104 live on use1 (phase PR #1098 squash-merged as db85b258, buildpub run 30518519521, deploy run 30518808844 with pr_number=skip + cache invalidation; deploy via GitHub Actions ONLY, zero local terragrunt). A 12/12 headless Playwright probe against https://gpx.defcon.run proves click-to-open, NO hover-open, zero native tooltip attributes across 15 layer rows and 2 file rows, section order Basemap | User Check-ins | DEF CON 34 Routes | Rabbit Routes, hint-bar default AND update-on-hover, Esc close, Ctrl+O My Maps, My files before Shared with you, and the Add run footer. The SAME probe scored 4/12 against the old bundle pre-deploy (committed to main BEFORE the merge), so the green run cannot be a probe that asserts nothing.
+- [Phase ?]: 70-06: CI green is NOT proof the new bundle is serving. A roll-verification gate (12 attempts x 30s, cache-busted, walking JS chunks to depth 2 following both static from-quote-dot-slash and dynamic import forms) greps live chunk bodies for a new-bundle-only STRING LITERAL — literals survive minification where function names do not, so a hit cannot be a false positive from a cached old asset. Hit on attempt 1/12: chunks/Cj35SVFZ.js served data-dc34-layers-btn. NEVER pass --max-time to those chunk fetches; a truncated body drops the sentinel and manufactures a phantom not-deployed verdict.
+- [Phase ?]: 70-06: the post-deploy probe first scored 11/12 — assertion 6 read the Basemap hint instead of the hint-bar default on open. Diagnosis (layers button at 1241,574 vs dialog at x430-850 y126-774, so hover was impossible; activeElement was a button inside the dialog whose closest data-hint is the Basemap section) proved the UI was CORRECT: UI-SPEC section 7 requires the hint bar to answer focusin as well as hover, and the dialog focus trap lands focus inside on open. The PROBE was repaired (neutralise hover AND focus, then assert the exact default literal — strictly stronger, since it now also proves the bar RETURNS to default), NOT the source; suppressing focusin hinting would have regressed a stated requirement. Run 1 is committed as transcript-post-deploy-run1-11of12.txt so the repair is auditable.
+- [Phase ?]: 70-06: because the phase branch is squash-merged mid-plan, any artifact that cannot exist until after the deploy (post-deploy transcript, SUMMARY, state updates) must travel on the follow-up branch docs/70-post-deploy-probe or it is stranded off main. That branch is pushed with its PR OPEN and deliberately NOT merged — the standing authorization covered exactly one --admin merge and it was spent on the phase PR.
 - [Phase ?]: 69-01: RewritePayloadString signature (error, bool) -> error; nil Decoded/Cipher guarded; the parsed Data is mutated IN PLACE (not a three-field rebuild) so reply_id/emoji/dest/source/request_id/want_response and protobuf unknown fields survive — Bitfield (meshtk#21 pre-hop drop) is subsumed not removed; marshal happens BEFORE PayloadVariant is reassigned because on a decoded packet the parsed Data is reachable through that same variant. RewriteHelloGoodbye now declines when !WasEncrypted || Cipher == nil and CONSUMES the rewrite error (log + return false), so a failed censor can no longer report Rewrote while the original bytes forward. Upstream branch fix/shared-chain-hardening off origin/main@609a5c5, commits 72c5506/2f62e61/ce07c66; NOT pushed, PR'd, vendor-synced or deployed. 5 cross-codec regression tests (9 cases) with one SHARED six-field assertion so 3.1.1 and v5 cannot drift, plus a deferred-recover wrapper so a SIGSEGV regression is a named failure; v4 golden byte-unedited and green; go.mod/go.sum/vendor diff empty. RED proven by throwaway probe before the fix (panic + all six fields zeroed) and by reverting rules.go alone. ⚠️CR-01 layer 3 (recover() around the per-connection goroutine) deliberately OUT of scope — a panic anywhere else in the read loop still takes the process.
 - [Phase 69]: 69-02: CR-01 layer 3 closed — recoverConn deferred at all four per-connection goroutine entries (handleProxy, handleBackend, handleProxyV5, handleBackendV5) plus both cmd.go accept-loop spawns; upstream branch fix/shared-chain-hardening commits 82e790f/1182a2f, NOT pushed/PR'd/vendor-synced. Before this there was NO recover() in the proxy path, so any panic in a connection goroutine was a process kill dropping every connected radio. ⭐PROD GREP for 69-07: action=PANIC_RECOVERED (expect ZERO) — single emission site in proxy.go, format 'action=PANIC_RECOVERED, label=%s, remote=%s, panic=%v, stack=%s' with labels proxy_uplink_v4/proxy_downlink_v4/proxy_uplink_v5/proxy_downlink_v5/accept_proxy/accept_protobuf. Recover is at goroutine ENTRY only, NEVER per loop iteration (a per-iteration recover would keep serving a connection whose invariants just broke). handleProxyV5 carries its own recover though it runs on handleProxy's goroutine so the INNERMOST recover wins and the label attributes the crash to the right codec. The stack goes through Config.Log (logrus TextFormatter, which QUOTES) and never through InspectorLogger (SimpleFormatter, no quoting) — proven non-forgeable by panicking with a value containing a newline + a fake BLOCK line, which rendered as an escaped \n inside the quoted msg= with no second log line. recoverConn guards nil conn/Config/Log because a second panic inside a deferred recover handler is unrecoverable and would reintroduce the exact failure. 3 tests (proxy_recover_test.go) each assert on the recovered LOG LINE not on the call returning, each handler runs in its OWN goroutine so a regression crashes the test binary rather than failing politely; the v4 test then DISARMS the decider and serves a second connection on the same ServerCmd to prove the process keeps serving. RED proven by deleting the four defers (binary crashed with the sentinel), restored via targeted git checkout — NOT git stash (prohibited, shared across worktrees). v4 golden byte-unedited and green; go.mod/go.sum/vendor and internal/embedded diffs all empty.
 - [Phase 69]: 69-03: Last-Will bypass (68-REVIEW CR-02) + log injection (WR-05) closed UPSTREAM on fix/shared-chain-hardening (commits e7a9fc1/165e6fb/0495193/9421ae8/52ded86/764710a; NOT pushed, PR'd, vendor-synced). Before this, grep -c Will returned ZERO in BOTH inspect.go and inspect_v5.go — neither codec had ever inspected a Will, and a Will ServiceEnvelope with HopLimit 7/HopStart 9 reached mosquitto inside a 140-byte forwarded CONNECT (RED probe reproduced the review's exact byte count). The BROKER publishes a Will on disconnect, so its payload can NEVER traverse handleV5PublishUplink/inspectV5Publish/PacketDecider/RewriteHopLimit/BlockInvalidEncryption/the censor — a client-chosen uninspected uplink on any topic, replayable by reconnect-and-drop, defeating the exact RF flood-radius control RewriteHopLimit exists for. DECISION: STRIP not inspect — the fleet does not use MQTT Wills, and routing the payload through the decider would build a second quieter inspection path (the defect class this phase closes). All Will fields cleared in ONE assignment because the vendored v5 Pack dereferences WillProperties unconditionally inside its if c.WillFlag branch. PROD GREP for 69-07: action=WILL_STRIPPED (expect ZERO; non-zero names a real Will user by username=/ip=/protocol_version=), identical field names in identical order on both codecs — v5 'action=WILL_STRIPPED, ip=%s, protocol_version=5, username=%s, will_topic=%s, will_bytes=%d' and the 3.1.1 mirror with protocol_version=4; only a LENGTH is logged, never the payload. Placement DIFFERS by codec deliberately: inspectV5Connect returns early on every rejection so its strip sits on the ALLOW path next to the TopicAliasMaximum suppression; the 3.1.1 branch falls through to a caller that decides whether to forward, so its strip is gated on NOTHING (covers passthrough, cannot be bypassed by a future edit to that decision). WR-05 half: new logsafe.go logSafe/logSafeList applied at all 18 InspectorLogger client-string boundaries. Quoting is CONDITIONAL not a blanket strconv.Quote — a blanket quote moves every ALLOW/AUTH_REJECT/MQTT5_CONNECT line and breaks mqtt5_probe.py's client_id=<id> substring correlation; triggers are runes <0x20 or 0x7f, >128 runes (rune-wise slice), or a space/comma/quote/equals that would break the key=value grammar. So a QUOTED value in production is itself the tamper signal. mqtt_topic switched from %+v to %s of logSafeList and is asserted byte-identical against fmt.Sprintf('%+v', topics). Config.Log lines are OUT of scope (logrus TextFormatter already quotes — 69-02 proved that). The password is NOT routed through the sanitizer (grep-gated 0) — passing it would imply it is loggable-with-care; it is not loggable at all. 16 new tests; the decisive ones wire the REAL SimpleFormatter because every other harness in the package uses TextFormatter, which quotes — exactly why WR-05 shipped undetected. RED proven twice: a throwaway probe pre-fix (2 log lines; 140 forwarded bytes) and by reverting only the call sites (139 bytes on 3.1.1). git stash NEVER used (prohibited, shared across worktrees). v4 golden confirmed Will-less BEFORE the edit and byte-unedited/green; go.mod/go.sum/vendor and internal/embedded diffs all empty; zero pre-existing test files edited. DEVIATIONS (shape only): format args split one-per-line because grep -c counts LINES not occurrences; one comment reworded so grep -n 'action=WILL_STRIPPED' inspect.go returns exactly 1.
@@ -166,12 +170,20 @@ None.
 ## Session Continuity
 
 Last session: 2026-07-30T15:57:33.043Z
-Stopped at: Completed 69-07-PLAN.md — meshtk v0.0.76 LIVE on run-mqtt-use1-dc34:119 (buildpub 30556427674, deploy 30556951618); 7/7 probes PASS post-fix vs 5/5 defect probes FAIL pre-fix; MQFX-05 + MQFX-06 satisfied; Phase 69 COMPLETE
+Stopped at: Completed 69-07-PLAN.md — meshtk v0.0.76 LIVE on run-mqtt-use1-dc34:119 (buildpub 30556427674, deploy 30556951618); 7/7 probes PASS post-fix vs 5/5 defect probes FAIL pre-fix; MQFX-05 + MQFX-06 satisfied; Phase 69 COMPLETE. Phase 70 also complete on main (run.gpx v0.0.104 live, 12/12 prod probe green; evidence PR docs/70-post-deploy-probe left OPEN).
 Resume file: None
 
 ## Operator Next Steps
 
-- Plan the first v1.9 phase with `/gsd-plan-phase 35`
+- **Review and merge the OPEN evidence PR** for `docs/70-post-deploy-probe` (post-deploy
+  12/12 transcript + 70-06-SUMMARY.md). It is the one thing Phase 70 deliberately left
+  unmerged — the standing authorization covered a single `--admin` merge, spent on #1098.
+
+- Kurt UAT on https://gpx.defcon.run: Map Layers click-open + section collapse, My Maps
+  row actions, and the two sections the probe could not exercise without a real signed-in
+  session (My DEF CON Runs, Community Routes).
+
+- Phase 71 (heat-map layers) is planned-ready and depends on this Phase 70 kit.
 
 ## Performance Metrics
 
@@ -226,6 +238,7 @@ Resume file: None
 | Phase 70 P03 | ~20m | 3 tasks | 3 files |
 | Phase 70 P04 | 35m | 3 tasks | 1 files |
 | Phase 70 P05 | ~25m | 2 tasks | 3 files |
+| Phase 70 P06 | ~2h10m | 3 tasks | 9 files |
 | Phase 69 P01 | ~25m | 3 tasks | 5 files |
 | Phase 69 P02 | ~20m | 2 tasks | 4 files |
 | Phase 69 P03 | ~25m | 3 tasks | 5 files |
