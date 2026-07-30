@@ -150,6 +150,8 @@ export function AdminConsole({
   const [ringtoneMsg, setRingtoneMsg] = useState<string | null>(null);
   const [recalcBusy, setRecalcBusy] = useState(false);
   const [recalcMsg, setRecalcMsg] = useState<string | null>(null);
+  const [awardBusy, setAwardBusy] = useState(false);
+  const [awardMsg, setAwardMsg] = useState<string | null>(null);
 
   // ── Server-side full-email search (privacy: bulk emails never reach us) ────
   const searchSeq = useRef(0);
@@ -331,6 +333,39 @@ export function AdminConsole({
       setRecalcMsg("failed");
     } finally {
       setRecalcBusy(false);
+    }
+  };
+
+  // Admin-only "exceptional run" award (+1000, points-consistency Task 10).
+  // Same fetch idiom as recalculateScore: status handling incl. 404 -> "not
+  // authorized", 409 -> "already awarded today" (repeatable daily window),
+  // finally-reset.
+  const awardExceptional = async () => {
+    if (!selected) return;
+    setAwardBusy(true);
+    setAwardMsg(null);
+    try {
+      const res = await fetch(`${apiBase}/api/admin/ctf-award`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: selected.userId }),
+      });
+      if (!res.ok) {
+        setAwardMsg(
+          res.status === 404
+            ? "not authorized"
+            : res.status === 409
+              ? "already awarded today"
+              : `failed (${res.status})`
+        );
+        return;
+      }
+      const data = (await res.json()) as { points: number };
+      setAwardMsg(`awarded: +${data.points}`);
+    } catch {
+      setAwardMsg("failed");
+    } finally {
+      setAwardBusy(false);
     }
   };
   // Esc closes; j/k step to the next/prev user in the CURRENT filtered+sorted
@@ -777,6 +812,27 @@ export function AdminConsole({
                       }`}
                     >
                       {recalcMsg}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={awardExceptional}
+                    disabled={awardBusy}
+                    className="rounded-lg bg-warning px-3 py-1 text-[12px] font-medium text-black disabled:opacity-50"
+                  >
+                    {awardBusy ? "Awarding…" : "🏅 Exceptional run +1000"}
+                  </button>
+                  {awardMsg ? (
+                    <span
+                      className={`text-[11px] ${
+                        awardMsg.startsWith("awarded")
+                          ? "text-success"
+                          : "text-danger"
+                      }`}
+                    >
+                      {awardMsg}
                     </span>
                   ) : null}
                 </div>
