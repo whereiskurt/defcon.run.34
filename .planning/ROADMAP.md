@@ -805,7 +805,18 @@ Plans:
   3. A CONNECT carrying a Will cannot deliver an unclamped `hop_limit` broadcast to the broker on either codec.
   4. The 3.1.1 path stays byte-identical (`proxy_v4_golden_test.go` unchanged and green) and live fleet traffic is uninterrupted across the deploy.
 
-**Plans:** not yet planned — run `/gsd-plan-phase 69`
+**Plans:** 6 plans
+
+All six run **strictly sequentially** (waves 1-6): every code plan edits the same upstream
+`~/working/meshtk` working tree, so two agents compiling and committing at once would produce
+spurious `go test` failures and `index.lock` races even where their file sets are disjoint.
+
+- [ ] 69-01-PLAN.md — Rewrite-helper hardening: nil-cipher guards in `RewriteHelloGoodbye` + `RewritePayloadString`, in-place `Data` mutation so `reply_id`/`emoji`/`dest`/`source`/`request_id`/`want_response` survive, `proto.Marshal` error propagated, cross-codec regression suite (MQFX-01 layers 1-2, MQFX-02)
+- [ ] 69-02-PLAN.md — Per-connection panic containment: `recover()` at all four read-loop entries plus both accept-loop spawns, `action=PANIC_RECOVERED` telemetry, panicking-decider containment tests (MQFX-01 layer 3)
+- [ ] 69-03-PLAN.md — Last-Will strip on both codecs (`action=WILL_STRIPPED` with `protocol_version`) + `logSafe`/`logSafeList` sanitizer at every InspectorLogger client-string site (MQFX-03, MQFX-04d)
+- [ ] 69-04-PLAN.md — v5 hand-parse parity: bounded topic-alias scan that never gates inspection, property-agnostic SUBSCRIBE seam reaching the decider, malformed-packet CONNACK on every CONNECT failure branch, misleading test renamed (MQFX-04a/b/c/e)
+- [ ] 69-05-PLAN.md — Upstream meshtk PR + merge, vendor-sync with per-file byte parity against the merge sha, `embedded.go` proven unchanged, CI overlay composition built locally, blocking owner approval before the monorepo merge (MQFX-05)
+- [ ] 69-06-PLAN.md — Committed probe script + pre-deploy baseline, buildpub release + `deploy.yml` deploy with a real drain gate, per-defect prod pre/post contrast, header-fail/panic/ALLOW-continuity counters, MQFX-06 confirmed already shipped by PR #1096 (MQFX-05, MQFX-06 verification-only)
 
 **Not in this phase:** the flash radio-registration ownership hole (confirmed cross-owner overwrite + a pre-existing private-key-to-CloudWatch leak) is already fixed in **PR #1087**, open against `main`, awaiting review. Remaining flash-registration robustness work (no server-side reconciliation from first MQTT contact, fire-and-forget client retry, tab-close orphaning, empty-key fail-open) is tracked in `.planning/todos/pending/2026-07-29-flash-radio-registration-robustness.md`.
 
