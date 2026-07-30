@@ -1,0 +1,28 @@
+==============================================================================
+Phase 70 DLGS-06 — shared dialog shell production probe
+==============================================================================
+timestamp   : 2026-07-30T17:04:47.444Z
+git sha     : 96f70860
+target      : https://gpx.defcon.run/use1/studio/app
+run kind   : PRE-DEPLOY (current prod, dialog-body scroll fix NOT yet shipped)
+expectation : assertion 14 MUST FAIL here — that failure is what proves 14 discriminates
+bundle etag : W/"3975-19fb3d1b1a0"
+bundle date : Thu, 30 Jul 2026 16:18:12 GMT
+entry chunks: /use1/studio/_app/immutable/entry/start.DjBUD8G5.js /use1/studio/_app/immutable/chunks/Da7tU93H.js /use1/studio/_app/immutable/chunks/wi-Nb4rh.js /use1/studio/_app/immutable/chunks/ADfNyk3B.js
+------------------------------------------------------------------------------
+PASS  1. Layers control button is present
+PASS  2. Hovering the layers button does NOT open the dialog
+PASS  3. Clicking the layers button opens a visible role=dialog
+PASS  4. Zero native hover-tooltip attributes inside layer rows — 0 rows inspected
+PASS  5. Map Layers section order follows the spec — order ok [Basemap] — PASS (skipped: no User Check-ins / route groups / My DEF CON Runs / Community Routes in prod data)
+PASS  6. Hint bar shows its default copy once nothing hinted is hovered or focused — "Hover a row for details" (on open it read "Choose the background map style.")
+PASS  7. Hint bar text changes when a hinted row is hovered — "All four classics - North, East, South, West - stitched into one 20K epic."
+PASS  8. Escape closes the Map Layers dialog
+PASS  9. Ctrl+O opens the My Maps dialog
+PASS  10. My Maps puts MY FILES before SHARED WITH YOU — [My files | Other maps | Shared with you]
+PASS  11. My Maps footer carries the Add run button
+PASS  12. Zero native hover-tooltip attributes inside file rows — 2 rows inspected
+PASS  13. My Maps hides the Add run footer on the access-denied gate screen — gate reads "My Maps Your DEF CON run folder Access denied. You need the gpxstudio service. Contact an admin to request acc"
+FAIL  14. Map Layers body overflows and scrolls rather than crushing its children — clientH=562 scrollH=562 filler 1400px rendered 336px scrollTop=0
+------------------------------------------------------------------------------
+RESULT: 13/14 assertions passed

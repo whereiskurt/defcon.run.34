@@ -3,7 +3,7 @@
  * Phase 70 / DLGS-06 — production probe for the shared dialog shell.
  *
  * Drives the LIVE gpx.defcon.run studio in headless Chromium and asserts the
- * thirteen DOM contracts from 70-UI-SPEC.md §8: click-to-open (and NOT hover-to-open)
+ * fourteen DOM contracts from 70-UI-SPEC.md §8: click-to-open (and NOT hover-to-open)
  * on the Map Layers dialog, zero native hover-tooltip attributes inside layer rows
  * and file rows, Map Layers section order, hint-bar default plus hint-bar update on
  * hover, Esc dismissal, and the My Maps section order plus its footer action.
@@ -16,6 +16,14 @@
  * `quickStartOpen` latched true. Assertions 1-12 stub a session WITH the service and
  * therefore never touch either gate screen, which is why they went 12/12 green while
  * the defect was live.
+ *
+ * Assertion 14 covers the shared shell's scroll mechanism: it injects an element of
+ * known height into the Map Layers body and asserts the body overflows AND can be
+ * scrolled. It is measured against an injected element rather than against real route
+ * data on purpose — the public manifest is not a fixed size between runs, so anything
+ * that waits for prod content to be tall enough flakes. Assertions 1-13 never measure
+ * geometry, which is why they scored 13/13 green while the body was silently crushing
+ * every section flat.
  *
  * The denominator is a fixed literal. A sub-check whose subject legitimately does
  * not exist in production data scores as a pass and says so in the transcript, so
@@ -42,7 +50,7 @@ const path = require('path');
 const { execSync } = require('child_process');
 const { chromium } = require('/Users/khundeck/working/defcon.run.34/apps/run.auth/e2e/node_modules/playwright-core');
 
-const TOTAL = 13;
+const TOTAL = 14;
 const TARGET = 'https://gpx.defcon.run/use1/studio/app';
 const EXECUTABLE = `${process.env.HOME}/Library/Caches/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-mac-arm64/chrome-headless-shell`;
 const OUT_DIR = __dirname;
@@ -500,6 +508,68 @@ async function main() {
             await gatedCtx.close();
         } catch (e) {
             bad(13, L13, String(e.message).split('\n')[0]);
+        }
+
+        // ---- 14. the dialog body scrolls instead of crushing its children ---------
+        // The shell's body is a column flex container with a definite height, so its
+        // direct children are flex items. Section's card variant carries overflow-hidden
+        // for the rounded clip, which resolves its automatic min-height to 0 — so before
+        // the fix the cards SHRANK to fit rather than overflowing, scrollHeight never
+        // exceeded clientHeight, and overflow-y-auto never produced a scrollbar. Content
+        // past the fold was clipped into permanent unreachability.
+        //
+        // Deliberately measured against an INJECTED element of known height rather than
+        // against real content: the public route manifest rendered 15 rows on one run and
+        // 0 on the next, so any assertion that waits for prod data to be tall enough
+        // flakes. The filler carries height alone and NO flex properties of its own, so
+        // the only thing that can stop it being crushed is the shell's own rule — which
+        // is precisely the mechanism under test. It is removed again afterwards.
+        const L14 = 'Map Layers body overflows and scrolls rather than crushing its children';
+        try {
+            await page.keyboard.press('Escape'); // dismiss My Maps from assertions 9-12
+            await page.waitForTimeout(500);
+            await page.click('[data-dc34-layers-btn]');
+            await page
+                .locator('[data-dc34-dialog="layers"]')
+                .waitFor({ state: 'visible', timeout: 15_000 });
+            await page.waitForTimeout(800);
+
+            const m = await page.evaluate(() => {
+                const body = document.querySelector(
+                    '[data-dc34-dialog="layers"] [data-dialog-body]'
+                );
+                if (!body) return null;
+                const filler = document.createElement('div');
+                filler.setAttribute('data-probe-filler', '');
+                filler.style.height = '1400px';
+                filler.textContent = 'probe filler';
+                body.appendChild(filler);
+                // Read back what the layout engine actually gave the filler, so a crush
+                // is reported as a measurement rather than inferred from the totals.
+                const fillerH = filler.getBoundingClientRect().height;
+                const clientH = body.clientHeight;
+                const scrollH = body.scrollHeight;
+                const before = body.scrollTop;
+                body.scrollTop = 400;
+                const after = body.scrollTop;
+                body.scrollTop = before;
+                filler.remove();
+                return { clientH, scrollH, fillerH, after };
+            });
+
+            if (!m) {
+                bad(14, L14, 'layers dialog body not found');
+            } else {
+                const overflows = m.scrollH > m.clientH;
+                const scrolls = m.after > 0;
+                const note =
+                    `clientH=${m.clientH} scrollH=${m.scrollH} ` +
+                    `filler 1400px rendered ${Math.round(m.fillerH)}px scrollTop=${m.after}`;
+                if (overflows && scrolls) pass(14, L14, note);
+                else bad(14, L14, note);
+            }
+        } catch (e) {
+            bad(14, L14, String(e.message).split('\n')[0]);
         }
     } finally {
         await browser.close();
