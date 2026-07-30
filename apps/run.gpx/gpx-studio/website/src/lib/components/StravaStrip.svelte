@@ -574,7 +574,13 @@
                                             <span
                                                 class="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-500"
                                             >
-                                                Assign a day
+                                                Pick a day
+                                            </span>
+                                        {:else}
+                                            <span
+                                                class="rounded bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground"
+                                            >
+                                                + Import
                                             </span>
                                         {/if}
                                     </div>
