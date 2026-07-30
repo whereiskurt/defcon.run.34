@@ -1,0 +1,24 @@
+==============================================================================
+Phase 70 DLGS-06 — shared dialog shell production probe
+==============================================================================
+timestamp   : 2026-07-30T05:56:58.880Z
+git sha     : 42c92d18
+target      : https://gpx.defcon.run/use1/studio/app
+bundle etag : W/"3974-19fb05d10c8"
+bundle date : Thu, 30 Jul 2026 00:11:57 GMT
+entry chunks: /use1/studio/_app/immutable/entry/start.D9g6VwYz.js /use1/studio/_app/immutable/chunks/D35VXST0.js /use1/studio/_app/immutable/chunks/BKlDH3x9.js /use1/studio/_app/immutable/chunks/DYQJfKyV.js
+------------------------------------------------------------------------------
+FAIL  1. Layers control button is present — selector never appeared
+FAIL  2. Hovering the layers button does NOT open the dialog — page.hover: Timeout 30000ms exceeded.
+FAIL  3. Clicking the layers button opens a visible role=dialog — page.click: Timeout 30000ms exceeded.
+PASS  4. Zero native hover-tooltip attributes inside layer rows — 0 rows inspected
+FAIL  5. Map Layers section order follows the spec — first section is "(none)", expected Basemap
+FAIL  6. Hint bar shows its default copy — locator.textContent: Timeout 30000ms exceeded.
+PASS (skipped: no hinted element in prod data)  7. Hint bar text changes when a hinted row is hovered
+PASS  8. Escape closes the Map Layers dialog
+FAIL  9. Ctrl+O opens the My Maps dialog — locator.waitFor: Timeout 20000ms exceeded.
+FAIL  10. My Maps puts MY FILES before SHARED WITH YOU — no My files section in []
+FAIL  11. My Maps footer carries the Add run button — no button whose text contains the action label
+PASS  12. Zero native hover-tooltip attributes inside file rows — 0 rows inspected
+------------------------------------------------------------------------------
+RESULT: 4/12 assertions passed

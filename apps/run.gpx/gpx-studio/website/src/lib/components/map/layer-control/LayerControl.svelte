@@ -4,6 +4,8 @@
     import PublicOverlays from './PublicOverlays.svelte';
     import MyConRuns from './MyConRuns.svelte';
     import CommunityRoutes from './CommunityRoutes.svelte';
+    import BasemapSection from './BasemapSection.svelte';
+    import { DialogShell, Section } from '$lib/components/dialog-shell/index.js';
     import ConDaySaveDialog from '$lib/components/cloud/ConDaySaveDialog.svelte';
     import { cloudFiles, type CloudFile } from '$lib/cloud-sync';
     import { OverpassLayer } from './overpass-layer';
@@ -29,8 +31,6 @@
     import { coffeeUnlocked } from '$lib/stores/coffee';
     import { quickStartAction } from '$lib/stores/quickstart';
     import { get } from 'svelte/store';
-    import { Separator } from '$lib/components/ui/separator';
-    import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
     import { Layers } from '@lucide/svelte';
     import { basemaps, defaultBasemap, overlays } from '$lib/assets/layers';
     import { settings } from '$lib/logic/settings';
@@ -47,7 +47,6 @@
         mapboxOutdoors: 'mapboxDark',
     };
 
-    let container: HTMLDivElement;
     let overpassLayer: OverpassLayer;
     let publicOverlaysLayer: PublicOverlaysLayer | undefined = $state();
     let myConRunsLayer: MyConRunsLayer | undefined = $state();
@@ -57,7 +56,7 @@
     let myConRunsAuthUnsubscribe: (() => void) | undefined;
     let myConRunsLoadAttempted = false;
     // Community Routes (routes-vs-runs spec): published route templates from
-    // other runners. Same async-auth load pattern as My DEF CON Runs.
+    // other runners. Same async-auth load pattern as the con-run layer above.
     let communityRoutesLayer: CommunityRoutesLayer | undefined = $state();
     let communityRoutesLoadAttempted = false;
     let ghostLayer: GhostLayer | undefined;
@@ -391,13 +390,11 @@
     );
 
     let open = $state(false);
-    function openLayerControl() {
-        open = true;
-    }
-    function closeLayerControl() {
-        open = false;
-    }
-    let cancelEvents = $state(false);
+    // The trigger, kept so focus can go back to it when the dialog closes.
+    let layersBtn: HTMLButtonElement | undefined;
+    // The basemap list rendered folded in the old tree, so the card matches that.
+    let basemapCollapsed = $state(true);
+    let overlaysCollapsed = $state(false);
 
     // Phase 60: react to the QuickStart card hub. 'routes' → show every DEF CON
     // route group + open the panel; 'runners' → ensure the rabbit runner layer is
@@ -419,7 +416,7 @@
     });
 
     // Task 11: bump myConRunsRefresh (e.g. after a fresh import/re-tag) to re-fetch
-    // the "My DEF CON Runs" manifest. n starts at 0, so `n > 0` already guards the
+    // the con-run manifest. n starts at 0, so `n > 0` already guards the
     // initial fire. LayerControl mounts once at app root, so this single
     // subscription is safe (same convention as ghostMode/quickStartAction above).
     // UAT round 3 fix B: reload() is async. The one-shot myConRunsReveal
@@ -444,100 +441,68 @@
     });
 </script>
 
-<CustomControl class="group min-w-[29px] min-h-[29px] overflow-hidden">
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-        bind:this={container}
-        class="size-full"
-        onmouseenter={openLayerControl}
-        onmouseleave={closeLayerControl}
-        onpointerenter={() => {
-            if (!open) {
-                cancelEvents = true;
-                openLayerControl();
-                setTimeout(() => {
-                    cancelEvents = false;
-                }, 500);
-            }
-        }}
+<!-- Click-only trigger. The old pointer-driven open/close wiring and its 500ms
+     re-entry guard are gone: they were the second reported stutter, and the
+     dialog's own overlay now owns dismissal, so the hand-rolled window-level
+     containment check is gone too (the shared Section rotates one glyph rather
+     than swapping icon nodes, which removes the hazard that check worked around). -->
+<CustomControl class="w-[29px] h-[29px] shrink-0">
+    <button
+        type="button"
+        bind:this={layersBtn}
+        data-dc34-layers-btn
+        aria-label="Map layers"
+        aria-expanded={open}
+        class="flex size-full items-center justify-center"
+        onclick={() => (open = true)}
     >
-        <div
-            class="flex flex-row justify-center items-center delay-100 transition-[opacity] duration-0 {open
-                ? 'opacity-0 size-0 delay-0'
-                : 'w-[29px] h-[29px]'}"
-        >
-            <Layers size="20" />
-        </div>
-        <div
-            class="transition-[grid-template-rows grid-template-cols] grid grid-rows-[0fr] grid-cols-[0fr] duration-150 h-full {open
-                ? 'grid-rows-[1fr] grid-cols-[1fr]'
-                : ''} {cancelEvents ? 'pointer-events-none' : ''}"
-        >
-            <ScrollArea class="overflow-hidden">
-                <div class="h-fit">
-                    <div class="p-2 ml-1">
-                        <LayerTree
-                            layerTree={$selectedBasemapTree}
-                            name="basemaps"
-                            selected={$currentBasemap}
-                            defaultState="closed"
-                            onselect={(value) => {
-                                $previousBasemap = $currentBasemap;
-                                $currentBasemap = value;
-                            }}
-                        />
-                    </div>
-                    {#if hasOverlays}
-                        <Separator class="w-full" />
-                        <div class="p-2 ml-1">
-                            <LayerTree
-                                layerTree={$selectedOverlayTree}
-                                name="overlays"
-                                multiple={true}
-                                bind:checked={$currentOverlays}
-                            />
-                        </div>
-                    {/if}
-                    {#if $publicOverlayGroups.length > 0 || $publicAggregate.available}
-                        <Separator class="w-full" />
-                        <div class="p-2 ml-1">
-                            <PublicOverlays layer={publicOverlaysLayer} />
-                        </div>
-                    {/if}
-                    {#if $myConRunGroups.length > 0}
-                        <Separator class="w-full" />
-                        <div class="p-2 ml-1">
-                            <div class="mb-1 text-xs font-semibold uppercase tracking-wide opacity-60">
-                                My DEF CON Runs
-                            </div>
-                            <MyConRuns layer={myConRunsLayer} />
-                        </div>
-                    {/if}
-                    {#if $communityRoutes.length > 0}
-                        <Separator class="w-full" />
-                        <div class="p-2 ml-1">
-                            <CommunityRoutes layer={communityRoutesLayer} />
-                        </div>
-                    {/if}
-                    <!-- POI/Overpass section removed for DEF CON -->
-                </div>
-            </ScrollArea>
-        </div>
-    </div>
+        <Layers size="20" />
+    </button>
 </CustomControl>
 
-<svelte:window
-    on:click={(e: MouseEvent) => {
-        // Use composedPath() (captured at dispatch) rather than container.contains(e.target):
-        // clicking a collapse chevron swaps its icon node, so by the time this handler
-        // runs the original target is detached and contains() would wrongly report the
-        // click as "outside", closing the panel on every expand/collapse.
-        if (!open || cancelEvents || !container) return;
-        if (!e.composedPath().includes(container)) {
-            closeLayerControl();
-        }
+<!-- Sibling of CustomControl on purpose: the control's container is relocated
+     into the mapbox corner element, and the dialog portals itself to <body>. -->
+<DialogShell
+    dialogId="layers"
+    heading="Map Layers"
+    {open}
+    onOpenChange={(o) => {
+        open = o;
+        if (!o) layersBtn?.focus();
     }}
-/>
+>
+    {#snippet icon()}<Layers class="h-[17px] w-[17px]" />{/snippet}
+    <BasemapSection collapsed={basemapCollapsed} ontoggle={(c) => (basemapCollapsed = c)} />
+    {#if hasOverlays}
+        <Section
+            label="Overlays"
+            collapsed={overlaysCollapsed}
+            ontoggle={(c) => (overlaysCollapsed = c)}
+        >
+            <div class="px-3 py-1">
+                <LayerTree
+                    layerTree={$selectedOverlayTree}
+                    name="overlays"
+                    multiple={true}
+                    bind:checked={$currentOverlays}
+                />
+            </div>
+        </Section>
+    {/if}
+    <!-- Each child below emits its own top-level section card(s), so there is no
+         wrapper and no hand-written label here. The guards ARE the
+         "empty sections stay hidden" behavior. -->
+    {#if $publicOverlayGroups.length > 0 || $publicAggregate.available}
+        <PublicOverlays layer={publicOverlaysLayer} />
+    {/if}
+    {#if $myConRunGroups.length > 0}
+        <MyConRuns layer={myConRunsLayer} />
+    {/if}
+    {#if $communityRoutes.length > 0}
+        <CommunityRoutes layer={communityRoutesLayer} />
+    {/if}
+    <!-- POI/Overpass section removed for DEF CON -->
+</DialogShell>
 
 {#if assignDialogFile}
     <ConDaySaveDialog

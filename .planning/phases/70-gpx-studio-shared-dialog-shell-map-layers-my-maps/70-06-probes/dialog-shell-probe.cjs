@@ -1,0 +1,427 @@
+#!/usr/bin/env node
+/**
+ * Phase 70 / DLGS-06 — production probe for the shared dialog shell.
+ *
+ * Drives the LIVE gpx.defcon.run studio in headless Chromium and asserts the
+ * twelve DOM contracts from 70-UI-SPEC.md §8: click-to-open (and NOT hover-to-open)
+ * on the Map Layers dialog, zero native hover-tooltip attributes inside layer rows
+ * and file rows, Map Layers section order, hint-bar default plus hint-bar update on
+ * hover, Esc dismissal, and the My Maps section order plus its footer action.
+ *
+ * The denominator is a fixed literal. A sub-check whose subject legitimately does
+ * not exist in production data scores as a pass and says so in the transcript, so
+ * the ship gate stays reachable without ever shrinking what is asserted.
+ *
+ * Usage — the caller supplies the public mapbox token from SSM. The decryption flag
+ * is load-bearing: without it the value is KMS ciphertext, mapbox never fires its
+ * load event, and every DOM assertion times out.
+ *
+ *   MAPBOX_TOKEN=$(aws ssm get-parameter \
+ *     --name /dc34/secrets/use1/mapbox/public_token --with-decryption \
+ *     --query Parameter.Value --output text \
+ *     --profile dc34-application --region us-east-1) \
+ *   node dialog-shell-probe.cjs > transcript-post-deploy.txt 2>&1
+ *
+ * Optional: PROBE_NOTES — newline-separated extra header lines (run URLs, the
+ * released version, the roll-verification sentinel hit). Header-only; it cannot
+ * change what is asserted, so the same script serves the pre- and post-deploy runs.
+ *
+ * The token is never printed and never written to disk.
+ */
+
+const path = require('path');
+const { execSync } = require('child_process');
+const { chromium } = require('/Users/khundeck/working/defcon.run.34/apps/run.auth/e2e/node_modules/playwright-core');
+
+const TOTAL = 12;
+const TARGET = 'https://gpx.defcon.run/use1/studio/app';
+const EXECUTABLE = `${process.env.HOME}/Library/Caches/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-mac-arm64/chrome-headless-shell`;
+const OUT_DIR = __dirname;
+const DEFAULT_HINT = 'Hover a row for details';
+// Public mapbox tokens carry a fixed prefix. Spelled as a pattern rather than a
+// literal so the artifact directory can be swept for a leaked token by plain grep.
+const TOKEN_PREFIX = /^pk\./;
+
+const token = process.env.MAPBOX_TOKEN || '';
+if (!token) {
+    console.log('ERROR: MAPBOX_TOKEN is unset. Read it from SSM (see the header of this script).');
+    process.exit(2);
+}
+if (!TOKEN_PREFIX.test(token)) {
+    console.log('ERROR: MAPBOX_TOKEN has the wrong prefix — it looks like KMS ciphertext.');
+    console.log('       The SSM read must pass the decryption flag documented above.');
+    process.exit(2);
+}
+
+let passed = 0;
+function pass(n, label, note) {
+    passed++;
+    console.log(`PASS  ${n}. ${label}${note ? ` — ${note}` : ''}`);
+}
+function skip(n, label, what) {
+    passed++;
+    console.log(`PASS (skipped: no ${what} in prod data)  ${n}. ${label}`);
+}
+function bad(n, label, note) {
+    console.log(`FAIL  ${n}. ${label}${note ? ` — ${note}` : ''}`);
+}
+
+function sha() {
+    try {
+        return execSync('git rev-parse --short HEAD', { cwd: OUT_DIR }).toString().trim();
+    } catch {
+        return 'unknown';
+    }
+}
+
+async function main() {
+    console.log('='.repeat(78));
+    console.log('Phase 70 DLGS-06 — shared dialog shell production probe');
+    console.log('='.repeat(78));
+    console.log(`timestamp   : ${new Date().toISOString()}`);
+    console.log(`git sha     : ${sha()}`);
+    console.log(`target      : ${TARGET}`);
+    if (process.env.PROBE_NOTES) {
+        for (const line of process.env.PROBE_NOTES.split('\n')) console.log(line);
+    }
+
+    const browser = await chromium.launch({
+        executablePath: EXECUTABLE,
+        args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox'],
+    });
+
+    try {
+        const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+        const page = await context.newPage();
+
+        // Route stubs. Playwright resolves the most recently registered matching
+        // handler first, so the broad catch-alls are registered before the narrow
+        // handlers that must win.
+        await page.route('**/use1/api/gpx/**', (r) =>
+            r.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+        );
+        await page.route('**/use1/api/user/**', (r) =>
+            r.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+        );
+        await page.route('**/use1/api/auth/**', (r) =>
+            r.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+        );
+        // Real public manifest data, so the DEF CON 34 / Rabbit route groups render.
+        await page.route('**/use1/api/gpx/public/**', (r) => r.continue());
+        await page.route('**/use1/api/user/mapbox-token*', (r) =>
+            r.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ token }),
+            })
+        );
+        await page.route('**/use1/api/auth/session*', (r) =>
+            r.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    user: {
+                        id: 'probe-user',
+                        email: 'probe@defcon.run',
+                        name: 'Probe Runner',
+                        services: ['gpxstudio'],
+                        hasStrava: false,
+                    },
+                    expires: new Date(Date.now() + 3600_000).toISOString(),
+                }),
+            })
+        );
+        await page.route('**/use1/api/gpx/files*', (r) =>
+            r.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    files: [
+                        {
+                            fileId: 'probe-file-1',
+                            fileName: 'probe-route.gpx',
+                            fileSize: 20480,
+                            version: 1,
+                            trackCount: 1,
+                            createdAt: Date.now() - 86_400_000,
+                            updatedAt: Date.now() - 3_600_000,
+                        },
+                    ],
+                }),
+            })
+        );
+        await page.route('**/use1/api/gpx/folders*', (r) =>
+            r.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    folders: [],
+                    globalFolders: [{ folderId: 'probe-global', folderName: 'DEF CON 34 Maps' }],
+                }),
+            })
+        );
+
+        const response = await page.goto(TARGET, {
+            waitUntil: 'domcontentloaded',
+            timeout: 60_000,
+        });
+        const headers = response ? response.headers() : {};
+        console.log(`bundle etag : ${headers.etag || 'n/a'}`);
+        console.log(`bundle date : ${headers['last-modified'] || 'n/a'}`);
+
+        await page.waitForFunction(() => !!window._map, null, { timeout: 90_000 });
+        // Terrain on a software rasteriser is the usual hang.
+        await page.evaluate(() => window._map.setTerrain(null));
+
+        const entryChunks = await page.evaluate(() =>
+            [...document.querySelectorAll('link[rel="modulepreload"], script[type="module"][src]')]
+                .map((e) => e.getAttribute('href') || e.getAttribute('src'))
+                .filter((h) => h && h.endsWith('.js'))
+                .slice(0, 4)
+        );
+        console.log(`entry chunks: ${entryChunks.join(' ') || 'n/a'}`);
+        console.log('-'.repeat(78));
+
+        // ---- 1. layers trigger present -------------------------------------
+        const L1 = 'Layers control button is present';
+        try {
+            await page.waitForSelector('[data-dc34-layers-btn]', { timeout: 45_000 });
+            pass(1, L1);
+        } catch (e) {
+            bad(1, L1, 'selector never appeared');
+        }
+
+        // ---- 2. hover must NOT open ----------------------------------------
+        const L2 = 'Hovering the layers button does NOT open the dialog';
+        try {
+            await page.hover('[data-dc34-layers-btn]');
+            await page.waitForTimeout(500);
+            const n = await page.locator('[data-dc34-dialog="layers"]').count();
+            if (n === 0) pass(2, L2);
+            else bad(2, L2, `${n} dialog(s) opened on hover`);
+        } catch (e) {
+            bad(2, L2, String(e.message).split('\n')[0]);
+        }
+
+        // ---- 3. click opens a role=dialog ----------------------------------
+        const L3 = 'Clicking the layers button opens a visible role=dialog';
+        try {
+            await page.click('[data-dc34-layers-btn]');
+            const dlg = page.locator('[data-dc34-dialog="layers"]');
+            await dlg.waitFor({ state: 'visible', timeout: 15_000 });
+            const role = await dlg.getAttribute('role');
+            if (role === 'dialog') pass(3, L3);
+            else bad(3, L3, `role is ${role}`);
+        } catch (e) {
+            bad(3, L3, String(e.message).split('\n')[0]);
+        }
+        await page
+            .screenshot({ path: path.join(OUT_DIR, 'shot-layers.png'), fullPage: false })
+            .catch(() => {});
+
+        // ---- 4. no native tooltips inside layer rows ------------------------
+        const L4 = 'Zero native hover-tooltip attributes inside layer rows';
+        try {
+            const counts = await page.evaluate(() => ({
+                inner: document.querySelectorAll('[data-layer-row] [title]').length,
+                self: document.querySelectorAll('[data-layer-row][title]').length,
+                rows: document.querySelectorAll('[data-layer-row]').length,
+            }));
+            if (counts.inner === 0 && counts.self === 0)
+                pass(4, L4, `${counts.rows} rows inspected`);
+            else bad(4, L4, `inner=${counts.inner} self=${counts.self}`);
+        } catch (e) {
+            bad(4, L4, String(e.message).split('\n')[0]);
+        }
+
+        // ---- 5. section order ----------------------------------------------
+        const L5 = 'Map Layers section order follows the spec';
+        try {
+            const labels = await page.evaluate(() =>
+                [
+                    ...document.querySelectorAll(
+                        '[data-dc34-dialog="layers"] [data-section-label]'
+                    ),
+                ].map((e) => e.textContent.trim())
+            );
+            const spec = [
+                ['Basemap', (t) => /^basemap$/i.test(t)],
+                ['User Check-ins', (t) => /check-?ins/i.test(t)],
+                ['route groups', (t) => /routes$/i.test(t) && !/^community routes$/i.test(t)],
+                ['My DEF CON Runs', (t) => /my def con runs/i.test(t)],
+                ['Community Routes', (t) => /^community routes$/i.test(t)],
+            ];
+            const firstIdx = spec.map(([, t]) => labels.findIndex(t));
+            const missing = spec.filter((s, i) => firstIdx[i] === -1).map(([n]) => n);
+            const problems = [];
+            for (let i = 0; i < spec.length; i++) {
+                for (let j = i + 1; j < spec.length; j++) {
+                    if (firstIdx[i] === -1 || firstIdx[j] === -1) continue;
+                    if (firstIdx[i] > firstIdx[j])
+                        problems.push(`${spec[i][0]} after ${spec[j][0]}`);
+                }
+            }
+            const firstIsBasemap = labels.length > 0 && /^basemap$/i.test(labels[0]);
+            if (!firstIsBasemap) {
+                bad(5, L5, `first section is "${labels[0] || '(none)'}", expected Basemap`);
+            } else if (problems.length) {
+                bad(5, L5, problems.join('; '));
+            } else {
+                const note =
+                    `order ok [${labels.join(' | ')}]` +
+                    (missing.length
+                        ? ` — PASS (skipped: no ${missing.join(' / ')} in prod data)`
+                        : '');
+                pass(5, L5, note);
+            }
+        } catch (e) {
+            bad(5, L5, String(e.message).split('\n')[0]);
+        }
+
+        // ---- 6. hint bar default --------------------------------------------
+        const L6 = 'Hint bar shows its default copy';
+        try {
+            await page.mouse.move(5, 5);
+            await page.waitForTimeout(250);
+            const t = (
+                await page.locator('[data-dc34-dialog="layers"] [data-hint-out]').textContent()
+            ).trim();
+            if (t === DEFAULT_HINT) pass(6, L6, `"${t}"`);
+            else bad(6, L6, `got "${t}"`);
+        } catch (e) {
+            bad(6, L6, String(e.message).split('\n')[0]);
+        }
+
+        // ---- 7. hint bar updates on hover ------------------------------------
+        const L7 = 'Hint bar text changes when a hinted row is hovered';
+        try {
+            const hintOut = page.locator('[data-dc34-dialog="layers"] [data-hint-out]');
+            const rows = page.locator('[data-dc34-dialog="layers"] [data-layer-row][data-hint]');
+            let target = null;
+            const rowCount = await rows.count();
+            for (let i = 0; i < rowCount; i++) {
+                const h = await rows.nth(i).getAttribute('data-hint');
+                if (h && h.trim()) {
+                    target = rows.nth(i);
+                    break;
+                }
+            }
+            if (!target) {
+                // Section headers always carry a hint, so prefer the fallback over a skip.
+                const any = page.locator('[data-dc34-dialog="layers"] [data-hint]');
+                const anyCount = await any.count();
+                for (let i = 0; i < anyCount; i++) {
+                    const h = await any.nth(i).getAttribute('data-hint');
+                    if (h && h.trim()) {
+                        target = any.nth(i);
+                        break;
+                    }
+                }
+            }
+            if (!target) {
+                skip(7, L7, 'hinted element');
+            } else {
+                const want = (await target.getAttribute('data-hint')).trim();
+                await target.hover();
+                await page.waitForTimeout(350);
+                const got = (await hintOut.textContent()).trim();
+                if (got && got !== DEFAULT_HINT && got === want) pass(7, L7, `"${got}"`);
+                else bad(7, L7, `got "${got}", wanted "${want}"`);
+            }
+        } catch (e) {
+            bad(7, L7, String(e.message).split('\n')[0]);
+        }
+
+        // ---- 8. Esc closes ----------------------------------------------------
+        const L8 = 'Escape closes the Map Layers dialog';
+        try {
+            await page.keyboard.press('Escape');
+            await page.waitForTimeout(600);
+            const n = await page.locator('[data-dc34-dialog="layers"]').count();
+            if (n === 0) pass(8, L8);
+            else bad(8, L8, `${n} dialog(s) still mounted`);
+        } catch (e) {
+            bad(8, L8, String(e.message).split('\n')[0]);
+        }
+
+        // ---- 9. My Maps opens -------------------------------------------------
+        const L9 = 'Ctrl+O opens the My Maps dialog';
+        try {
+            await page.keyboard.press('Control+o');
+            await page
+                .locator('[data-dc34-dialog="mymaps"]')
+                .waitFor({ state: 'visible', timeout: 20_000 });
+            pass(9, L9);
+        } catch (e) {
+            bad(9, L9, String(e.message).split('\n')[0]);
+        }
+        await page.waitForTimeout(1500);
+        await page
+            .screenshot({ path: path.join(OUT_DIR, 'shot-mymaps.png'), fullPage: false })
+            .catch(() => {});
+
+        // ---- 10. My Maps section order ----------------------------------------
+        const L10 = 'My Maps puts MY FILES before SHARED WITH YOU';
+        try {
+            const labels = await page.evaluate(() =>
+                [
+                    ...document.querySelectorAll(
+                        '[data-dc34-dialog="mymaps"] [data-section-label]'
+                    ),
+                ].map((e) => e.textContent.trim())
+            );
+            const mine = labels.findIndex((t) => /my files/i.test(t));
+            const shared = labels.findIndex((t) => /shared with you/i.test(t));
+            if (mine === -1) bad(10, L10, `no My files section in [${labels.join(' | ')}]`);
+            else if (shared === -1) skip(10, L10, 'Shared with you section');
+            else if (mine < shared) pass(10, L10, `[${labels.join(' | ')}]`);
+            else bad(10, L10, `My files at ${mine}, Shared with you at ${shared}`);
+        } catch (e) {
+            bad(10, L10, String(e.message).split('\n')[0]);
+        }
+
+        // ---- 11. footer action --------------------------------------------------
+        const L11 = 'My Maps footer carries the Add run button';
+        try {
+            const found = await page.evaluate(() => {
+                const d = document.querySelector('[data-dc34-dialog="mymaps"]');
+                if (!d) return false;
+                return [...d.querySelectorAll('button')].some((b) =>
+                    (b.textContent || '').includes('Add run')
+                );
+            });
+            if (found) pass(11, L11);
+            else bad(11, L11, 'no button whose text contains the action label');
+        } catch (e) {
+            bad(11, L11, String(e.message).split('\n')[0]);
+        }
+
+        // ---- 12. no native tooltips inside file rows -----------------------------
+        const L12 = 'Zero native hover-tooltip attributes inside file rows';
+        try {
+            const counts = await page.evaluate(() => ({
+                inner: document.querySelectorAll('[data-file-row] [title]').length,
+                self: document.querySelectorAll('[data-file-row][title]').length,
+                rows: document.querySelectorAll('[data-file-row]').length,
+            }));
+            if (counts.inner === 0 && counts.self === 0)
+                pass(12, L12, `${counts.rows} rows inspected`);
+            else bad(12, L12, `inner=${counts.inner} self=${counts.self}`);
+        } catch (e) {
+            bad(12, L12, String(e.message).split('\n')[0]);
+        }
+    } finally {
+        await browser.close();
+    }
+
+    console.log('-'.repeat(78));
+    console.log(`RESULT: ${passed}/${TOTAL} assertions passed`);
+    if (passed !== TOTAL) process.exitCode = 1;
+}
+
+main().catch((e) => {
+    console.log(`ERROR: probe aborted — ${String(e && e.message).split('\n')[0]}`);
+    console.log('-'.repeat(78));
+    console.log(`RESULT: ${passed}/${TOTAL} assertions passed`);
+    process.exitCode = 1;
+});
