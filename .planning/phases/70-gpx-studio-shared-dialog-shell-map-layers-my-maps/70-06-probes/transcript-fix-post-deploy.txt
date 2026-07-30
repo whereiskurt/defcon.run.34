@@ -1,0 +1,39 @@
+==============================================================================
+Phase 70 DLGS-06 — shared dialog shell production probe
+==============================================================================
+timestamp   : 2026-07-30T16:23:27.518Z
+git sha     : 6ecd6787
+target      : https://gpx.defcon.run/use1/studio/app
+phase       : 70.1 footer-gate + version-history fix
+run purpose : POST-DEPLOY verification. Probe re-run UNEDITED from the pre-deploy run.
+fix PR      : #1112 (squash-merged as be3b9965) — release bump #1113, run.gpx v0.0.105
+buildpub    : https://github.com/whereiskurt/defcon.run.34/actions/runs/30560603258 (success)
+deploy      : https://github.com/whereiskurt/defcon.run.34/actions/runs/30560961622 (success)
+roll evidence: served JS chunk set at /use1/studio/app CHANGED after the deploy.
+              pre  digest 668dc46704c3e2952c7501e48fff7d10599bfed4dd8b21f55345a762f170b4ba (108 chunks)
+              post digest 753c42c311c29c36cb56e6cbac6418a93dceb8bf2ef70012cdb6915e9d7f8e95 (108 chunks)
+              86 of 108 content-hashed chunks replaced, incl. entry/app.qr7PDpKs.js ->
+              entry/app.DvISHu6e.js and nodes/6.CA3trbBH.js -> nodes/6.BzheBqAY.js.
+              Rolled on poll attempt 2 of a bounded 12 x 30s window; no --max-time on
+              any chunk fetch (truncation would manufacture a phantom verdict).
+pre-deploy  : transcript-fix-pre-deploy.txt scored 12/13 with assertion 13 FAILING against
+              the buggy bundle — that failure is what proves assertion 13 discriminates.
+bundle etag : W/"3975-19fb3d1b1a0"
+bundle date : Thu, 30 Jul 2026 16:18:12 GMT
+entry chunks: /use1/studio/_app/immutable/entry/start.DjBUD8G5.js /use1/studio/_app/immutable/chunks/Da7tU93H.js /use1/studio/_app/immutable/chunks/wi-Nb4rh.js /use1/studio/_app/immutable/chunks/ADfNyk3B.js
+------------------------------------------------------------------------------
+PASS  1. Layers control button is present
+PASS  2. Hovering the layers button does NOT open the dialog
+PASS  3. Clicking the layers button opens a visible role=dialog
+PASS  4. Zero native hover-tooltip attributes inside layer rows — 0 rows inspected
+PASS  5. Map Layers section order follows the spec — order ok [Basemap] — PASS (skipped: no User Check-ins / route groups / My DEF CON Runs / Community Routes in prod data)
+PASS  6. Hint bar shows its default copy once nothing hinted is hovered or focused — "Hover a row for details" (on open it read "Choose the background map style.")
+PASS  7. Hint bar text changes when a hinted row is hovered — "All four classics - North, East, South, West - stitched into one 20K epic."
+PASS  8. Escape closes the Map Layers dialog
+PASS  9. Ctrl+O opens the My Maps dialog
+PASS  10. My Maps puts MY FILES before SHARED WITH YOU — [My files | Other maps | Shared with you]
+PASS  11. My Maps footer carries the Add run button
+PASS  12. Zero native hover-tooltip attributes inside file rows — 2 rows inspected
+PASS  13. My Maps hides the Add run footer on the access-denied gate screen — gate reads "My Maps Your DEF CON run folder Access denied. You need the gpxstudio service. Contact an admin to request acc"
+------------------------------------------------------------------------------
+RESULT: 13/13 assertions passed
