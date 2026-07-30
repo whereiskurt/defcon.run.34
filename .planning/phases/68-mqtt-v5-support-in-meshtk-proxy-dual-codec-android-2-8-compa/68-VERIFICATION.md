@@ -1,7 +1,7 @@
 ---
 phase: 68-mqtt-v5-support-in-meshtk-proxy-dual-codec-android-2-8-compa
 verified: 2026-07-29T21:50:00Z
-status: human_needed
+status: passed
 score: 64/64 must-haves verified  # 1 qualified (see 68-08 T9); all 4 ROADMAP Success Criteria now machine-verified
 behavior_unverified: 0
 overrides_applied: 0
@@ -9,6 +9,7 @@ re_verification:
   previous_status: gaps_found
   previous_score: 37/38
   gaps_closed:
+
     - "ROADMAP SC3 — v5 parity: CR-02 ConnTrack refresh divergence (idle v5 sessions torn down by the 180s reaper)"
     - "ROADMAP SC3 — v5 parity: CR-03 mid-session CONNECT/AUTH relayed to mosquitto with the client's own plaintext credentials"
     - "ROADMAP SC3 — v5 parity: CR-04 fail-open PUBLISH inspection exemption bought with three unmodelled property bytes"
@@ -17,16 +18,20 @@ re_verification:
   gaps_remaining: []
   regressions: []
 human_verification:
+
   - test: "DECISION — pre-existing shared-chain nil-cipher panic (68-REVIEW CR-01). Decide whether to hotfix before DEF CON 34 or defer. Do NOT test against production: a single crafted PUBLISH carrying a DECODED (unencrypted) TEXT_MESSAGE_APP ServiceEnvelope kills the whole proxy process and drops every connected radio."
     expected: "A nil-guard at all three layers the review names (rules.go RewriteHelloGoodbye matcher, inspect.go RewritePayloadString, a per-connection recover() in proxy.go/proxy_v5.go), plus a regression test that publishes a decoded TEXT_MESSAGE_APP on BOTH codecs and asserts the connection survives."
     why_human: "The failure mode is a fleet-wide outage, so it cannot be probed against the live proxy. It is PRE-EXISTING (the inspect.go:368 cipher deref dates to bf06311, long before this phase) and codec-symmetric, so it falsifies no phase-68 must-have — but phase 68 widened the population of clients that can reach it, because before v0.0.72 every v5 client was honest-rejected at 0x84 and could not reach the rules engine at all. Prod evidence over the deployed task's 2h57m lifetime: SIGSEGV=0, panic=0, exactly one 'Proxy server started' line (no restart), and real TEXT_MESSAGE_APP publishes flowed on BOTH codecs (Apple 3.1.1 20:44:50Z, Android v5 20:48:23Z) — the live fleet encrypts, so Cipher is non-nil on its traffic. Fix-vs-defer is a risk call for the event owner, not a verifier call."
+
   - test: "DECISION — pre-existing Data field loss on every rewritten TEXT_MESSAGE (68-REVIEW CR-03). Confirm whether stripping reply_id / emoji / dest / source / request_id / want_response from every text message on the live fleet is acceptable through DEF CON 34."
     expected: "RewritePayloadString mutates ip.Meshtastic.Decoded in place instead of rebuilding a fresh meshtastic.Data from three fields, so 2.8 tapbacks, threaded replies, delivery-ACK requests and DM routing fields survive; proto.Marshal's error stops being discarded with `_`."
     why_human: "This is live user-visible data loss RIGHT NOW on both codecs, not a phase-68 regression: the three-field rebuild dates to bf06311 and the Bitfield line to 0339a0c (meshtk#21), both pre-phase. RewriteHelloGoodbye calls RewritePayloadString unconditionally — the word-replacement is gated on username==\"public\" but the rewrite call is not — so it applies to every text message, not just censored ones. Whether six days before the event is the right time to touch the encrypt/remarshal path is a judgment call."
+
   - test: "DECISION — pre-existing Last-Will inspection bypass (68-REVIEW CR-02). Decide whether to strip Wills at CONNECT time on both codecs."
     expected: "c.WillFlag/WillTopic/WillMessage/WillProperties cleared (and logged) in inspectV5Connect, mirrored in the 3.1.1 CONNECT branch — or the Will payload routed through inspectMeshtastic + PacketDecider with a Block refusing the CONNECT."
     why_human: "Verified as codec-symmetric and pre-existing: grep for 'Will' across inspect.go, inspect_v5.go and proxy.go returns nothing, so neither codec has ever inspected a Will. It therefore satisfies SC3's literal 'works identically on v5' while leaving an uninspected, replayable path to inject an unclamped hop_limit=7 broadcast — the exact amplification RewriteHopLimit exists to stop. Not a phase-68 gap; needs an owner decision on whether it ships into the event."
 accepted_limitations:
+
   - item: "68-08 truth 9 — 'A real Android 2.8.0 session survives a nine-minute idle period and keeps working'"
     status: "verified in substance; literal bar structurally unreachable"
     evidence: "The real client makes a nine-minute idle window impossible: the verifier measured the currently-live Android session (client_id=MeshtasticAndroidMqttProxy-!aed94d05-fdcc313a, socket 10.0.2.246:52733) at 76 min 35 s of UNBROKEN uptime (20:27:54Z-21:44:30Z, still running), 78 decision events, largest inter-event gap 68 s. The underlying invariant is proven instead by two production synthetic probes: CONNECT 18:57:01Z -> ALLOW 19:05:01Z and CONNECT 19:07:39Z -> ALLOW 19:15:39Z, i.e. 480 s idle (2.7x the 180 s reaper window) followed by a successful publish judged with the tracked username. Zero 'Username required for MQTT' Blocks on any v5 session across the task lifetime."

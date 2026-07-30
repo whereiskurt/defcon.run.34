@@ -319,7 +319,7 @@ Plans:
 | 55. CTF Flag Types — Slice 2 Scoring Windows (Day/Time/TZ Gating + DEF CON Run-Hours Quick Set) | v2.3 | 3/3 | Complete   | 2026-07-15 |
 | 56. CTF Flag Types — Slice 3 Wordlist One-Time Codes (CtfCode Entity + Atomic Single-Use Claim) | v2.3 | 3/3 | Complete   | 2026-07-15 |
 | 65. CTF Single-Use OTP Flag Option (Judge-Enforced First-Come Claim) | v2.3.1 | 3/3 | Built — 451 CTF/admin tests green | 2026-07-18 |
-| 68. MQTT v5 Support in meshtk Proxy (dual-codec — Android 2.8 compatibility) | v2.3.1 | 8/8 | Complete — meshtk v0.0.73 live on task def 116; all four v5 parity defects prod-verified with a pre/post contrast; Android idle UAT = qualified pass (9-min bar unmet) | 2026-07-29 |
+| 68. MQTT v5 Support in meshtk Proxy (dual-codec — Android 2.8 compatibility) | v2.3.1 | 8/8 | Complete    | 2026-07-29 |
 
 ### Phase 33: OIDC Silent SSO
 
@@ -722,7 +722,7 @@ Plans:
   3. Every proxy security/inspection feature works identically on v5 connections: cred verify + swap (no client creds ever reach mosquitto), topic rules, hop-clamp actually lands on the v5 wire (properties preserved through RemarshalEnvelope), payload rewrites, downlink self-echo suppression.
   4. Version-correct failure modes: bad creds on v5 → CONNACK 0x87; enhanced-auth attempt → 0x8C; the 0x84 unsupported-version reject remains only for protocol levels the proxy genuinely does not speak (>5).
 
-**Plans:** 8 plans (waves 1-8, strictly sequential — each builds on the previous; 68-06..68-08 are gap closure for the SC3 v5-parity failure found in verification)
+**Plans:** 8/8 plans complete
 
 Plans:
 
