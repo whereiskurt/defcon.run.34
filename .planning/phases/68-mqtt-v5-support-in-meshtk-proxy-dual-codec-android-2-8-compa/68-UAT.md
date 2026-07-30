@@ -1,36 +1,32 @@
 ---
-status: testing
+status: complete
 phase: 68-mqtt-v5-support-in-meshtk-proxy-dual-codec-android-2-8-compa
 source: [68-VERIFICATION.md, 68-REVIEW.md]
 started: 2026-07-29T22:05:00Z
-updated: 2026-07-29T22:05:00Z
+updated: 2026-07-30T04:56:53Z
 ---
 
 ## Current Test
 
-number: 1
-name: DECISION — pre-existing shared-chain nil-cipher panic (68-REVIEW CR-01)
-expected: |
-  A nil-guard at all three layers the review names (rules.go RewriteHelloGoodbye matcher,
-  inspect.go RewritePayloadString, a per-connection recover() in proxy.go/proxy_v5.go), plus
-  a regression test publishing a decoded TEXT_MESSAGE_APP on BOTH codecs asserting the
-  connection survives.
-awaiting: user response
+[testing complete]
 
 ## Tests
 
 ### 1. DECISION — pre-existing shared-chain nil-cipher panic (68-REVIEW CR-01)
 expected: Nil-guard at rules.go `RewriteHelloGoodbye`, `inspect.go` `RewritePayloadString`, plus a per-connection `recover()`; regression test on both codecs.
 ⚠️ Do NOT probe against production — one crafted PUBLISH with a DECODED (unencrypted) `TEXT_MESSAGE_APP` ServiceEnvelope kills the whole proxy process and drops every connected radio.
-result: **DECIDED 2026-07-29 — FIX (do not defer).** Kurt chose to hotfix all three shared-chain blockers before DEF CON 34, ahead of the flash-registration work. Carried into Phase 69.
+result: pass
+notes: DECIDED 2026-07-29 — FIX (do not defer). Kurt chose to hotfix all three shared-chain blockers before DEF CON 34, ahead of the flash-registration work. Carried into Phase 69.
 
 ### 2. DECISION — pre-existing Data field loss on every rewritten TEXT_MESSAGE (68-REVIEW CR-03)
 expected: `RewritePayloadString` mutates `ip.Meshtastic.Decoded` in place instead of rebuilding a fresh `meshtastic.Data` from three fields, so 2.8 tapbacks, threaded replies, delivery-ACK requests and DM routing fields survive; `proto.Marshal`'s error stops being discarded with `_`.
-result: **DECIDED 2026-07-29 — FIX.** Carried into Phase 69.
+result: pass
+notes: DECIDED 2026-07-29 — FIX. Carried into Phase 69.
 
 ### 3. DECISION — pre-existing Last-Will inspection bypass (68-REVIEW CR-02)
 expected: `WillFlag`/`WillTopic`/`WillMessage`/`WillProperties` cleared and logged in `inspectV5Connect`, mirrored in the 3.1.1 CONNECT branch — or the Will payload routed through `inspectMeshtastic` + `PacketDecider` with a Block refusing the CONNECT.
-result: **DECIDED 2026-07-29 — FIX.** Carried into Phase 69.
+result: pass
+notes: DECIDED 2026-07-29 — FIX. Carried into Phase 69.
 
 ## Summary
 
