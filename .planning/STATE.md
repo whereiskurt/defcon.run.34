@@ -3,16 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
 status: Milestone complete
-stopped_at: Phase 39 context gathered
-last_updated: "2026-07-19T04:08:16.514Z"
-last_activity: 2026-07-15
-last_activity_desc: Phase 53 complete
+stopped_at: Completed 70-01-PLAN.md (shared dialog kit, wave 1)
+last_updated: "2026-07-30T05:08:26.554Z"
+last_activity: 2026-07-30
 progress:
-  total_phases: 27
+  total_phases: 29
   completed_phases: 17
-  total_plans: 69
-  completed_plans: 65
-  percent: 63
+  total_plans: 73
+  completed_plans: 66
+  percent: 59
 current_phase: 56
 current_phase_name: ctf-flag-types-slice-3-wordlist-one-time-codes-ctfcode-entit
 ---
@@ -24,7 +23,7 @@ current_phase_name: ctf-flag-types-slice-3-wordlist-one-time-codes-ctfcode-entit
 See: .planning/PROJECT.md (updated 2026-07-05)
 
 **Core value:** Participants and organizers have a seamless digital experience for DCR34 -- from device setup to event discovery to route navigation. Milestone v2.2 brings back the DC33 leaderboard-as-activity-table in run.human, shipped hidden behind the admin group until perfected.
-**Current focus:** Phase 53 — ctf-flag-types-slice-1a-backend-answer-type-framework-rotati
+**Current focus:** Phase 70 — gpx-studio-shared-dialog-shell-map-layers-my-maps
 
 ## Current Position
 
@@ -52,7 +51,7 @@ only us-east-1 was deployed for the copy-migrated apps, so there was no second l
 observe against. The per-region mechanism (master → Litestream worker → revalidate) is
 identical and will hold when a 2nd region deploys. Not counted as debt.
 
-Last activity: 2026-07-15 — Phase 53 complete
+Last activity: 2026-07-30
 
 ## Roadmap Summary (v1.9)
 
@@ -121,6 +120,7 @@ Recent decisions affecting current work:
 - [Phase 55]: 55-03: admin day/time/tz scoring-window picker (CTFT-11) — Phase 55 COMPLETE (3/3). Replaced the Phase-54 Slice-2 placeholder note in CtfForm §4 with the real picker: enable toggle ("Restrict scoring to a time window"), 7 Sun–Sat weekday chips (reusing cls.segment tokens, role=switch), Opens/Closes type="time" inputs, PT/ET/UTC `<select>` (stores the IANA id, resolved by the 55-01 bridge), and the accent "DEF CON run hours" quick-set chip (fills Thu–Sun 06:00–08:00 PT via scoreWindowToFormState(DEFCON_RUN_HOURS) then stays individually editable — presets pre-fill, never lock, mirroring applyPreset). Rehydrates on edit from initial.scoreWindow; onSave computes formStateToScoreWindow(...) and spreads `...(scoreWindow?{scoreWindow}:{})` so OFF ⇒ no key ⇒ no-clobber. Non-blocking "window-gated" chip on the live preview (window affects WHETHER it scores, not the value). NO player-facing window UI (covert-safe). qr-admin: scoreWindow added to CtfInput + ctfAttributes emits it verbatim only when provided (no-clobber), NOT part of the CTFT-06 flip guard — a window-only edit of a solved flag is never rejected (asserted by test: scoreWindow-only input emits no answerType/perPlayerMax/otp keys). Zero new deps; covert path untouched. Full webapp suite 591 green; touched files tsc-clean (2 pre-existing out-of-scope errors untouched).
 - [Phase 55]: 55-02: judge scoring-window gate (CTFT-10) inserted as step 3 in judgeSolve — AFTER unlock (1b), BEFORE attempt-cap (2) — so a closed window short-circuits before the state-mutating cap bump + answer validation. Reuses the shared NON_SOLVE + the identical ctfJudgeLog('no-solve') (structurally no guess param), so a closed/invalid-tz window is byte-identical to a wrong answer on BOTH channels (T-53-04-01 held with ZERO covert-file edit — grep-gated). Consumes 55-01's pure isWithinScoreWindow (DST/tz correctness in one seam). narrowCtf carries row.scoreWindow verbatim, fail-closed coerce. 7-case judge test (backward-compat/inside/outside+no-leak/DST/order/covert). Full suite 588 green; ctf-judge.ts tsc-clean.
 - [Phase 54]: 54-04: CtfForm design-A redesign (Phase 54 DONE, 4/4) — 7 ordered section cards (Name → challenge-type segmented presets → Answer type Static/Rotating-OTP → Scoring window & limits → Unlock & chaining → hand-rolled Advanced disclosure → live scoring preview). Dead standalone `Points` field REMOVED (grep-verified setPoints==0). Live preview binds previewPoints (54-01 adapter → computePoints; judge-parity, no duplicate scorer). Secrets write-only end-to-end: edit page routes getCtf row through redactCtfSecrets (raw `record as CtfRecord` cast GONE; no `secret` token on edit page); CtfForm's CtfRecord aliased to RedactedCtfRecord so the safe shape is the only accepted prop; answer/otp-secret/reward-otpauth/effect never prefilled, blank-on-save keeps stored (no-clobber). applyPreset pre-fills Advanced knobs via presetToAdvanced but never locks them. Static Reward → OTP enrollment configurator: write-only otpauth composes {kind:"otp-enroll",otpauth,nextFlag?} (precedence over raw Effect JSON), Reveal preview REUSES the 54-03 CtfOtpEnroll card. Wordlist NOT rendered; Slice-2 day/time/tz = placeholder note only (D5). New shared qr-ui tokens cls.segment/segmentActive/segmentIdle/chip/rewardCard (slices 55/56 inherit). Zero new deps. Full webapp suite 551 green; touched files tsc-clean (2 pre-existing out-of-scope errors in dropdown-user.tsx + checkin.test.ts untouched).
+- [Phase ?]: [Phase 70]: 70-01: shared dialog-shell kit (DialogShell/HintBar/Section/Row/Chips/Chip + barrel) — header props named heading/subheading so plans 03-06 keep a phase-wide zero-count grep on the native tooltip attribute spelling; Section takes collapsed as a plain input prop + ontoggle (never bindable) and performs no cascade, so the shipped group-off-collapses effect in PublicOverlays survives byte-for-byte; plain overflow-y-auto body instead of the bits-ui viewport wrapper (fights flex-1 min-h-0); hint delegation via Svelte 5 event attributes on the body, not manual addEventListener. Zero new deps; svelte-check 30 total / 0 in dialog-shell.
 
 ### Pending Todos
 
@@ -133,9 +133,9 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-19T04:08:07.028Z
-Stopped at: Completed 66-02-PLAN.md (register-radio MeshRadio write: pure canonicalization/base64→0x-hex lib + internal-route upsert, MRAD-02) — Phase 66 Plan 02, wave 2. Executed in the flashsettings worktree on branch feat/authoritative-pubkey-ddb. Builds on 66-01 (MeshRadio entity). Embedded-list dual-write intentionally retained (plan 66-03 retires it).
-Resume file: None — 66-02 done. Phase 66 remaining: 66-03 (reader hard-switch), 66-04 (backfill), 66-05 (flash Sync keys), 66-07 (meshtk decryptPKI swap). Do NOT deploy; monorepo = one PR on feat/authoritative-pubkey-ddb.
+Last session: 2026-07-30T05:08:26.547Z
+Stopped at: Completed 70-01-PLAN.md (shared dialog kit, wave 1)
+Resume file: None
 
 ## Operator Next Steps
 
@@ -182,3 +182,4 @@ Resume file: None — 66-02 done. Phase 66 remaining: 66-03 (reader hard-switch)
 | Phase 56 P03 | ~8min | 3 tasks (TDD RED/GREEN + TDD + feat) | 7 files |
 | Phase 66 P02 | ~7min | 3 tasks (feat + test + feat) | 3 files |
 | Phase 66 P04 | 20 | 2 tasks | 2 files |
+| Phase 70 P01 | ~25m | 3 tasks | 7 files |
