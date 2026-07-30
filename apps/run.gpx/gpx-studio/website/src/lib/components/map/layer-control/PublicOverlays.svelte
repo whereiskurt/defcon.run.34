@@ -9,9 +9,16 @@
     } from '../public-overlays';
     import type { PublicOverlaysLayer, CheckinWindow } from '../public-overlays';
     import { Section, Row, Chips, Chip } from '$lib/components/dialog-shell/index.js';
+    import {
+        layerSectionCollapse,
+        setSectionCollapsed,
+        groupSection,
+        SECTION,
+    } from '$lib/stores/layer-section-collapse';
 
-    // Per-group collapse state (keyed by folderId), like the basemap/world tree.
-    let collapsed = $state<Record<string, boolean>>({});
+    // Per-group collapse state (keyed by folderId) lives in the persisted store, NOT in
+    // a rune here: this component renders inside the portalled dialog, whose subtree is
+    // destroyed on close, so a rune resets to its default on every reopen.
 
     const CHECKIN_WINDOWS: { key: CheckinWindow; label: string }[] = [
         { key: 'hour', label: 'Hour' },
@@ -45,24 +52,34 @@
     // only re-derive `collapsed` on an actual ON/OFF transition. That keeps the manual chevron
     // free to fold/unfold the list on its own afterwards without the effect fighting it on
     // every unrelated re-render (visible unchanged → no rewrite of collapsed).
+    //
+    // `undefined` is the "not seen during THIS mount yet" sentinel, and it is
+    // load-bearing now that the collapse value is restored from localStorage. Groups
+    // arrive asynchronously, so the seed has to be per group rather than a one-shot
+    // first-run flag. On the first sighting of a group we adopt its current visibility as
+    // the baseline and deliberately write NOTHING: without that, every reopen would see
+    // `undefined !== visible` for every group and immediately overwrite the restored
+    // value with `!visible` — the same bug in a subtler form. A genuine ON/OFF transition
+    // after the seed still drives the collapse, which is the §9 behaviour.
     let prevGroupVisible: Record<string, boolean> = {};
     $effect(() => {
         for (const group of $publicOverlayGroups) {
-            if (prevGroupVisible[group.folderId] !== group.visible) {
-                prevGroupVisible[group.folderId] = group.visible;
-                collapsed[group.folderId] = !group.visible;
+            const prev = prevGroupVisible[group.folderId];
+            prevGroupVisible[group.folderId] = group.visible;
+            if (prev !== undefined && prev !== group.visible) {
+                setSectionCollapsed(groupSection(group.folderId), !group.visible);
             }
         }
     });
 
     // Same idiom for the check-ins block. Turning the master off now folds the filter body
     // away instead of unmounting it, so the collapse affordance stays usable afterwards.
-    let checkinsCollapsed = $state(true);
     let prevCheckinsVisible: boolean | undefined;
     $effect(() => {
-        if (prevCheckinsVisible !== $publicCheckIns.visible) {
-            prevCheckinsVisible = $publicCheckIns.visible;
-            checkinsCollapsed = !$publicCheckIns.visible;
+        const prev = prevCheckinsVisible;
+        prevCheckinsVisible = $publicCheckIns.visible;
+        if (prev !== undefined && prev !== $publicCheckIns.visible) {
+            setSectionCollapsed(SECTION.checkins, !$publicCheckIns.visible);
         }
     });
 </script>
@@ -83,8 +100,8 @@
         count={$publicCheckIns.count}
         master={$publicCheckIns.visible}
         onmaster={(v) => layer?.setCheckInsVisible(v)}
-        collapsed={checkinsCollapsed}
-        ontoggle={(c) => (checkinsCollapsed = c)}
+        collapsed={$layerSectionCollapse[SECTION.checkins] ?? !$publicCheckIns.visible}
+        ontoggle={(c) => setSectionCollapsed(SECTION.checkins, c)}
         hint="Public check-ins from runners on the mesh."
     >
         <Chips
@@ -132,14 +149,20 @@
 
 {#each $publicOverlayGroups as group (group.folderId)}
     <!-- "Maps" -> "Routes" for consistent language (Kurt 2026-07-11);
-         the underlying GLOBAL folder is still named "DEF CON 34 Maps". -->
+         the underlying GLOBAL folder is still named "DEF CON 34 Maps".
+
+         The collapse fallback is `!group.visible`, NOT a flat false: with no stored
+         preference the card must look exactly as it did before this store existed, where
+         the mount-time effect derived collapse from visibility — so a group that is OFF by
+         default (everything but "DEF CON 34 Maps") still opens folded. A stored value
+         always wins over the fallback. -->
     <Section
         label={group.folderName.replace(/\bMaps\b/, 'Routes')}
         count={group.maps.length}
         master={group.visible}
         onmaster={(v) => layer?.setGroupVisible(group.folderId, v)}
-        collapsed={!!collapsed[group.folderId]}
-        ontoggle={(c) => (collapsed[group.folderId] = c)}
+        collapsed={$layerSectionCollapse[groupSection(group.folderId)] ?? !group.visible}
+        ontoggle={(c) => setSectionCollapsed(groupSection(group.folderId), c)}
     >
         {#each group.maps as m (m.fileId)}
             <!-- The CMS shortDescription reaches the user through the hint bar, never a

@@ -3,12 +3,18 @@
     import type { CommunityRoutesLayer } from '../community-routes';
     import { routeColor } from '$lib/dc34-palette';
     import { Section, Row } from '$lib/components/dialog-shell/index.js';
+    import {
+        layerSectionCollapse,
+        setSectionCollapsed,
+        SECTION,
+    } from '$lib/stores/layer-section-collapse';
 
     // The layer instance is created in LayerControl's map.onLoad; may be
     // undefined for the first frame before the map loads.
     let { layer }: { layer: CommunityRoutesLayer | undefined } = $props();
 
-    let collapsed = $state(true);
+    // Persisted, not a rune: this component renders inside the portalled dialog, whose
+    // subtree is destroyed on close, so a rune resets to `true` on every reopen.
 
     const allVisible = $derived(
         $communityRoutes.length > 0 && $communityRoutes.every((r) => r.visible)
@@ -18,7 +24,7 @@
     // cascade and the fold happen in the same call.
     function toggleAll(visible: boolean) {
         layer?.setAllVisible(visible);
-        collapsed = !visible;
+        setSectionCollapsed(SECTION.community, !visible);
     }
 </script>
 
@@ -28,8 +34,8 @@
         count={$communityRoutes.length}
         master={allVisible}
         onmaster={toggleAll}
-        collapsed={collapsed}
-        ontoggle={(c) => (collapsed = c)}
+        collapsed={$layerSectionCollapse[SECTION.community] ?? true}
+        ontoggle={(c) => setSectionCollapsed(SECTION.community, c)}
     >
         {#each $communityRoutes as route, i (route.routeId)}
             <Row

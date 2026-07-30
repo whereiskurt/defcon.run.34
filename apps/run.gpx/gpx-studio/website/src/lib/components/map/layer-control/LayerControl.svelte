@@ -13,6 +13,12 @@
     import { MyConRunsLayer, myConRunGroups } from '../my-con-runs';
     import { CommunityRoutesLayer, communityRoutes } from '../community-routes';
     import { myConRunsRefresh, myConRunsReveal } from '$lib/stores/my-con-runs';
+    import {
+        layerSectionCollapse,
+        setSectionCollapsed,
+        groupSection,
+        SECTION,
+    } from '$lib/stores/layer-section-collapse';
     import { isAuthenticated } from '$lib/stores/auth';
     import { GhostLayer } from '$lib/components/map/ghost-layer';
     import { RabbitLayer } from '$lib/components/map/rabbit-layer';
@@ -392,9 +398,11 @@
     let open = $state(false);
     // The trigger, kept so focus can go back to it when the dialog closes.
     let layersBtn: HTMLButtonElement | undefined;
-    // The basemap list rendered folded in the old tree, so the card matches that.
-    let basemapCollapsed = $state(true);
-    let overlaysCollapsed = $state(false);
+    // Basemap/Overlays collapse used to be runes here. They already survived a
+    // close/reopen (this component lives OUTSIDE the portalled dialog subtree), but they
+    // are on the shared persisted store now so there is exactly one collapse mechanism
+    // for every section — and these two survive a page reload for free. Defaults are
+    // unchanged: the basemap list rendered folded in the old tree, overlays open.
 
     // Phase 60: react to the QuickStart card hub. 'routes' → show every DEF CON
     // route group + open the panel; 'runners' → ensure the rabbit runner layer is
@@ -406,6 +414,14 @@
         if (action === 'routes' && publicOverlaysLayer) {
             for (const group of get(publicOverlayGroups)) {
                 publicOverlaysLayer.setGroupVisible(group.folderId, true);
+                // Unfold here, explicitly. PublicOverlays' own master-drives-collapse
+                // effect cannot do it: the dialog is closed at this moment, so that
+                // component is not mounted, and once it mounts it deliberately seeds its
+                // baseline without writing collapse (that seed is what stops a reopen
+                // from clobbering the user's persisted choice). Saying it out loud here
+                // keeps the §5b hub-card behaviour — "Check out the routes" reveals the
+                // groups expanded — instead of leaving it to a mount-time accident.
+                setSectionCollapsed(groupSection(group.folderId), false);
             }
             open = true;
         } else if (action === 'runners' && rabbitLayer) {
@@ -472,12 +488,15 @@
     }}
 >
     {#snippet icon()}<Layers class="h-[17px] w-[17px]" />{/snippet}
-    <BasemapSection collapsed={basemapCollapsed} ontoggle={(c) => (basemapCollapsed = c)} />
+    <BasemapSection
+        collapsed={$layerSectionCollapse[SECTION.basemap] ?? true}
+        ontoggle={(c) => setSectionCollapsed(SECTION.basemap, c)}
+    />
     {#if hasOverlays}
         <Section
             label="Overlays"
-            collapsed={overlaysCollapsed}
-            ontoggle={(c) => (overlaysCollapsed = c)}
+            collapsed={$layerSectionCollapse[SECTION.overlays] ?? false}
+            ontoggle={(c) => setSectionCollapsed(SECTION.overlays, c)}
         >
             <div class="px-3 py-1">
                 <LayerTree
