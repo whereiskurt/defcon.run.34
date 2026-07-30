@@ -54,10 +54,17 @@ export function buildDc34SeedRows(): Dc34SeedRow[] {
     ...EGGS.map((challenge): Dc34SeedRow => ({
       challenge, knobsOnly: true, ...flat(5), enabled: false, ...ANTI_SPAM,
     })),
-    // Persona chat flags + ricky — flat 100 (knobs only).
-    ...[...PERSONAS, "ricky"].map((challenge): Dc34SeedRow => ({
+    // Persona chat flags — flat 100 (knobs only).
+    ...PERSONAS.map((challenge): Dc34SeedRow => ({
       challenge, knobsOnly: true, ...flat(100), enabled: false, ...ANTI_SPAM,
     })),
+    // Ricky — flat 100 but DAILY (lyrics QR claim, Kurt 2026-07-30). The daily
+    // interval must live here or a re-seed strips it off the live row
+    // (knobsOnly deletes absent knob fields).
+    {
+      challenge: "ricky", knobsOnly: true, ...flat(100),
+      perPlayerIntervalHours: 24, enabled: false, ...ANTI_SPAM,
+    },
     // Daily OTP chains — retuned 25/day (streak track carries consistency now).
     ...PERSONAS.map((p): Dc34SeedRow => ({
       challenge: `${p}-otp`, knobsOnly: true, ...flat(25),
