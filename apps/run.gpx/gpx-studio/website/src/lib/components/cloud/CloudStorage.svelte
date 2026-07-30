@@ -8,6 +8,7 @@
     import * as Dialog from '$lib/components/ui/dialog/index.js';
     import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
     import { Button } from '$lib/components/ui/button';
+    import { DialogShell, Section } from '$lib/components/dialog-shell/index.js';
     import {
         Cloud,
         Trash2,
@@ -25,11 +26,12 @@
         Send,
         History,
         Download,
-        Footprints,
         Map as MapIcon,
         CalendarCheck,
         Route as RouteIcon,
     } from '@lucide/svelte';
+    // Path import form, matching the `ui/` primitives.
+    import Ellipsis from '@lucide/svelte/icons/ellipsis';
     import ShareDialog from './ShareDialog.svelte';
     import ConDaySaveDialog from './ConDaySaveDialog.svelte';
     import RouteCardForm from './RouteCardForm.svelte';
@@ -121,6 +123,11 @@
     let newFolderName = '';
     let editingFolderId: string | null = null;
     let editFolderName: string = '';
+
+    // Collapse state for the shared-kit sections. Plain lets: this file is legacy mode.
+    let myFilesCollapsed = false;
+    let sharedCollapsed = false;
+    let dayCollapsed: Record<string, boolean> = {};
 
     // Con-day label/order map, sourced from the authoritative /conday-usage list.
     // Used only to label + order the "My runs" groups; falls back to raw dates.
@@ -542,119 +549,393 @@
     }
 </script>
 
-<Dialog.Root open={$cloudStorageOpen} onOpenChange={(isOpen) => !isOpen && closeCloudStorage()}>
-    <Dialog.Content class="!max-w-[820px] !w-[90vw] max-h-[85vh] overflow-hidden flex flex-col">
-        <Dialog.Header>
-            <Dialog.Title class="flex items-center gap-2">
-                <Cloud class="h-5 w-5" />
-                My Maps
-            </Dialog.Title>
-        </Dialog.Header>
+<DialogShell
+    open={$cloudStorageOpen}
+    onOpenChange={(isOpen) => !isOpen && closeCloudStorage()}
+    dialogId="mymaps"
+    heading="My Maps"
+    subheading={$breadcrumbs.length > 1 ? $breadcrumbs[$breadcrumbs.length - 1].name : 'Your DEF CON run folder'}
+>
+    {#snippet icon()}<Cloud class="h-[17px] w-[17px]" />{/snippet}
 
-        {#if !$isAuthenticated}
-            <div class="flex flex-col items-center justify-center py-8 text-center">
-                <AlertCircle class="h-12 w-12 text-muted-foreground mb-4" />
-                <p class="text-muted-foreground mb-4">You need to sign in to access your maps.</p>
-                <Button onclick={() => auth.login()}>Sign In</Button>
+    {#if !$isAuthenticated}
+        <div class="flex flex-col items-center justify-center py-8 text-center">
+            <AlertCircle class="h-12 w-12 text-muted-foreground mb-4" />
+            <p class="text-muted-foreground mb-4">You need to sign in to access your maps.</p>
+            <Button onclick={() => auth.login()}>Sign In</Button>
+        </div>
+    {:else if !$hasGpxStudioAccess}
+        <div class="flex flex-col items-center justify-center py-8 text-center">
+            <AlertCircle class="h-12 w-12 text-destructive mb-4" />
+            <p class="text-destructive mb-4">Access denied. You need the gpxstudio service.</p>
+            <p class="text-muted-foreground text-sm">Contact an admin to request access.</p>
+        </div>
+    {:else}
+        <!-- Breadcrumb strip: the only way back out of a folder you navigated into. -->
+        {#if $breadcrumbs.length > 1}
+            <div class="flex min-w-0 items-center gap-1 overflow-x-auto px-1 text-sm">
+                {#each $breadcrumbs as crumb, i}
+                    {#if i > 0}
+                        <ChevronRight class="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                    {/if}
+                    <button
+                        class="hover:text-primary hover:underline flex-shrink-0 {i === $breadcrumbs.length - 1 ? 'font-medium' : 'text-muted-foreground'}"
+                        onclick={() => handleNavigateToFolder(crumb.id, crumb.name)}
+                        disabled={loading || i === $breadcrumbs.length - 1}
+                    >
+                        {crumb.name}
+                    </button>
+                {/each}
             </div>
-        {:else if !$hasGpxStudioAccess}
-            <div class="flex flex-col items-center justify-center py-8 text-center">
-                <AlertCircle class="h-12 w-12 text-destructive mb-4" />
-                <p class="text-destructive mb-4">Access denied. You need the gpxstudio service.</p>
-                <p class="text-muted-foreground text-sm">Contact an admin to request access.</p>
+        {/if}
+
+        <!-- Error message -->
+        {#if error}
+            <div class="bg-destructive/10 text-destructive px-4 py-2 rounded-md text-sm">
+                {error}
             </div>
-        {:else}
-            <!-- Toolbar: breadcrumbs + new folder + refresh -->
-            <div class="flex items-center justify-between gap-2">
-                <div class="flex items-center gap-1 text-sm overflow-x-auto min-w-0">
-                    {#if $breadcrumbs.length > 1}
-                        {#each $breadcrumbs as crumb, i}
-                            {#if i > 0}
-                                <ChevronRight class="h-3 w-3 text-muted-foreground flex-shrink-0" />
+        {/if}
+
+        <Section
+            label="My files"
+            count={$cloudFiles.length}
+            collapsed={myFilesCollapsed}
+            ontoggle={(c) => (myFilesCollapsed = c)}
+        >
+            {#snippet menu()}
+                <DropdownMenu.Root>
+                    <DropdownMenu.Trigger
+                        class="inline-flex items-center justify-center h-7 w-7 rounded-md text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+                        disabled={loading}
+                        aria-label="My files actions"
+                    >
+                        <Ellipsis class="h-4 w-4" />
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Content class="w-52" align="end">
+                        <DropdownMenu.Item onclick={showCreateFolder}>
+                            <FolderPlus class="h-4 w-4" />
+                            New folder
+                        </DropdownMenu.Item>
+                        <DropdownMenu.Item onclick={refreshFiles}>
+                            {#if loading}
+                                <Loader2 class="h-4 w-4 animate-spin" />
+                            {:else}
+                                <RefreshCw class="h-4 w-4" />
                             {/if}
-                            <button
-                                class="hover:text-primary hover:underline flex-shrink-0 {i === $breadcrumbs.length - 1 ? 'font-medium' : 'text-muted-foreground'}"
-                                onclick={() => handleNavigateToFolder(crumb.id, crumb.name)}
-                                disabled={loading || i === $breadcrumbs.length - 1}
+                            Refresh
+                        </DropdownMenu.Item>
+                        <DropdownMenu.Item onclick={() => exportAllFiles([])}>
+                            <Download class="h-4 w-4" />
+                            Export all
+                        </DropdownMenu.Item>
+                    </DropdownMenu.Content>
+                </DropdownMenu.Root>
+            {/snippet}
+
+            <!-- Create folder input row -->
+            {#if creatingFolder}
+                <div class="flex items-center gap-2 border rounded-md px-3 py-2 bg-muted/20">
+                    <FolderPlus class="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <input
+                        type="text"
+                        class="border rounded px-2 py-1 text-sm flex-1 min-w-0"
+                        placeholder="New folder name"
+                        bind:value={newFolderName}
+                        onkeydown={handleCreateFolderKeydown}
+                    />
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        class="h-7 w-7 text-green-600 hover:text-green-700"
+                        onclick={handleCreateFolder}
+                        disabled={loading}
+                        title="Create"
+                    >
+                        <Check class="h-4 w-4" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        class="h-7 w-7"
+                        onclick={cancelCreateFolder}
+                        disabled={loading}
+                        title="Cancel"
+                    >
+                        <X class="h-4 w-4" />
+                    </Button>
+                </div>
+            {/if}
+
+            <!-- User folders -->
+            {#each $cloudFolders as folder}
+                <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+                <div
+                    class="flex items-center gap-2 border rounded-md px-3 py-2 hover:bg-muted/30 cursor-pointer"
+                    onclick={() => handleNavigateToFolder(folder.folderId, folder.folderName)}
+                >
+                    {#if editingFolderId === folder.folderId}
+                        <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+                        <div class="flex items-center gap-2 flex-1" onclick={(e) => e.stopPropagation()}>
+                            <Folder class="h-4 w-4 text-amber-500 flex-shrink-0" />
+                            <input
+                                type="text"
+                                class="border rounded px-2 py-1 text-sm flex-1 min-w-0"
+                                bind:value={editFolderName}
+                                onkeydown={(e) => handleFolderRenameKeydown(e, folder.folderId)}
+                            />
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                class="h-7 w-7 text-green-600 hover:text-green-700"
+                                onclick={(e) => { e.stopPropagation(); saveFolderRename(folder.folderId); }}
+                                disabled={loading}
+                                title="Save"
                             >
-                                {crumb.name}
-                            </button>
-                        {/each}
+                                <Check class="h-4 w-4" />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                class="h-7 w-7"
+                                onclick={(e) => { e.stopPropagation(); cancelFolderRename(); }}
+                                disabled={loading}
+                                title="Cancel"
+                            >
+                                <X class="h-4 w-4" />
+                            </Button>
+                        </div>
                     {:else}
-                        <span class="text-muted-foreground">Your DEF CON run folder</span>
+                        <Folder class="h-4 w-4 text-amber-500 flex-shrink-0" />
+                        <span class="font-medium text-sm flex-1 truncate">{folder.folderName}</span>
+                        <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+                        <div class="flex gap-0.5" onclick={(e) => e.stopPropagation()}>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                class="h-7 w-7"
+                                onclick={() => startFolderRename(folder)}
+                                disabled={loading || editingFolderId !== null}
+                                title="Rename folder"
+                            >
+                                <Pencil class="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                class="h-7 w-7 text-destructive hover:text-destructive"
+                                onclick={() => handleDeleteFolder(folder)}
+                                disabled={loading}
+                                title="Delete folder"
+                            >
+                                <Trash2 class="h-3.5 w-3.5" />
+                            </Button>
+                        </div>
                     {/if}
                 </div>
-                <div class="flex items-center gap-1 flex-shrink-0">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        class="h-7 w-7"
-                        onclick={showCreateFolder}
-                        disabled={loading}
-                        title="New folder"
-                    >
-                        <FolderPlus class="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        class="h-7 w-7"
-                        onclick={refreshFiles}
-                        disabled={loading}
-                        title="Refresh"
-                    >
-                        {#if loading}
-                            <Loader2 class="h-4 w-4 animate-spin" />
+            {/each}
+
+            <!-- Files grouped by con-day -->
+            {#each fileGroups as group (group.key)}
+                <Section
+                    variant="plain"
+                    label={group.label}
+                    count={group.files.length}
+                    collapsed={!!dayCollapsed[group.key]}
+                    ontoggle={(c) => {
+                        dayCollapsed[group.key] = c;
+                        dayCollapsed = dayCollapsed;
+                    }}
+                >
+                    {#each group.files as file (file.fileId)}
+                        {#if editingFileId === file.fileId}
+                            <div class="flex items-center gap-2 px-3 py-2">
+                                <input
+                                    type="text"
+                                    class="border rounded px-2 py-1 text-sm flex-1 min-w-0"
+                                    bind:value={editFileName}
+                                    onkeydown={(e) => handleRenameKeydown(e, file.fileId)}
+                                />
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    class="h-7 w-7 text-green-600 hover:text-green-700"
+                                    onclick={() => saveRename(file.fileId)}
+                                    disabled={loading}
+                                    title="Save"
+                                >
+                                    <Check class="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    class="h-7 w-7"
+                                    onclick={cancelRename}
+                                    disabled={loading}
+                                    title="Cancel"
+                                >
+                                    <X class="h-4 w-4" />
+                                </Button>
+                            </div>
                         {:else}
-                            <RefreshCw class="h-4 w-4" />
+                            <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+                            <div
+                                class="flex items-center gap-2 px-3 py-2 hover:bg-muted/30 cursor-pointer"
+                                onclick={() => handleLoadFile(file)}
+                                title="Open on the map"
+                            >
+                                <MapIcon class="h-4 w-4 text-primary flex-shrink-0" />
+                                <div class="min-w-0 flex-1">
+                                    <div class="font-medium text-sm flex items-center gap-1.5" title={file.fileName}>
+                                        <span class="truncate min-w-0">{file.fileName}</span>
+                                        {#if file.shareRequested}
+                                            <!-- Verb ②: at-a-glance "submitted to DEF CON run" state.
+                                                 Data-only flag (no link); pending admin review. -->
+                                            <span
+                                                class="inline-flex flex-shrink-0 text-emerald-600"
+                                                title="Submitted to DEF CON run — pending review"
+                                            >
+                                                <Send class="h-3.5 w-3.5" />
+                                            </span>
+                                        {/if}
+                                    </div>
+                                    <div class="text-xs text-muted-foreground flex gap-2">
+                                        <span>v{file.version || 1}</span>
+                                        {#if file.trackCount}
+                                            <span>· {file.trackCount} track{file.trackCount !== 1 ? 's' : ''}</span>
+                                        {/if}
+                                        <span class="hidden sm:inline">· {formatFileSize(file.fileSize)}</span>
+                                        <span class="hidden sm:inline">· {formatDate(file.updatedAt)}</span>
+                                    </div>
+                                </div>
+                                <!-- Per-row actions (stopPropagation so they don't open the map) -->
+                                <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+                                <div class="flex gap-0.5 flex-shrink-0" onclick={(e) => e.stopPropagation()}>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        class="h-7 w-7"
+                                        onclick={() => startRename(file)}
+                                        disabled={loading || editingFileId !== null}
+                                        title="Rename"
+                                    >
+                                        <Pencil class="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        class="h-7 w-7 {filesWithShares.has(file.fileId) ? 'text-blue-600 hover:text-blue-700' : ''}"
+                                        onclick={() => { fileToShare = file; shareDialogOpen = true; }}
+                                        disabled={loading}
+                                        title={filesWithShares.has(file.fileId) ? 'Shared — click to manage' : 'Share'}
+                                    >
+                                        <Share2 class="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        class="h-7 w-7"
+                                        onclick={() => (conDayDialogFile = file)}
+                                        disabled={loading}
+                                        title="Save as defcon.run Activity"
+                                        aria-label="Save as defcon.run Activity"
+                                    >
+                                        <CalendarCheck class="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        class="h-7 w-7"
+                                        onclick={() => {
+                                            routeConvertMsg = null;
+                                            routeConvertErr = null;
+                                            routeDialogFile = file;
+                                        }}
+                                        disabled={loading}
+                                        title="Save as route (shareable template)"
+                                        aria-label="Save as route"
+                                    >
+                                        <RouteIcon class="h-3.5 w-3.5" />
+                                    </Button>
+                                    {#if (file.versionCount || 1) > 1}
+                                        <DropdownMenu.Root onOpenChange={(isOpen) => { if (isOpen) fetchVersionHistory(file); }}>
+                                            <DropdownMenu.Trigger
+                                                class="inline-flex items-center justify-center h-7 w-7 rounded-md text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+                                                disabled={loading}
+                                            >
+                                                <History class="h-3.5 w-3.5" />
+                                                <span class="sr-only">Version history</span>
+                                            </DropdownMenu.Trigger>
+                                            <DropdownMenu.Content class="w-56">
+                                                <DropdownMenu.Label>
+                                                    Version History ({file.versionCount} versions)
+                                                </DropdownMenu.Label>
+                                                <DropdownMenu.Separator />
+                                                {#if loadingVersions && loadingVersionsFileId === file.fileId}
+                                                    <div class="flex items-center gap-2 px-2 py-3 text-sm text-muted-foreground">
+                                                        <Loader2 class="h-4 w-4 animate-spin" />
+                                                        Loading...
+                                                    </div>
+                                                {:else if fileVersions.length === 0}
+                                                    <div class="px-2 py-3 text-sm text-muted-foreground">
+                                                        No versions found
+                                                    </div>
+                                                {:else}
+                                                    <div class="max-h-64 overflow-y-auto">
+                                                        {#each [...fileVersions].reverse() as ver}
+                                                            <DropdownMenu.Item
+                                                                class="flex justify-between items-center cursor-pointer {!ver.exists ? 'opacity-50' : ''}"
+                                                                disabled={!ver.exists}
+                                                                onclick={() => handleLoadVersion(file, ver.version)}
+                                                            >
+                                                                <span class="flex items-center gap-2">
+                                                                    <span class="font-medium">v{ver.version}</span>
+                                                                    {#if ver.version === versionHistoryCurrent}
+                                                                        <span class="text-xs bg-primary text-primary-foreground px-1 rounded">current</span>
+                                                                    {/if}
+                                                                </span>
+                                                                <span class="text-xs text-muted-foreground">
+                                                                    {ver.createdAt ? formatVersionDate(ver.createdAt) : ''}
+                                                                </span>
+                                                            </DropdownMenu.Item>
+                                                        {/each}
+                                                    </div>
+                                                {/if}
+                                            </DropdownMenu.Content>
+                                        </DropdownMenu.Root>
+                                    {/if}
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        class="h-7 w-7 text-destructive hover:text-destructive"
+                                        onclick={() => handleDeleteFile(file)}
+                                        disabled={loading}
+                                        title="Delete"
+                                    >
+                                        <Trash2 class="h-3.5 w-3.5" />
+                                    </Button>
+                                </div>
+                            </div>
                         {/if}
-                    </Button>
+                    {/each}
+                </Section>
+            {/each}
+
+            {#if isEmpty}
+                <div class="p-8 text-center text-muted-foreground">
+                    <p>No maps here yet.</p>
+                    <p class="text-sm mt-1">Use <span class="font-medium">Add run</span> to log your first run.</p>
                 </div>
-            </div>
+            {/if}
+        </Section>
 
-            <div class="mt-2 space-y-2 overflow-y-auto flex-1 min-h-0">
-                <!-- Error message -->
-                {#if error}
-                    <div class="bg-destructive/10 text-destructive px-4 py-2 rounded-md text-sm">
-                        {error}
-                    </div>
-                {/if}
-
-                <!-- Create folder input row -->
-                {#if creatingFolder}
-                    <div class="flex items-center gap-2 border rounded-md px-3 py-2 bg-muted/20">
-                        <FolderPlus class="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        <input
-                            type="text"
-                            class="border rounded px-2 py-1 text-sm flex-1 min-w-0"
-                            placeholder="New folder name"
-                            bind:value={newFolderName}
-                            onkeydown={handleCreateFolderKeydown}
-                        />
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            class="h-7 w-7 text-green-600 hover:text-green-700"
-                            onclick={handleCreateFolder}
-                            disabled={loading}
-                            title="Create"
-                        >
-                            <Check class="h-4 w-4" />
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            class="h-7 w-7"
-                            onclick={cancelCreateFolder}
-                            disabled={loading}
-                            title="Cancel"
-                        >
-                            <X class="h-4 w-4" />
-                        </Button>
-                    </div>
-                {/if}
-
-                <!-- Global (shared) folders — read-only, globe marker -->
+        <!-- Global (shared) folders — read-only, globe marker -->
+        {#if $globalFolders.length > 0}
+            <Section
+                label="Shared with you"
+                count={$globalFolders.length}
+                collapsed={sharedCollapsed}
+                ontoggle={(c) => (sharedCollapsed = c)}
+            >
                 {#each $globalFolders as folder}
                     <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
                     <div
@@ -667,279 +948,17 @@
                         <ChevronRight class="h-4 w-4 text-muted-foreground" />
                     </div>
                 {/each}
-
-                <!-- User folders -->
-                {#each $cloudFolders as folder}
-                    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-                    <div
-                        class="flex items-center gap-2 border rounded-md px-3 py-2 hover:bg-muted/30 cursor-pointer"
-                        onclick={() => handleNavigateToFolder(folder.folderId, folder.folderName)}
-                    >
-                        {#if editingFolderId === folder.folderId}
-                            <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-                            <div class="flex items-center gap-2 flex-1" onclick={(e) => e.stopPropagation()}>
-                                <Folder class="h-4 w-4 text-amber-500 flex-shrink-0" />
-                                <input
-                                    type="text"
-                                    class="border rounded px-2 py-1 text-sm flex-1 min-w-0"
-                                    bind:value={editFolderName}
-                                    onkeydown={(e) => handleFolderRenameKeydown(e, folder.folderId)}
-                                />
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    class="h-7 w-7 text-green-600 hover:text-green-700"
-                                    onclick={(e) => { e.stopPropagation(); saveFolderRename(folder.folderId); }}
-                                    disabled={loading}
-                                    title="Save"
-                                >
-                                    <Check class="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    class="h-7 w-7"
-                                    onclick={(e) => { e.stopPropagation(); cancelFolderRename(); }}
-                                    disabled={loading}
-                                    title="Cancel"
-                                >
-                                    <X class="h-4 w-4" />
-                                </Button>
-                            </div>
-                        {:else}
-                            <Folder class="h-4 w-4 text-amber-500 flex-shrink-0" />
-                            <span class="font-medium text-sm flex-1 truncate">{folder.folderName}</span>
-                            <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-                            <div class="flex gap-0.5" onclick={(e) => e.stopPropagation()}>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    class="h-7 w-7"
-                                    onclick={() => startFolderRename(folder)}
-                                    disabled={loading || editingFolderId !== null}
-                                    title="Rename folder"
-                                >
-                                    <Pencil class="h-3.5 w-3.5" />
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    class="h-7 w-7 text-destructive hover:text-destructive"
-                                    onclick={() => handleDeleteFolder(folder)}
-                                    disabled={loading}
-                                    title="Delete folder"
-                                >
-                                    <Trash2 class="h-3.5 w-3.5" />
-                                </Button>
-                            </div>
-                        {/if}
-                    </div>
-                {/each}
-
-                <!-- Files grouped by con-day -->
-                {#each fileGroups as group (group.key)}
-                    <div class="pt-1">
-                        <div class="px-1 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            {group.label}
-                        </div>
-                        <div class="border rounded-md divide-y">
-                            {#each group.files as file (file.fileId)}
-                                {#if editingFileId === file.fileId}
-                                    <div class="flex items-center gap-2 px-3 py-2">
-                                        <input
-                                            type="text"
-                                            class="border rounded px-2 py-1 text-sm flex-1 min-w-0"
-                                            bind:value={editFileName}
-                                            onkeydown={(e) => handleRenameKeydown(e, file.fileId)}
-                                        />
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            class="h-7 w-7 text-green-600 hover:text-green-700"
-                                            onclick={() => saveRename(file.fileId)}
-                                            disabled={loading}
-                                            title="Save"
-                                        >
-                                            <Check class="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            class="h-7 w-7"
-                                            onclick={cancelRename}
-                                            disabled={loading}
-                                            title="Cancel"
-                                        >
-                                            <X class="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                {:else}
-                                    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-                                    <div
-                                        class="flex items-center gap-2 px-3 py-2 hover:bg-muted/30 cursor-pointer"
-                                        onclick={() => handleLoadFile(file)}
-                                        title="Open on the map"
-                                    >
-                                        <MapIcon class="h-4 w-4 text-primary flex-shrink-0" />
-                                        <div class="min-w-0 flex-1">
-                                            <div class="font-medium text-sm flex items-center gap-1.5" title={file.fileName}>
-                                                <span class="truncate min-w-0">{file.fileName}</span>
-                                                {#if file.shareRequested}
-                                                    <!-- Verb ②: at-a-glance "submitted to DEF CON run" state.
-                                                         Data-only flag (no link); pending admin review. -->
-                                                    <span
-                                                        class="inline-flex flex-shrink-0 text-emerald-600"
-                                                        title="Submitted to DEF CON run — pending review"
-                                                    >
-                                                        <Send class="h-3.5 w-3.5" />
-                                                    </span>
-                                                {/if}
-                                            </div>
-                                            <div class="text-xs text-muted-foreground flex gap-2">
-                                                <span>v{file.version || 1}</span>
-                                                {#if file.trackCount}
-                                                    <span>· {file.trackCount} track{file.trackCount !== 1 ? 's' : ''}</span>
-                                                {/if}
-                                                <span class="hidden sm:inline">· {formatFileSize(file.fileSize)}</span>
-                                                <span class="hidden sm:inline">· {formatDate(file.updatedAt)}</span>
-                                            </div>
-                                        </div>
-                                        <!-- Per-row actions (stopPropagation so they don't open the map) -->
-                                        <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-                                        <div class="flex gap-0.5 flex-shrink-0" onclick={(e) => e.stopPropagation()}>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                class="h-7 w-7"
-                                                onclick={() => startRename(file)}
-                                                disabled={loading || editingFileId !== null}
-                                                title="Rename"
-                                            >
-                                                <Pencil class="h-3.5 w-3.5" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                class="h-7 w-7 {filesWithShares.has(file.fileId) ? 'text-blue-600 hover:text-blue-700' : ''}"
-                                                onclick={() => { fileToShare = file; shareDialogOpen = true; }}
-                                                disabled={loading}
-                                                title={filesWithShares.has(file.fileId) ? 'Shared — click to manage' : 'Share'}
-                                            >
-                                                <Share2 class="h-3.5 w-3.5" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                class="h-7 w-7"
-                                                onclick={() => (conDayDialogFile = file)}
-                                                disabled={loading}
-                                                title="Save as defcon.run Activity"
-                                                aria-label="Save as defcon.run Activity"
-                                            >
-                                                <CalendarCheck class="h-3.5 w-3.5" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                class="h-7 w-7"
-                                                onclick={() => {
-                                                    routeConvertMsg = null;
-                                                    routeConvertErr = null;
-                                                    routeDialogFile = file;
-                                                }}
-                                                disabled={loading}
-                                                title="Save as route (shareable template)"
-                                                aria-label="Save as route"
-                                            >
-                                                <RouteIcon class="h-3.5 w-3.5" />
-                                            </Button>
-                                            {#if (file.versionCount || 1) > 1}
-                                                <DropdownMenu.Root onOpenChange={(isOpen) => { if (isOpen) fetchVersionHistory(file); }}>
-                                                    <DropdownMenu.Trigger
-                                                        class="inline-flex items-center justify-center h-7 w-7 rounded-md text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
-                                                        disabled={loading}
-                                                    >
-                                                        <History class="h-3.5 w-3.5" />
-                                                        <span class="sr-only">Version history</span>
-                                                    </DropdownMenu.Trigger>
-                                                    <DropdownMenu.Content class="w-56">
-                                                        <DropdownMenu.Label>
-                                                            Version History ({file.versionCount} versions)
-                                                        </DropdownMenu.Label>
-                                                        <DropdownMenu.Separator />
-                                                        {#if loadingVersions && loadingVersionsFileId === file.fileId}
-                                                            <div class="flex items-center gap-2 px-2 py-3 text-sm text-muted-foreground">
-                                                                <Loader2 class="h-4 w-4 animate-spin" />
-                                                                Loading...
-                                                            </div>
-                                                        {:else if fileVersions.length === 0}
-                                                            <div class="px-2 py-3 text-sm text-muted-foreground">
-                                                                No versions found
-                                                            </div>
-                                                        {:else}
-                                                            <div class="max-h-64 overflow-y-auto">
-                                                                {#each [...fileVersions].reverse() as ver}
-                                                                    <DropdownMenu.Item
-                                                                        class="flex justify-between items-center cursor-pointer {!ver.exists ? 'opacity-50' : ''}"
-                                                                        disabled={!ver.exists}
-                                                                        onclick={() => handleLoadVersion(file, ver.version)}
-                                                                    >
-                                                                        <span class="flex items-center gap-2">
-                                                                            <span class="font-medium">v{ver.version}</span>
-                                                                            {#if ver.version === versionHistoryCurrent}
-                                                                                <span class="text-xs bg-primary text-primary-foreground px-1 rounded">current</span>
-                                                                            {/if}
-                                                                        </span>
-                                                                        <span class="text-xs text-muted-foreground">
-                                                                            {ver.createdAt ? formatVersionDate(ver.createdAt) : ''}
-                                                                        </span>
-                                                                    </DropdownMenu.Item>
-                                                                {/each}
-                                                            </div>
-                                                        {/if}
-                                                    </DropdownMenu.Content>
-                                                </DropdownMenu.Root>
-                                            {/if}
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                class="h-7 w-7 text-destructive hover:text-destructive"
-                                                onclick={() => handleDeleteFile(file)}
-                                                disabled={loading}
-                                                title="Delete"
-                                            >
-                                                <Trash2 class="h-3.5 w-3.5" />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                {/if}
-                            {/each}
-                        </div>
-                    </div>
-                {/each}
-
-                {#if isEmpty}
-                    <div class="p-8 text-center text-muted-foreground">
-                        <p>No maps here yet.</p>
-                        <p class="text-sm mt-1">Use <span class="font-medium">Add run</span> to log your first run.</p>
-                    </div>
-                {/if}
-            </div>
-
-            <!-- Footer actions -->
-            <div class="flex justify-between gap-3 pt-3 flex-shrink-0 border-t mt-2">
-                <Button onclick={openAddRun}>
-                    <Footprints class="h-4 w-4 mr-2" />
-                    Add run
-                </Button>
-                <Button variant="outline" onclick={() => exportAllFiles([])}>
-                    <Download class="h-4 w-4 mr-2" />
-                    Export
-                </Button>
-            </div>
+            </Section>
         {/if}
-    </Dialog.Content>
-</Dialog.Root>
+    {/if}
+
+    {#snippet footer()}
+        <span class="text-[11px] text-muted-foreground">GPX up to 10mb</span>
+        <Button onclick={openAddRun}>
+            <span class="mr-2 text-[13px] leading-none" aria-hidden="true">👟</span>Add run
+        </Button>
+    {/snippet}
+</DialogShell>
 
 <ShareDialog bind:open={shareDialogOpen} file={fileToShare} onSubmitChange={refreshFiles} />
 
