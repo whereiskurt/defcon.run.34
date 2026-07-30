@@ -56,8 +56,19 @@ export async function POST(req: NextRequest) {
     );
 
     const data = await response.json();
-    console.log(`[run.flash] register-radio: status=${response.status} response=${JSON.stringify(data)}`);
-    return NextResponse.json(data, { status: response.status });
+    // Log the OUTCOME only. The `radio` echo carries privateKey/publicKey, so
+    // JSON.stringify(data) here would spill device key material into the app logs.
+    console.log(
+      `[run.flash] register-radio: status=${response.status} nodeId=${nodeId} ` +
+        `updated=${data?.updated === true} transferred=${data?.transferred === true}` +
+        (data?.error ? ` error=${data.error}` : "")
+    );
+
+    // `previousUserId` is an internal audit id for the server-to-server hop only —
+    // never hand another account's identifier to the browser. The UI needs just the
+    // boolean to render "reassigned to your profile".
+    const { previousUserId: _previousUserId, ...clientSafe } = data ?? {};
+    return NextResponse.json(clientSafe, { status: response.status });
   } catch (error) {
     console.error("[run.flash] /api/register-radio error:", error);
     return NextResponse.json(
