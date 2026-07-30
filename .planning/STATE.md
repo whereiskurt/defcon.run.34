@@ -3,16 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
 status: Ready to plan
-stopped_at: "Completed 70-05-PLAN.md; 70-06 in flight — quality gates green, prod probe authored, phase PR merging."
-last_updated: "2026-07-30T04:57:33.263Z"
+stopped_at: "Completed 69-01-PLAN.md (meshtk shared-chain criticals: nil cipher + Data field loss)"
+last_updated: "2026-07-30T13:40:22.223Z"
 last_activity: 2026-07-30
-last_activity_desc: Phase 70 waves 1-3 complete; 70-06 ship plan executing
 progress:
-  total_phases: 29
+  total_phases: 31
   completed_phases: 18
-  total_plans: 75
-  completed_plans: 73
-  percent: 62
+  total_plans: 88
+  completed_plans: 79
+  percent: 58
 current_phase: 70
 current_phase_name: gpx-studio-shared-dialog-shell-map-layers-my-maps
 ---
@@ -24,7 +23,7 @@ current_phase_name: gpx-studio-shared-dialog-shell-map-layers-my-maps
 See: .planning/PROJECT.md (updated 2026-07-05)
 
 **Core value:** Participants and organizers have a seamless digital experience for DCR34 -- from device setup to event discovery to route navigation. Milestone v2.2 brings back the DC33 leaderboard-as-activity-table in run.human, shipped hidden behind the admin group until perfected.
-**Current focus:** Phase 70 — gpx-studio-shared-dialog-shell-map-layers-my-maps
+**Current focus:** Phase 69 — meshtk-shared-chain-hardening-pre-existing-blockers-found-by
 
 ## Current Position
 
@@ -52,7 +51,7 @@ only us-east-1 was deployed for the copy-migrated apps, so there was no second l
 observe against. The per-region mechanism (master → Litestream worker → revalidate) is
 identical and will hold when a 2nd region deploys. Not counted as debt.
 
-Last activity: 2026-07-30 — Phase 68 complete (Phase 69 planned, not started); Phase 70 shared dialog shell shipped
+Last activity: 2026-07-30
 
 ## Roadmap Summary (v1.9)
 
@@ -137,6 +136,7 @@ Recent decisions affecting current work:
 - [Phase ?]: Phase 70 P04: the footer is a DialogShell prop snippet, which renders unconditionally — so Add run and the helper text are now visible on the unauthenticated and access-denied gate screens too (openAddRun only closes the dialog and opens the QuickStart hub, so nothing privileged is exposed)
 - [Phase ?]: 70-05: Map Layers opens on click only — hover-open, mouseleave-close and the hand-rolled window containment check are deleted (DLGS-04 stutter fix)
 - [Phase ?]: 70-05: basemaps render as a flat radio list via flattenLayerTree, so the Map Layers dialog has exactly one collapse affordance per section
+- [Phase ?]: 69-01: RewritePayloadString signature (error, bool) -> error; nil Decoded/Cipher guarded; the parsed Data is mutated IN PLACE (not a three-field rebuild) so reply_id/emoji/dest/source/request_id/want_response and protobuf unknown fields survive — Bitfield (meshtk#21 pre-hop drop) is subsumed not removed; marshal happens BEFORE PayloadVariant is reassigned because on a decoded packet the parsed Data is reachable through that same variant. RewriteHelloGoodbye now declines when !WasEncrypted || Cipher == nil and CONSUMES the rewrite error (log + return false), so a failed censor can no longer report Rewrote while the original bytes forward. Upstream branch fix/shared-chain-hardening off origin/main@609a5c5, commits 72c5506/2f62e61/ce07c66; NOT pushed, PR'd, vendor-synced or deployed. 5 cross-codec regression tests (9 cases) with one SHARED six-field assertion so 3.1.1 and v5 cannot drift, plus a deferred-recover wrapper so a SIGSEGV regression is a named failure; v4 golden byte-unedited and green; go.mod/go.sum/vendor diff empty. RED proven by throwaway probe before the fix (panic + all six fields zeroed) and by reverting rules.go alone. ⚠️CR-01 layer 3 (recover() around the per-connection goroutine) deliberately OUT of scope — a panic anywhere else in the read loop still takes the process.
 
 ### Pending Todos
 
@@ -149,8 +149,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-30T05:45:11.368Z
-Stopped at: Completed 70-05-PLAN.md (Map Layers dialog host, wave 3)
+Last session: 2026-07-30T13:40:12.268Z
+Stopped at: Completed 69-01-PLAN.md (meshtk shared-chain criticals: nil cipher + Data field loss)
 Resume file: None
 
 ## Operator Next Steps
@@ -210,3 +210,4 @@ Resume file: None
 | Phase 70 P03 | ~20m | 3 tasks | 3 files |
 | Phase 70 P04 | 35m | 3 tasks | 1 files |
 | Phase 70 P05 | ~25m | 2 tasks | 3 files |
+| Phase 69 P01 | ~25m | 3 tasks | 5 files |
