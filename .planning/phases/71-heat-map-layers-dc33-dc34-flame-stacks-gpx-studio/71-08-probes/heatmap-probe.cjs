@@ -2,14 +2,17 @@
 /**
  * Phase 71 / HEAT-06 — production probe for the DC33 + DC34 heat-map layers.
  *
- * Thirteen assertions against the LIVE gpx.defcon.run deployment: the two public
- * artifact routes and their CDN headers, the year allowlist, the cheap `?meta=1`
- * projection, NON-ATTRIBUTABILITY of the bytes production actually serves (both
- * years, via the 71-04 verifier rather than a reimplementation), artifact freshness,
- * the internal build route's unreachability from the public host, the HEAT MAP
- * section's DOM, both flame stacks rendering SIMULTANEOUSLY (D-12 — the emotional
- * core of the feature), default-off + lazy-load measured from the network log, and
- * the two EventBridge schedules 71-07 planned.
+ * Nineteen assertions against the LIVE gpx.defcon.run deployment: the two public
+ * artifact routes, their CDN headers AND the edge's OBSERVED cache behaviour, the year
+ * allowlist, the cheap `?meta=1` projection, NON-ATTRIBUTABILITY of the bytes production
+ * actually serves (both years, via the 71-04 verifier rather than a reimplementation),
+ * artifact freshness, the internal build route's unreachability from the public host,
+ * the CDN cache-key separation measured on responses that were served FROM the edge, the
+ * whole gpx internal route family's edge block and that block's BLAST RADIUS, degenerate
+ * geometry in the served DC33 artifact, the HEAT MAP section's DOM, both flame stacks
+ * rendering SIMULTANEOUSLY (D-12 — the emotional core of the feature), the D-13 paint
+ * opacity, default-off + lazy-load measured from the network log, and the two EventBridge
+ * schedules 71-07 planned plus the invariant that they can never fire in the same minute.
  *
  * The denominator is a FIXED LITERAL. The ship gate must never become reachable by
  * shrinking what is asserted (T-71-37). There is no skip() helper in this file at
@@ -17,6 +20,26 @@
  * parsed, a map object or layer id that cannot be resolved, or a scheduler that
  * cannot be read all score FAIL, never a vacuous pass. The Phase 70 retrospective
  * recorded two assertions that did not fail closed; this file does not repeat that.
+ *
+ * STRENGTHENED for gap closure (plan 71-12) after 71-VERIFICATION.md found that
+ * assertions 1, 2 and 8 shipped with predicates the FAILING deployment satisfied — which
+ * is exactly how two structural failures hid behind an 11/13 ship gate:
+ *
+ *   - 1 and 2 asked only that a `cache-control` header carrying `s-maxage` is PRESENT.
+ *     It was. The /use1/* behaviour used Managed-CachingDisabled, so three back-to-back
+ *     requests all came back `x-cache: Miss from cloudfront` (verification truth #6).
+ *     Header presence cannot distinguish a working cache from a distribution that ignores
+ *     the header outright. Both now require an OBSERVED edge hit on a repeat request.
+ *
+ *   - 8 asked only that the response is non-2xx. An unreachable path and a request that
+ *     reached Next.js and got the handler's own guard payload are indistinguishable under
+ *     that predicate; production was the latter (verification truth #24 —
+ *     reachable-and-rejected, not unreachable). It now requires the `x-dc34-edge-block`
+ *     marker header, which only the CloudFront function can emit.
+ *
+ * Assertions 14-19 were added in the same pass. 16 is a REGRESSION gate, not a fix gate:
+ * it proves the edge block did NOT catch the internal paths that legitimately travel over
+ * public HTTPS. It is expected GREEN before the fix and must STAY green after it.
  *
  * The same script produces both the pre-deploy and the post-deploy transcript. The
  * CONTRAST is the evidence (T-71-38): a pre-deploy run that already passes would
@@ -45,12 +68,35 @@ const https = require('https');
 const { execFileSync, execSync } = require('child_process');
 const { chromium } = require('/Users/khundeck/working/defcon.run.34/apps/run.auth/e2e/node_modules/playwright-core');
 
-const TOTAL = 13;
+const TOTAL = 19;
 
 const HOST = 'https://gpx.defcon.run';
 const TARGET = `${HOST}/use1/studio/app`;
 const HEAT_BASE = `${HOST}/use1/api/gpx/public/heatmap`;
 const INTERNAL_BUILD = `${HOST}/use1/api/gpx/internal/heatmap-build`;
+
+// The three route directories under apps/run.gpx/webapp/src/app/api/gpx/internal/.
+// Assertion 15 probes every one of them in BOTH the region-prefixed and the no-region
+// form: the ALB rule carries no path patterns and the default behaviour forwards, so a
+// block proven only on the /use1/ spelling is not proven.
+const GPX_INTERNAL_ROUTES = ['heatmap-build', 'strava-sync', 'reconcile'];
+const gpxInternalUrls = (route) => [
+    { form: 'region-prefixed', url: `${HOST}/use1/api/gpx/internal/${route}` },
+    { form: 'no-region', url: `${HOST}/api/gpx/internal/${route}` },
+];
+
+// Internal-path families that legitimately travel over PUBLIC HTTPS and must therefore
+// stay untouched by the edge block. Assertion 16 is the blast-radius regression gate.
+const MUST_NOT_BE_BLOCKED = [
+    {
+        what: "run.human's meshtk claim-link mint (MESHTK_RUN_INTERNAL_URL)",
+        url: 'https://run.defcon.run/use1/api/internal/ctf/mint',
+    },
+    {
+        what: "run.auth's internal quota family",
+        url: 'https://auth.defcon.run/use1/api/internal/quota/probe-nonexistent-user',
+    },
+];
 
 const OUT_DIR = __dirname;
 // 71-08-probes → 71-heat-map-… → phases → .planning → repo root.
@@ -65,16 +111,41 @@ const SUMMARY_04 = path.join(OUT_DIR, '..', '71-04-SUMMARY.md');
 const DC33_GENERATED_AT = '2025-08-15T02:41:54.347Z';
 // Kurt-locked flame colours (D-02), read from 71-05's HEAT_PAINT.
 const HEAT_COLOR = { dc33: '#ff8c00', dc34: '#ff0000' };
+// D-13, user-locked 2026-07-31: line-opacity moves 0.25 → 0.7 because at 0.25 the DC33
+// stack is not faint, it is invisible. Assertion 19 reads this back off the LIVE map, so
+// the paint contract is pinned at the pixel and not merely in source.
+const HEAT_OPACITY = 0.7;
 const HEAT_LAYER = { dc33: 'heatmap-dc33', dc34: 'heatmap-dc34' };
 const META_KEYS = ['year', 'generatedAt', 'runCount', 'totalKm'];
 const META_MAX_BYTES = 500;
+// The bare artifact is two orders of magnitude larger than the meta projection. Used by
+// assertion 14 to prove the edge is not serving the meta body for the bare URL.
+const BARE_MIN_BYTES = META_MAX_BYTES * 10;
 const FRESH_HOURS = 26;
 
+// Emitted ONLY by the CloudFront function that plan 71-13 installs. The application
+// cannot produce it, and that is the entire point: a non-2xx alone cannot tell an
+// unreachable path from a reachable one whose handler said no. Spelled once as a value.
+const EDGE_MARKER_HEADER = 'x-dc34-edge-block';
+const EDGE_MARKER_VALUE = '1';
+// The payload the internal route's own secret guard ships. Spelled once.
+const FORBIDDEN_GUARD_BODY = '"error":"Forbidden"';
+// CloudFront spells a response served from the edge two ways. Matched case-insensitively;
+// `Miss from cloudfront`, `Error from cloudfront` and an absent header are all not-a-hit.
+const CDN_HIT = /hit from cloudfront/i;
+// Requests per warm-up sequence. One warming request plus three that can report a hit.
+const CDN_REPEATS = 4;
+
 // 71-07's planned schedules. The module sets no group_name, so both land in `default`.
+// The DAILY expression is pinned at plan 71-14's de-collided value, not the top-of-hour
+// spelling that shipped: the shipped one coincides with the hourly con-window schedule
+// once per con day, invoking the Lambda twice with no concurrency control (WR-04).
+// Assertion 13 therefore goes red until 71-14 applies — that is a STRENGTHENING.
+// Assertion 18 is the durable companion: it pins the INVARIANT rather than the literal.
 const SCHED_TZ = 'America/Los_Angeles';
 const SCHEDULES = [
     { name: 'heatmap-build-use1-hourly', expr: 'cron(0 * 5-10 8 ? 2026)' },
-    { name: 'heatmap-build-use1-daily', expr: 'cron(0 4 * * ? *)' },
+    { name: 'heatmap-build-use1-daily', expr: 'cron(20 4 * * ? *)' },
 ];
 const AWS_ARGS = ['--profile', 'dc34-application', '--region', 'us-east-1'];
 
@@ -129,13 +200,43 @@ function httpGet(url) {
     });
 }
 
+/** The same URL, several times, STRICTLY in sequence. Parallel requests would race the
+ * edge's own fill and could report a miss on every one of them even with a working cache,
+ * which would manufacture a phantom failure in assertions 1, 2 and 14. */
+async function httpGetSequence(url, times = CDN_REPEATS) {
+    const out = [];
+    for (let i = 0; i < times; i++) out.push(await httpGet(url));
+    return out;
+}
+
+/** Was this response served FROM the edge? Header presence proves nothing about caching —
+ * only an observed hit does (71-VERIFICATION.md #6). */
+function isCdnHit(res) {
+    return !!res && CDN_HIT.test(String((res.headers || {})['x-cache'] || ''));
+}
+
+function xCacheOf(res) {
+    return (res && res.headers && res.headers['x-cache']) || '(absent)';
+}
+
+/** Format an x-cache sequence for the transcript. The VERDICT is not enough here: the
+ * whole point of the strengthening is that the reader can see the sequence itself. */
+function xCacheTrail(seq) {
+    return seq.map((r, i) => `#${i + 1} "${xCacheOf(r)}"`).join(' | ');
+}
+
+function markerOf(res) {
+    const v = res && res.headers ? res.headers[EDGE_MARKER_HEADER] : undefined;
+    return v === undefined ? null : String(v);
+}
+
 function httpPost(url) {
     return new Promise((resolve, reject) => {
         const req = https.request(url, { method: 'POST' }, (res) => {
             let body = '';
             res.setEncoding('utf8');
             res.on('data', (c) => (body += c));
-            res.on('end', () => resolve({ status: res.statusCode, body }));
+            res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body }));
         });
         req.on('error', reject);
         req.end();
@@ -296,11 +397,21 @@ async function main() {
     // ================= HTTP assertions (no browser) =========================
 
     // ---- 1 / 2. the two public artifact routes -----------------------------
+    // ORIGINAL PREDICATE (shipped, and blind): status 200, a JSON content type, and a
+    // cache-control header CONTAINING s-maxage. Production satisfied all three while the
+    // CDN cached nothing at all — the /use1/* behaviour used Managed-CachingDisabled, so
+    // the origin's s-maxage was ignored outright and three back-to-back requests each
+    // returned `x-cache: Miss from cloudfront`. The presence of a directive says nothing
+    // about whether anything honours it. Every original sub-check is KEPT and a
+    // CDN-BEHAVIOUR sub-check is added on top: repeat the request in sequence and require
+    // an actual edge hit after the first. That is the only form of this assertion that can
+    // go red for the failure that shipped.
     const artifact = {};
     for (const [n, year] of [[1, 'dc34'], [2, 'dc33']]) {
-        const L = `GET /api/gpx/public/heatmap/${year} is 200 JSON with an s-maxage CDN header`;
+        const L = `GET /api/gpx/public/heatmap/${year} is 200 JSON, carries s-maxage, AND the edge HONOURS it (repeat request hits)`;
         try {
-            const res = await httpGet(`${HEAT_BASE}/${year}`);
+            const seq = await httpGetSequence(`${HEAT_BASE}/${year}`);
+            const res = seq[0];
             artifact[year] = res;
             const ct = res.headers['content-type'] || '';
             const cc = res.headers['cache-control'] || '';
@@ -308,7 +419,15 @@ async function main() {
             if (res.status !== 200) problems.push(`status ${res.status}`);
             if (!/json/i.test(ct)) problems.push(`content-type "${ct}"`);
             if (!cc.includes('s-maxage=')) problems.push(`cache-control "${cc || '(absent)'}"`);
-            const note = `status=${res.status} content-type="${ct}" cache-control="${cc}" bytes=${res.body.length}`;
+            const repeats = seq.slice(1);
+            const hits = repeats.filter(isCdnHit).length;
+            info(`${year} x-cache over ${seq.length} sequential requests: ${xCacheTrail(seq)}`);
+            if (hits === 0) {
+                problems.push(
+                    `NO cloudfront hit on any of the ${repeats.length} repeat request(s) — the header is present but the distribution ignores it`
+                );
+            }
+            const note = `status=${res.status} content-type="${ct}" cache-control="${cc}" bytes=${res.body.length} edge-hits=${hits}/${repeats.length}`;
             if (problems.length) bad(n, L, `${problems.join('; ')} — ${note}`);
             else pass(n, L, note);
         } catch (e) {
@@ -458,13 +577,38 @@ async function main() {
         }
     }
 
-    // ---- 8. the internal build route is not publicly triggerable -----------
+    // ---- 8. the internal build route is REFUSED AT THE EDGE ----------------
+    // ORIGINAL PREDICATE (shipped, and blind): "non-2xx". A 403 from an unreachable path
+    // and a 403 the application itself produced are the same status. Production was the
+    // second: the public POST came back carrying the handler's OWN guard payload, meaning
+    // the request traversed CloudFront, the ALB and Next.js before being refused
+    // (71-VERIFICATION.md #24). The non-2xx requirement is KEPT and two discriminating
+    // sub-checks are added.
     {
-        const L = 'Unauthenticated POST to /api/gpx/internal/heatmap-build is non-2xx';
+        const L = 'Unauthenticated POST to /api/gpx/internal/heatmap-build is REFUSED AT THE EDGE and never reaches the application';
         try {
             const res = await httpPost(INTERNAL_BUILD);
-            const note = `status=${res.status}`;
-            if (res.status >= 200 && res.status < 300) bad(8, L, `PUBLICLY TRIGGERABLE — ${note}`);
+            const marker = markerOf(res);
+            const problems = [];
+            if (res.status >= 200 && res.status < 300) problems.push(`PUBLICLY TRIGGERABLE — status ${res.status}`);
+            // The marker is the real discriminator and is sufficient on its own: only the
+            // CloudFront function emits it, and the application has no way to forge it.
+            if (marker !== EDGE_MARKER_VALUE) {
+                problems.push(
+                    `${EDGE_MARKER_HEADER} is ${marker === null ? '(absent)' : `"${marker}"`}, expected "${EDGE_MARKER_VALUE}" — without it a non-2xx means reached-and-rejected, not unreachable`
+                );
+            }
+            // TRANSITIONAL, and deliberately labelled as such: this token is the payload
+            // the route ships TODAY. Plan 71-11 replaces that rejection with a bare 404
+            // carrying no handler body, so once 71-11 is live this sub-check can no longer
+            // go red on its own and the marker header above becomes the SOLE
+            // discriminator. Do not read these as two independent controls after that
+            // transition — they are one control plus a fading witness to the old one.
+            if (res.body.includes(FORBIDDEN_GUARD_BODY)) {
+                problems.push(`body carries the application guard's payload ${FORBIDDEN_GUARD_BODY} — the request reached Next.js`);
+            }
+            const note = `status=${res.status} ${EDGE_MARKER_HEADER}=${marker === null ? '(absent)' : `"${marker}"`} body=${JSON.stringify(res.body.slice(0, 120))}`;
+            if (problems.length) bad(8, L, `${problems.join('; ')} — ${note}`);
             else pass(8, L, note);
         } catch (e) {
             bad(8, L, oneLine(e));
