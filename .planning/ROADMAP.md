@@ -773,7 +773,7 @@ Plans:
 - [ ] 71-05-PLAN.md — Studio `heatmap-layer.ts`: `?meta=1` probe at load, single atomic restore write, lazy geometry on first enable, locked paint (`#ff0000` / `#ff8c00`, width 3, opacity 0.25, DC34 above DC33), persisted per-year ids (HEAT-04) [wave 2]
 - [ ] 71-06-PLAN.md — `HeatMap.svelte` HEAT MAP section in the Phase 70 dialog (stamp via `count`, not the non-existent `trailing` prop), two flame rows with hint-bar detail, `SECTION.heatmap`, order-safe mount in `LayerControl` (HEAT-05) [wave 3]
 - [ ] 71-07-PLAN.md — `heatmap-scheduler` Terraform module (copy of strava-sync-scheduler v1.1.0; thin invoker, no data-plane IAM) + us-east-1 live unit (hourly across 5-10 Aug 2026 + daily baseline, PT, `lambda_timeout` 300) + scoped CI plan (HEAT-02) [wave 3]
-- [ ] 71-08-PLAN.md — Ship: gates → PR → buildpub → deploy.yml → scoped terragrunt-apply; 12-assertion production probe with pre/post transcripts, non-attributability verified on the LIVE bytes, Phase 70 probe re-run, blocking human check on the two-colour overlap (HEAT-01..06) [wave 4]
+- [ ] 71-08-PLAN.md — Ship: gates → PR → buildpub → deploy.yml → scoped terragrunt-apply; 13-assertion production probe with pre/post transcripts, non-attributability verified on the LIVE bytes, schedule state/expression/timezone asserted (SC-2's hourly cadence recorded as a wall-clock residual), Phase 70 probe re-run, blocking human check on the two-colour overlap (HEAT-01..06) [wave 4]
 
 ---
 
