@@ -799,7 +799,7 @@ Plans:
 
 **Gap-Closure Wave 3** *(blocked on gap wave 2)*
 
-- [ ] 71-15-PLAN.md — Republish the frozen DC33 artifact through the new degeneracy filter: 20 of 110 live features are entirely `[[0,0],[0,0]]`, so the public `runCount` overstates real runs by 22% (WR-06). **Changes a publicly-served number (110 → ~90)** — blocking human approval on the measured dry-run diff, `generatedAt` and `totalKm` preserved, contract line updated in place, CDN invalidated (HEAT-03) [gap wave 3]
+- [x] 71-15-PLAN.md — Republish the frozen DC33 artifact through the new degeneracy filter: 20 of 110 live features are entirely `[[0,0],[0,0]]`, so the public `runCount` overstates real runs by 22% (WR-06). **Changes a publicly-served number (110 → ~90)** — blocking human approval on the measured dry-run diff, `generatedAt` and `totalKm` preserved, contract line updated in place, CDN invalidated (HEAT-03) [gap wave 3]
 
 **Gap-Closure Wave 4** *(blocked on gap wave 3)*
 
