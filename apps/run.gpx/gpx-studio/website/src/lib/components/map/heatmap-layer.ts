@@ -85,8 +85,14 @@ type HeatStroke = {
  */
 const HEAT_STROKE = { 'line-width': 3, 'line-opacity': 0.25 } as const;
 
-/** DC34 flame red, DC33 ember orange (D-02, Kurt-locked). */
-const HEAT_PAINT: Record<HeatYear, HeatStroke> = {
+/**
+ * DC34 flame red, DC33 ember orange (D-02, Kurt-locked).
+ *
+ * Exported so the HEAT MAP section's row swatches read their colour from the
+ * same constant the map line paints with — a swatch can then never drift from
+ * the line it stands for.
+ */
+export const HEAT_PAINT: Record<HeatYear, HeatStroke> = {
     dc33: { 'line-color': '#ff8c00', ...HEAT_STROKE },
     dc34: { 'line-color': '#ff0000', ...HEAT_STROKE },
 };
