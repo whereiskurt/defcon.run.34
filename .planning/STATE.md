@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
 status: Ready to execute
-stopped_at: "Phase 71 plan 07 COMPLETE — heatmap-scheduler Terraform module v1.0.0 + us-east-1 live unit created and validated by a SCOPED CI plan (actions/runs/30601617385): Plan: 9 to add, 0 to change, 0 to destroy, zero strava-sync addresses, function_name=heatmap-build-use1, timeout=300, schedules hourly cron(0 * 5-10 8 ? 2026) + daily cron(0 4 * * ? *) in America/Los_Angeles, default group. NOTHING APPLIED — the apply is 71-08 via terragrunt-apply.yml -f region=us-east-1 -f modules=heatmap-scheduler on ref gsd/phase-71-heat-map-layers. Lambda has ZERO DynamoDB/S3 IAM."
-last_updated: "2026-07-31T03:32:29.184Z"
+stopped_at: "Phase 71 plan 08 SHIPPED: run.gpx v0.0.109 live us-east-1 (task def 199), heatmap-scheduler APPLIED (9 added/0 changed/0 destroyed, matches 71-07 plan exactly), both schedules ENABLED with exact expressions in America/Los_Angeles. Production probe 2/13 pre-deploy -> 11/13 post-deploy from a byte-identical script; Phase 70 dialog-shell probe re-run UNMODIFIED at 16/16. Assertions 5 (dc34 leg) + 11 RED because DC34 has zero runs (0 of 133 items carry conDay; con is 2026-08-05..10) — probe NOT softened. Release PR #1132 merged by CI; phase PR #1131 still OPEN. Task 4 blocking human verification OPEN."
+last_updated: "2026-07-31T04:14:21.911Z"
 last_activity: 2026-07-31
 progress:
   total_phases: 31
-  completed_phases: 20
+  completed_phases: 21
   total_plans: 96
-  completed_plans: 93
-  percent: 65
+  completed_plans: 94
+  percent: 68
 current_phase: 71
 current_phase_name: heat-map-layers-dc33-dc34-flame-stacks-gpx-studio
 ---
@@ -185,11 +185,13 @@ None.
 - [v1.4 / Phase 19 — HARDWARE-IN-LOOP]: **tlora-t3s3 flashMode 'dio' boot** — verify the explicit branch (`use-flash.ts:104-106`) produces a bootable tlora-t3s3 device. Only remaining v1.4 open item — Kurt didn't have a tlora-t3s3 during 2026-07-02 hardware verification.
 - 39-06 Task 2 live SC-3 proof pending operator: run copy:import with STRAPI_WRITE_TOKEN in both apps, then edit one common.* CMS row and confirm wording changes in BOTH bib and run.human live
 - 69-07 FINDING (non-blocking): the Meshtastic Apple/iOS client (username e9ced815b0ee, node !174e59c8) sets an MQTT Will on every reconnect, so accepted risk T-69-03-05 has turned real — 8 action=WILL_STRIPPED lines in ~16 min post-deploy. Blast radius measured as ZERO: will_topic=/will has no subscribers anywhere on the fleet and will_bytes=6 carries no ServiceEnvelope. If a consumer is ever wanted, route that Will through the decider rather than dropping it.
+- 71-08 OPEN (time-locked, NOT a defect): the heat-map production probe scores **11/13**, not 13/13. Assertions 5 (dc34 leg) and 11 are RED for one reason — DEF CON 34 has not happened yet, so `uploads/HEATMAP/dc34.json` is structurally valid but EMPTY. Verified at the data layer: `aws dynamodb scan --table-name run-gpx-electro --filter-expression "attribute_exists(conDay)" --select COUNT` → **0 of 133**. CON_DAYS for DC34 is 2026-08-05..10. Nothing to fix; the probe was deliberately NOT softened. **Re-run `71-08-probes/heatmap-probe.cjs` unmodified during 5-10 Aug 2026** and confirm 13/13 plus hourly `generatedAt` movement (that re-run also closes the SC-2 hourly-cadence residual, which `cron(0 * 5-10 8 ? 2026)` makes unobservable before the con).
+- 71-08 OPEN: Task 4 blocking human verification (D-12 — do the DC33 ember-orange and DC34 flame-red read as two years where they overlap?). Steps 1-3 and 6-8 of its script are performable now on https://gpx.defcon.run/use1/studio/app; **step 5, the two-colour overlap read, cannot be performed until DC34 has runs.**
 
 ## Session Continuity
 
-Last session: 2026-07-31T03:32:29.173Z
-Stopped at: Phase 71 plan 07 COMPLETE — heatmap-scheduler Terraform module v1.0.0 + us-east-1 live unit created and validated by a SCOPED CI plan (actions/runs/30601617385): Plan: 9 to add, 0 to change, 0 to destroy, zero strava-sync addresses, function_name=heatmap-build-use1, timeout=300, schedules hourly cron(0 * 5-10 8 ? 2026) + daily cron(0 4 * * ? *) in America/Los_Angeles, default group. NOTHING APPLIED — the apply is 71-08 via terragrunt-apply.yml -f region=us-east-1 -f modules=heatmap-scheduler on ref gsd/phase-71-heat-map-layers. Lambda has ZERO DynamoDB/S3 IAM.
+Last session: 2026-07-31T04:14:21.901Z
+Stopped at: Phase 71 plan 08 SHIPPED: run.gpx v0.0.109 live us-east-1 (task def 199), heatmap-scheduler APPLIED (9 added/0 changed/0 destroyed, matches 71-07 plan exactly), both schedules ENABLED with exact expressions in America/Los_Angeles. Production probe 2/13 pre-deploy -> 11/13 post-deploy from a byte-identical script; Phase 70 dialog-shell probe re-run UNMODIFIED at 16/16. Assertions 5 (dc34 leg) + 11 RED because DC34 has zero runs (0 of 133 items carry conDay; con is 2026-08-05..10) — probe NOT softened. Release PR #1132 merged by CI; phase PR #1131 still OPEN. Task 4 blocking human verification OPEN.
 Resume file: None
 
 ## Operator Next Steps

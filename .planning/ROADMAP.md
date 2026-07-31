@@ -783,7 +783,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 71-08-PLAN.md — Ship: gates → PR → buildpub → deploy.yml → scoped terragrunt-apply; 13-assertion production probe with pre/post transcripts, non-attributability verified on the LIVE bytes, schedule state/expression/timezone asserted (SC-2's hourly cadence recorded as a wall-clock residual), Phase 70 probe re-run, blocking human check on the two-colour overlap (HEAT-01..06) [wave 4]
+- [x] 71-08-PLAN.md — Ship: gates → PR → buildpub → deploy.yml → scoped terragrunt-apply; 13-assertion production probe with pre/post transcripts, non-attributability verified on the LIVE bytes, schedule state/expression/timezone asserted (SC-2's hourly cadence recorded as a wall-clock residual), Phase 70 probe re-run, blocking human check on the two-colour overlap (HEAT-01..06) [wave 4]
 
 ---
 
