@@ -109,6 +109,41 @@ export function buildCtfHandoff({ challenge, value }) {
 }
 
 /**
+ * Build the single-use bot-award hand-off redirect (`/a/<nonce>`).
+ *
+ * Like `buildCtfHandoff` this is a pure forward — the resolver holds no
+ * authority over awards. It never reads the nonce's pending row, never scores,
+ * and never logs; run.defcon.run owns redemption (and its single-use guarantee).
+ * That makes the award path a lexical rewrite that cannot fail or throttle.
+ *
+ * The nonce is `encodeURIComponent`-escaped. The legitimate alphabet (Crockford
+ * base32, lowercase) is unaffected by encoding, so this costs nothing on the
+ * happy path — but it is what stops a crafted path segment from smuggling an
+ * extra query parameter into the claim page (a nonce of `x&admin=1` stays one
+ * opaque value rather than becoming a second readable param).
+ *
+ * The claim target is region-prefixed from `DEFAULT_REGION` (not a hard-coded
+ * string) since it lives on run.defcon.run, so a multi-region flip is a
+ * one-constant change.
+ *
+ * @param {{ nonce: string }} args
+ * @returns {object} ALB response
+ */
+export function buildClaimHandoff({ nonce }) {
+  const location =
+    `https://run.defcon.run/${DEFAULT_REGION}/ctf/claim` +
+    `?nonce=${encodeURIComponent(nonce)}`;
+  return {
+    statusCode: 302,
+    statusDescription: "302 Found",
+    headers: {
+      Location: location,
+      "Cache-Control": "no-store",
+    },
+  };
+}
+
+/**
  * Build the crawler-facing unfurl response: a 200 HTML card. `no-store` because
  * the embedded forward destination is rule-driven and must not be pinned. The
  * HTML is pre-rendered by `unfurl.mjs` (this builder stays pure — no templating,
