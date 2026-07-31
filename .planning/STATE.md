@@ -3,13 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
 status: Ready to execute
-stopped_at: "Phase 71 plan 08 SHIPPED: run.gpx v0.0.109 live us-east-1 (task def 199), heatmap-scheduler APPLIED (9 added/0 changed/0 destroyed, matches 71-07 plan exactly), both schedules ENABLED with exact expressions in America/Los_Angeles. Production probe 2/13 pre-deploy -> 11/13 post-deploy from a byte-identical script; Phase 70 dialog-shell probe re-run UNMODIFIED at 16/16. Assertions 5 (dc34 leg) + 11 RED because DC34 has zero runs (0 of 133 items carry conDay; con is 2026-08-05..10) — probe NOT softened. Release PR #1132 merged by CI; phase PR #1131 still OPEN. Task 4 blocking human verification OPEN."
-last_updated: "2026-07-31T04:14:21.911Z"
+stopped_at: "Phase 71 GAP CLOSURE PLANNED — 8 plans 71-09..71-16 across 4 waves, all gap_closure:true, ready for /gsd-execute-phase 71 --gaps-only. Closes the 3 failed truths from 71-VERIFICATION.md (status gaps_found, 18/24) plus CR-01/CR-03 from 71-REVIEW.md. Plan-checker iter1 = 0 blockers/7 warnings (all fixed, 3c59e7e5); iter2 = 0 blockers/3 false-red criteria (fixed inline, 2ca1fbd5). Waves: 1=09/10/11/12 (paint 0.25->0.70 per D-13, artifact+serve guards, internal route + builder, probe 13->19 assertions) · 2=13/14 (CloudFront cache policy + gpx-scoped edge block — BLOCKING human gate, shared infra; scheduler de-collision) · 3=15 (DC33 republish, runCount 110->~90 — BLOCKING gate, public number changes) · 4=16 (release + post-deploy probe — BLOCKING gate). Phase 71 itself remains NOT complete. Shipped state: run.gpx v0.0.109 live, probe 11/13, PR #1131 closed unmerged, PR #1136 (docs-only evidence) still OPEN and unmerged."
+last_updated: "2026-07-31T05:45:00Z"
 last_activity: 2026-07-31
+last_activity_desc: Phase 71 gap closure planned — 8 plans, checker passed 0 blockers
 progress:
   total_phases: 31
   completed_phases: 21
-  total_plans: 96
+  total_plans: 104
   completed_plans: 94
   percent: 68
 current_phase: 71
