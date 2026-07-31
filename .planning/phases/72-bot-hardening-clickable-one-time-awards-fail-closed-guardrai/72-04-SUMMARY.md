@@ -179,6 +179,49 @@ verified independently: `log_group_names` still contains only `auth`/`gpx`/`huma
 column for the three existing keys. Fixed by hand rather than by running the formatter,
 which would have swept 9 unrelated pre-existing drift files into the diff.
 
+## Plan Corrections Applied (post-review)
+
+A review flagged four defective verify commands in `72-04-PLAN.md`. All were corrected **in
+the plan file** — the plan's assertions were wrong, not the code, so no source file was
+churned to satisfy a broken grep. Commit `d0f30bd0`.
+
+| ID | Line | Defect | Correction |
+|----|------|--------|------------|
+| B3 | 154 | `grep -c 'value  = "closed"'` — two spaces. Canonical HCL alignment is one (`name  =` / `value =`), so `grep -c 'value  = '` returns **0 file-wide**. Unsatisfiable without corrupting formatting. | `grep -A1 'MESHTK_GUARDRAIL_FAILMODE' … \| grep -q '"closed"'` |
+| W2 | 154 | `grep -c 'MESHTK_RICKY_FALLBACK_URL' \| grep -qx 1` breaks as soon as the explanatory comment the task *itself requires* names the variable. | Match the declaration: `grep -c 'name      = "MESHTK_RICKY_FALLBACK_URL"'` |
+| W3 | 194 | **A leak check that cannot detect a leak.** Multi-file `grep -c` emits `site.hcl:0`, never a bare digit, so `grep -qvx '[1-9]'` passes unconditionally — including with a live flag code present. | `! grep -q 'nggyu' site.hcl .secrets.sops.json.template` |
+| W7 | 163 | Only asserted `'degrades to un-guarded'` (the *sidecar-header* comment), missing the `depends_on` comment at 383-396 that was the actual target. | Positive assertion: the 22 lines preceding `container_name = "run-mqtt-guardrails"` contain both `fail-closed` and `BLOCKED`. |
+
+**W7 note — the reviewer's first correction was itself withdrawn, correctly.** The initial
+instruction was to assert `grep -c 'fail-opens'` equals 0. That would have failed against
+the rewrite, because the one remaining `fail-opens` is a deliberate **quotation of the
+superseded rationale** ("The old rationale here (\"meshtk fail-opens, …\") no longer
+holds: …"). A bare negative grep cannot distinguish a stale claim from quoted history, and
+enforcing it would have forced deletion of the sentence that explains what changed. The
+plan now records that reasoning inline so the trap is not re-set later.
+
+**W3 verified empirically**, since "this assertion cannot fail" is exactly the claim that
+warrants a test. Against a poisoned copy of `site.hcl` carrying
+`https://q.defcon.run/a/nggyu…`:
+
+| Check | Poisoned files | Clean real files |
+|-------|----------------|------------------|
+| OLD `grep -c … \| grep -qvx '[1-9]'` | **PASSED — leak undetected** | passed |
+| NEW `! grep -q …` | **FAILED — leak detected** | passed (no false positive) |
+
+**Fifth correction, self-initiated (flag for reversal if unwanted):** verification item 3
+carried the same defect class. `git diff | grep -ciE 'nggyu|ctf/claim\?c=ricky'` runs
+against the *working* diff, which is empty once the task commits are made — so it reads 0
+even if a live code WERE committed. It is also prone to the inverse failure: run against
+the uncommitted plan edits it returned **4**, because the plan file quotes the very tokens
+it greps for. Replaced with a check of committed content scoped to the infra tree:
+`! git grep -qiE 'nggyu|ctf/claim\?c=ricky' HEAD -- infra/terraform/live/site` (passes).
+Item 2 also gained a note that `terragrunt hcl format --check` ignores its path argument
+and scans the whole `live/site` tree, which carries 9 files of pre-existing drift.
+
+Both corrected task-verify commands were run against the real tree and print their
+expected strings: `service.hcl OK` and `secret key declared, no live code present`.
+
 ## Verification
 
 | Check | Result |
