@@ -1,0 +1,16 @@
+==============================================================================
+Phase 71 — heat-map VISUAL CAPTURE (no assertions)
+==============================================================================
+timestamp : 2026-07-31T20:01:45.612Z
+target    : https://gpx.defcon.run/use1/studio/app
+hotspot   : -115.163, 36.127 (measured from the live dc33 artifact)
+masters turned off : DEF CON 34 Routes
+force-hidden (master checkbox missed) : overpass, dc34-rabbits-clusters, dc34-rabbits-cluster-count, dc34-rabbits-pins, (dom) dc34-coffee-beacon mapboxgl-marker mapboxgl-marker-anchor-bottom, (dom) dc34-spot-beacon mapboxgl-marker mapboxgl-marker-anchor-bottom
+non-basemap layers still visible : heatmap-dc33
+wrote shot-dc33-strip-context.png (zoom 12.6 — corridor context)
+wrote shot-dc33-strip-detail.png (zoom 14.2 — individual-line detail)
+wrote shot-both-layers-clean.png (both rows ON; DC34 draws nothing — 0 runs)
+  heatmap-dc33: visibility=visible color=#ff8c00 opacity=0.7 width=3
+  heatmap-dc34: visibility=visible color=#ff0000 opacity=0.7 width=3
+------------------------------------------------------------------------------
+capture complete
