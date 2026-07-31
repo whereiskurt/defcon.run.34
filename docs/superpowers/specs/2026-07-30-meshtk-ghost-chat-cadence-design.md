@@ -155,13 +155,42 @@ Code changes land in **both** trees. `cmd.go` and `llm.go` exist upstream at
 `~/working/meshtk` and in the tracked monorepo tree at `apps/run.mqtt/meshtk/`,
 and the two are currently byte-identical for both files.
 
-`Dockerfile.meshtk` builds with `COPY . .` from `apps/run.mqtt/meshtk/` as its
-context, so the **monorepo tree is what ships** — an upstream-only fix never
-reaches prod. Upstream still gets the same change, because the next vendor-sync
-overwrites the monorepo tree from upstream, and an upstream that lacks the fix
-would silently revert it. That is not hypothetical: the Dockerfile's own
+The build assembles the tree differently depending on where it runs
+(`apps/build.sh:148-169`, `resolve_meshtk`):
+
+- **In CI** (`GITHUB_ACTIONS` set): clone a fresh generic meshtk from
+  `github.com/whereiskurt/meshtk` at depth 1, then overlay every
+  monorepo-**tracked** file under `apps/run.mqtt/meshtk` on top. The shipped
+  image is therefore upstream's `go.mod`/`go.sum`/`vendor/` from the clone, plus
+  this repo's tracked files from the overlay.
+- **Locally**: the existing `apps/run.mqtt/meshtk` directory is the Docker
+  context directly (`Dockerfile.meshtk` does `COPY . .`).
+
+Two things follow. First, **tracked-ness is load-bearing**: the overlay is built
+from `git ls-files`, so a file that exists on disk but is untracked is silently
+discarded by the fresh-clone step and never ships. `apps/run.mqtt/.gitignore`
+ignores `meshtk/*` behind an allowlist and says exactly this in its own comment.
+All five files this plan touches are tracked, so the change ships via the overlay
+regardless of upstream's branch state, and no `go.mod` change is needed because
+every new import is standard library.
+
+Second, upstream still gets the identical change, because the next vendor-sync
+overwrites the monorepo tree from upstream and an upstream that lacks the fix
+would silently revert it. That is not hypothetical: `Dockerfile.meshtk`'s own
 comments record vendor-sync stranding all 24 GPX nodes twice this way
-(#1009, #1028/#1029).
+(#1009, #1028/#1029), and `internal/app/fleet/gpx_routes_test.go` exists
+specifically to fail if it happens again.
+
+Note that `go.mod`, `go.sum`, and `vendor/` are UNTRACKED in the monorepo tree,
+and its `vendor/modules.txt` is out of sync with its `go.mod` (paho.golang and
+several `x/` packages disagree). A bare `go build ./...` there therefore fails
+with `inconsistent vendoring`. This is a pre-existing local-only artifact and
+does not affect CI, which takes those files from the fresh clone.
+
+**Use `-mod=mod` to build or test the monorepo copy** — `go test -mod=mod
+./internal/app/fleet/` passes, including `TestDC34FleetGPXRoutesResolve`, which
+resolves all 24 GPX routes. Do not run `go mod vendor` to "fix" it: that would
+write untracked files this repo deliberately does not carry.
 
 | File | Change |
 |---|---|
