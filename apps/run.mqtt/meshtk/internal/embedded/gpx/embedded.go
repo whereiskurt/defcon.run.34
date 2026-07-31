@@ -5,11 +5,18 @@ import (
 	"path/filepath"
 )
 
-// DC34 con routes (ghost personas, rabbit sims, city packs) must stay in this
-// directive: the upstream meshtk copy of this file only embeds example/*.gpx,
-// and a vendor-sync that overwrites it silently strands every GPX-driven sim
-// at 0,0 (routes resolve from this embed.FS at runtime, not the filesystem).
-//go:embed dc33/*.gpx ghosts/*.gpx city/*.gpx runs/*.gpx example/*.gpx
+// Directory-agnostic on purpose. go:embed only errors when a pattern matches
+// NOTHING, so "*/*.gpx" embeds whichever route directories a given checkout
+// actually has: example/ alone upstream, and example/ + ghosts/ + city/ +
+// runs/ + dc33/ in the defcon.run.34 overlay.
+//
+// This replaces a hand-maintained list of con-specific directories that lived
+// ONLY in the overlay copy of this file. Twice, a vendor-sync overwrote that
+// copy with upstream's example/-only directive, GPXCoords started returning an
+// empty slice, and every GPX-driven sim node silently stranded at 0,0 with
+// nothing failing (#1009, fixed by #1028/#1029). One pattern that is correct in
+// both trees removes the divergence instead of guarding it.
+//go:embed */*.gpx
 var EmbeddedGPXFiles embed.FS
 
 // GetEmbeddedGPXContent returns the content of an embedded GPX file by name
