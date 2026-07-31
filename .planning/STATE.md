@@ -11,9 +11,9 @@ progress:
   completed_phases: 20
   total_plans: 106
   completed_plans: 97
-  percent: 63
-current_phase: 71
-current_phase_name: heat-map-layers-dc33-dc34-flame-stacks-gpx-studio
+  percent: 92
+current_phase: 72
+current_phase_name: bot-hardening-clickable-one-time-awards-fail-closed-guardrai
 ---
 
 # Project State
