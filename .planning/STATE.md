@@ -4,14 +4,14 @@ milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
 status: Ready to execute
 stopped_at: "Phase 72 plan 04 COMPLETE (AUTHORING ONLY, NOTHING APPLIED) — ghosts container flipped to MESHTK_GUARDRAIL_FAILMODE=closed with the depends_on START rationale rewritten (HEALTHY would kill beacons/position and drop the ghosts off the map); MESHTK_RICKY_FALLBACK_URL + ricky-fallback-url secret key declared with a CHANGEME placeholder only; guardrail-outage metric filter (plain-text MESHTK_GUARDRAIL_OUTAGE, NOT a JSON selector) + >=3/5min alarm on the existing dcr-admin-reports-tripwire topic, count-gated, ghosts log group kept OUT of the retention adoption set. Applies sequenced: secrets 72-08 BEFORE ecs-task 72-09."
-last_updated: "2026-07-31T21:34:22.587Z"
+last_updated: "2026-07-31T22:02:08.687Z"
 last_activity: 2026-07-31
 progress:
   total_phases: 32
   completed_phases: 20
   total_plans: 106
-  completed_plans: 97
-  percent: 92
+  completed_plans: 99
+  percent: 63
 current_phase: 72
 current_phase_name: bot-hardening-clickable-one-time-awards-fail-closed-guardrai
 ---
