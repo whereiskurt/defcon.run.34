@@ -17,7 +17,7 @@ import { writable } from 'svelte/store';
  * con-day labels are CMS/data driven and change under us, and a re-order would otherwise
  * shuffle one section's state onto another. Shape:
  *
- *   basemap · overlays · checkins · myconruns · community
+ *   basemap · overlays · checkins · heatmap · myconruns · community
  *   group:<folderId>     one public route group
  *   conday:<conDay>      one day of "My DEF CON Runs"
  *
@@ -31,6 +31,7 @@ export const SECTION = {
     basemap: 'basemap',
     overlays: 'overlays',
     checkins: 'checkins',
+    heatmap: 'heatmap',
     myConRuns: 'myconruns',
     community: 'community',
 } as const;

@@ -17,6 +17,7 @@ import { writable } from 'svelte/store';
  * otherwise shuffle one layer's state onto another. Shape:
  *
  *   checkins · aggregate     the two fixed (non data-driven) toggles
+ *   heat:<year>              one HEAT MAP year row (dc33, dc34 — also fixed)
  *   route:<fileId>           one public route row
  *   run:<fileId>             one "My DEF CON Runs" run row
  *   croute:<routeId>         one Community Routes row
@@ -37,10 +38,20 @@ import { writable } from 'svelte/store';
  */
 const KEY = 'dc34LayerVisibility';
 
-/** Stable ids for the fixed (non data-driven) toggles. */
+/**
+ * Stable ids for the fixed (non data-driven) toggles.
+ *
+ * The two heat-map years live here rather than behind a `PREFIX` helper because
+ * they are a closed set decided at build time — exactly like `checkins` and
+ * `aggregate`, and unlike routes/runs there will never be a third year keyed off
+ * runtime data. Every consumer reads these constants; no other module may
+ * hand-write the string form, or a typo would silently orphan a saved preference.
+ */
 export const LAYER = {
     checkins: 'checkins',
     aggregate: 'aggregate',
+    heatDc33: 'heat:dc33',
+    heatDc34: 'heat:dc34',
 } as const;
 
 /** Key prefixes, exported so a load can prune ids whose layer no longer exists. */

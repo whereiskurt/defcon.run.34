@@ -2,19 +2,18 @@
 gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
-status: Ready to plan
-stopped_at: "Completed 69-07-PLAN.md — meshtk v0.0.76 LIVE on run-mqtt-use1-dc34:119 (buildpub 30556427674, deploy 30556951618); 7/7 probes PASS post-fix vs 5/5 defect probes FAIL pre-fix; MQFX-05 + MQFX-06 satisfied; Phase 69 COMPLETE. Phase 70 also complete on main (run.gpx v0.0.104 live, 12/12 prod probe green; evidence PR docs/70-post-deploy-probe left OPEN)."
-last_updated: "2026-07-30T23:52:09.431Z"
-last_activity: 2026-07-30
-last_activity_desc: Phase 70 complete, transitioned to Phase 71
+status: Ready to execute
+stopped_at: "Phase 71 plan 07 COMPLETE — heatmap-scheduler Terraform module v1.0.0 + us-east-1 live unit created and validated by a SCOPED CI plan (actions/runs/30601617385): Plan: 9 to add, 0 to change, 0 to destroy, zero strava-sync addresses, function_name=heatmap-build-use1, timeout=300, schedules hourly cron(0 * 5-10 8 ? 2026) + daily cron(0 4 * * ? *) in America/Los_Angeles, default group. NOTHING APPLIED — the apply is 71-08 via terragrunt-apply.yml -f region=us-east-1 -f modules=heatmap-scheduler on ref gsd/phase-71-heat-map-layers. Lambda has ZERO DynamoDB/S3 IAM."
+last_updated: "2026-07-31T03:32:29.184Z"
+last_activity: 2026-07-31
 progress:
   total_phases: 31
   completed_phases: 20
-  total_plans: 88
-  completed_plans: 86
+  total_plans: 96
+  completed_plans: 93
   percent: 65
 current_phase: 71
-current_phase_name: gpx-heatmap-layers-dc33-dc34
+current_phase_name: heat-map-layers-dc33-dc34-flame-stacks-gpx-studio
 ---
 
 # Project State
@@ -24,7 +23,7 @@ current_phase_name: gpx-heatmap-layers-dc33-dc34
 See: .planning/PROJECT.md (updated 2026-07-05)
 
 **Core value:** Participants and organizers have a seamless digital experience for DCR34 -- from device setup to event discovery to route navigation. Milestone v2.2 brings back the DC33 leaderboard-as-activity-table in run.human, shipped hidden behind the admin group until perfected.
-**Current focus:** Phase 71 — heat-map-layers-dc33-dc34-flame-stacks-gpx-studio (next to plan; 71-CONTEXT.md exists, no plans yet)
+**Current focus:** Phase 71 — heat-map-layers-dc33-dc34-flame-stacks-gpx-studio
 
 ## Current Position
 
@@ -52,7 +51,7 @@ only us-east-1 was deployed for the copy-migrated apps, so there was no second l
 observe against. The per-region mechanism (master → Litestream worker → revalidate) is
 identical and will hold when a 2nd region deploys. Not counted as debt.
 
-Last activity: 2026-07-30 — Phase 70 complete, transitioned to Phase 71
+Last activity: 2026-07-31
 
 ## Roadmap Summary (v1.9)
 
@@ -156,6 +155,26 @@ Recent decisions affecting current work:
 - [Phase ?]: 69-07: deployed with pr_number=skip, never latest — an UNRELATED run.human Release PR (#1109) was dispatched mid-rolling-replace, so latest would have --admin-merged another team's work outside the Phase-69 waiver
 - [Phase ?]: 69-07: the probe script was NOT edited between the PRE baseline and the POST contrast, even to fix loose prose — identical committed bytes outrank cosmetics, which is what makes the contrast a measurement
 - [Phase ?]: 69-07: the ECS drain gate is polling the OLD task to STOPPED — deploy.yml went green at 15:32:13Z but the old task served every long-lived MQTT connection until 15:41:35Z
+- [Phase ?]: 71-01: heat-map artifact meta is EMBEDDED on the FeatureCollection (one atomic write, one fetch) rather than a sidecar
+- [Phase ?]: 71-01: artifact S3 key is uploads/HEATMAP/{year}.json — the uploads/ prefix is an IAM hard requirement; always call heatmapArtifactKey()
+- [Phase ?]: 71-01: encoded-polyline decoder ported in-repo instead of adding the Mapbox polyline npm package (T-71-SC, zero new deps)
+- [Phase ?]: 71-01: assertNonAttributable() is the single publish chokepoint compensating for HEAT-06 dropping the opt-in gate — every write path must call it, no catch-and-continue
+- [Phase ?]: 71-02: DC34 heat-map selection carries NO includeInAggregate predicate (D-03, user-locked) — HeatmapRunRow does not even declare the flag, so restoring it requires re-adding a field and trips a test; the compensating control is assertNonAttributable() on the write path
+- [Phase ?]: 71-02: assertNonAttributable is deliberately NOT a BuildDeps member — no production seam can bypass the chokepoint; tests prove guard-before-put ordering by vi.mock-wrapping the module export instead
+- [Phase ?]: 71-02: builder fans out over S3 in sequential chunks of 20, not one unbounded Promise.all — the aggregate route's Promise.all is only safe because it caps at 500 routes; a precomputed builder has no cap (T-71-06)
+- [Phase ?]: 71-02: POST /api/gpx/internal/heatmap-build declares maxDuration=300 — 71-07's Terraform lambda_timeout must be >= that number or a scheduler retry overlaps the running build
+- [Phase ?]: 71-03: heat-map serve route 404s a missing artifact (absent, not broken) and 500s only a corrupt one
+- [Phase ?]: 71-03: HEAT-06 first half — aggregate route's exclusivity claim deleted, replaced with the dated 2026-07-30 supersession + assertNonAttributable as the compensating control; gpx-file.ts's three flag comments name the heat map as exempt
+- [Phase ?]: 71-04: DC33 heat map is a frozen one-off — built locally from the 2025-08-15 DynamoDB export and published once (110 runs / 658.4 km); no Lambda or schedule, since the export can never change
+- [Phase ?]: 71-04: verify-heatmap-artifact.mjs is a standalone self-testing verifier (clean + property-carrying + at-sign-smuggled fixtures) so 71-08 can point the SAME byte-level non-attributability sweep at the live production URL for both years
+- [Phase ?]: 71-04: generatedAt for a frozen export is the export's own exportTime with NO fallback — the backfill dies rather than stamping "now"; `new Date()`/`Date.now()` appear zero times in the script
+- [Phase ?]: 71-05: HEAT_PAINT keyed by mapbox paint names with a shared HEAT_STROKE spread — the plan's {color,width,opacity} record could not coexist with its own literal-line grep gates without duplicating the D-02 locked values
+- [Phase ?]: 71-05: lazy sibling heat layers hold a fixed z-order by inserting DC33 BENEATH an existing DC34 layer (addLayer beforeId) — 'DC33 added first' is unachievable when the runner picks enable order
+- [Phase ?]: 71-05: studio verification is a svelte-check DELTA against the 30-error upstream baseline plus a green build (PUBLIC_MAPBOX_TOKEN=pk.placeholder); gpx-studio/website has no test runner and its eslint config predates eslint 9
+- [Phase ?]: 71-07: heatmap-scheduler is a deliberate COPY of strava-sync-scheduler v1.1.0, not a second live unit — that module hardcodes function_name = strava-sync-${var.region.label}, so a second unit collides on every resource name, and generalising it would make every heat-map change re-plan a live applied Strava Lambda
+- [Phase ?]: 71-07: two schedules — hourly cron(0 * 5-10 8 ? 2026) across the DC34 con window (CON_DAYS 5-10 Aug 2026) plus a year-round daily cron(0 4 * * ? *) baseline, both America/Los_Angeles, both in the EventBridge default group (module sets no group_name)
+- [Phase ?]: 71-07: lambda_timeout default raised to 300 at the MODULE level (strava's was 120) so any future unit inherits the floor the build route's maxDuration = 300 requires
+- [Phase ?]: 71-07: us-east-1 only — no ca-central-1 heatmap-scheduler unit; run.gpx is single-live-region and a second scheduler would cron-invoke a nonexistent service forever
 
 ### Pending Todos
 
@@ -169,8 +188,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-30T15:57:33.043Z
-Stopped at: Completed 69-07-PLAN.md — meshtk v0.0.76 LIVE on run-mqtt-use1-dc34:119 (buildpub 30556427674, deploy 30556951618); 7/7 probes PASS post-fix vs 5/5 defect probes FAIL pre-fix; MQFX-05 + MQFX-06 satisfied; Phase 69 COMPLETE. Phase 70 also complete on main (run.gpx v0.0.104 live, 12/12 prod probe green; evidence PR docs/70-post-deploy-probe left OPEN).
+Last session: 2026-07-31T03:32:29.173Z
+Stopped at: Phase 71 plan 07 COMPLETE — heatmap-scheduler Terraform module v1.0.0 + us-east-1 live unit created and validated by a SCOPED CI plan (actions/runs/30601617385): Plan: 9 to add, 0 to change, 0 to destroy, zero strava-sync addresses, function_name=heatmap-build-use1, timeout=300, schedules hourly cron(0 * 5-10 8 ? 2026) + daily cron(0 4 * * ? *) in America/Los_Angeles, default group. NOTHING APPLIED — the apply is 71-08 via terragrunt-apply.yml -f region=us-east-1 -f modules=heatmap-scheduler on ref gsd/phase-71-heat-map-layers. Lambda has ZERO DynamoDB/S3 IAM.
 Resume file: None
 
 ## Operator Next Steps
@@ -246,3 +265,10 @@ Resume file: None
 | Phase 69 P05 | 30m | 2 tasks | 6 files |
 | Phase 69 P06 | ~12m | 3 tasks | 18 files |
 | Phase 69 P07 | ~50m | 3 tasks | 4 files |
+| Phase 71 P01 | 15m | 2 tasks | 4 files |
+| Phase 71 P02 | ~35 min | 2 tasks | 3 files |
+| Phase 71 P03 | 25 min | 3 tasks | 3 files |
+| Phase 71 P04 | 35m | 3 tasks | 3 files |
+| Phase 71 P05 | 22 | 2 tasks | 2 files |
+| Phase 71 P06 | 10min | 3 tasks | 4 files |
+| Phase 71 P07 | 25min | 3 tasks | 7 files |

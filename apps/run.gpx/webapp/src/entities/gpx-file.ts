@@ -150,6 +150,10 @@ export const GpxFile = new Entity(
       // Provenance of the route. "upload"/"draw" = user-authored (publicly shareable);
       // "strava" = raw Strava import (NOT publicly shareable until converted);
       // "converted" = an explicit "Convert to public" copy of a Strava import.
+      // EXEMPT SURFACE (Phase 71, 2026-07-30): the heat map at
+      // /api/gpx/public/heatmap/[year] publishes a Strava-derived run's bare geometry
+      // regardless of this value, because no provenance — and nothing else identifying —
+      // travels with a zero-property LineString. See lib/heatmap-build.ts for the selection.
       source: {
         type: "string",
         required: false,
@@ -157,6 +161,11 @@ export const GpxFile = new Entity(
       // Compliance gate (Strava API terms): raw Strava imports are false and cannot
       // enter the public groups until the user runs "Convert to public", which mints a
       // converted copy with this true. Defaults true so upload/draw stay shareable.
+      // EXEMPT SURFACE (Phase 71, 2026-07-30): the heat map does not read this flag. The
+      // gate exists to stop a Strava-derived route being shown AS a route belonging to
+      // someone; heat-map features carry zero properties, so that attribution concern is
+      // not engaged. Selection lives in lib/heatmap-build.ts, guarded by
+      // assertNonAttributable() in lib/heatmap-artifact.ts.
       publicShareEligible: {
         type: "boolean",
         required: false,
@@ -169,6 +178,11 @@ export const GpxFile = new Entity(
       },
       // Opt-in to the public non-attributable "All Runners" aggregate overlay (Phase 32).
       // Owner-controlled; unlike individual sharing this blends the route with no name/id.
+      // SCOPE (Phase 71, 2026-07-30): this flag gates the Phase 32 aggregate route and
+      // NOTHING else. The heat map at /api/gpx/public/heatmap/[year] deliberately applies
+      // no opt-in filter — Kurt's call, made with the aggregate route's compliance comment
+      // in view — so do not "fix" lib/heatmap-build.ts by reintroducing this predicate
+      // there. Its output is bare geometry with zero properties by construction.
       includeInAggregate: {
         type: "boolean",
         required: false,
