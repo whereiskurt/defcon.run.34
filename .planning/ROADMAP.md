@@ -795,7 +795,7 @@ Plans:
 **Gap-Closure Wave 2** *(blocked on gap wave 1)*
 
 - [ ] 71-13-PLAN.md — CloudFront (SHARED module, gpx-gated): a real cache behaviour for `/{region}/api/gpx/public/heatmap/*` with a `meta`-whitelisting cache policy (CR-03 — three consecutive requests all missed because `/{region}/*` uses Managed-CachingDisabled), plus an `x-dc34-edge-block`-marked 404 for `/api/gpx/internal/*` in both region-prefixed and no-region forms (CR-01 network half; fixes the inherited strava-sync exposure). Blast radius proven, not asserted: plan shape must be 2 add / 1 change / 0 destroy, blocking human review, scoped CI apply (HEAT-01) [gap wave 2]
-- [ ] 71-14-PLAN.md — heatmap-scheduler: daily cron 04:00 → **04:20** PT so it can no longer collide with the hourly on all six con days (WR-04); `lambda_timeout` 300 → 420 and an explicit 300 s fetch bound, making the chain 420 > 300 > 240 strictly increasing (WR-03); `aws:SourceAccount` on both trust policies (WR-08); invoker log hygiene (WR-09); scoped CI plan + apply (HEAT-02) [gap wave 2]
+- [x] 71-14-PLAN.md — heatmap-scheduler: daily cron 04:00 → **04:20** PT so it can no longer collide with the hourly on all six con days (WR-04); `lambda_timeout` 300 → 420 and an explicit 300 s fetch bound, making the chain 420 > 300 > 240 strictly increasing (WR-03); `aws:SourceAccount` on both trust policies (WR-08); invoker log hygiene (WR-09); scoped CI plan + apply (HEAT-02) [gap wave 2]
 
 **Gap-Closure Wave 3** *(blocked on gap wave 2)*
 
