@@ -3,14 +3,14 @@
     {
       "slot": "stable",
       "version": "2.8.0.b4ff1df",
-      "label": "2.8.0.b4ff1df — DC34 event firmware base",
+      "label": "2.8.0.b4ff1df — nightly 2026-07-29",
       "default": true,
       "experimental": false
     },
     {
       "slot": "previous",
       "version": "2.8.0.dafa583",
-      "label": "2.8.0.dafa583 — previous event base",
+      "label": "2.8.0.dafa583 — nightly 2026-07-28",
       "default": false,
       "experimental": false
     }
