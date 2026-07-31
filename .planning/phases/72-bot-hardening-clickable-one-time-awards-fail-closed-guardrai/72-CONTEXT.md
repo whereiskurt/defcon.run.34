@@ -170,6 +170,18 @@ exactly how the `/c/` collision was caught.
 `[03:30.34]/qr/rick_astley_loves_desert_running`. `numberLyric(i)` prints `i+1`.
 Removing index 58 yields 58 numbered lines ending at `58: Never gonna tell a lie and hurt you`.
 
+**JS toolchain (prepared 2026-07-31 — do NOT re-install):**
+- `node_modules` is ALREADY installed in BOTH `apps/run.qr/lambda/resolver` (78 pkgs) and
+  `apps/run.human/webapp` (971 pkgs). Do **not** run `npm install` — concurrent installs
+  into a shared `node_modules` corrupt it, and two wave-1 plans live in run.human.
+- Node **v22.12.0** is required (vitest floor; the default `node` here is v22.1.0):
+  `export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm use 22.12.0`
+- ⭐ **Run vitest as `cd <app-dir> && ./node_modules/.bin/vitest`, NOT bare `npx vitest`.**
+  If the cwd drifts to the repo root, `npx` falls back to a broken `~/.npm/_npx` cache and
+  dies with `Cannot find native binding @rolldown/binding-darwin-arm64` — which looks like
+  a dependency problem but is purely a cwd/resolution artifact. (Hit by 72-01.)
+- Verified baselines before the phase: run.qr resolver **143 tests / 10 files green**.
+
 **Landmines carried from prior phases:**
 - ANY `meshtk.dc34.yaml` edit requires `node scripts/sync-meshtk-fleet.mjs` or the
   run.human byte-parity test (`mesh-ghosts.test.ts`) goes red.
