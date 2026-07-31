@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
 status: Ready to execute
-stopped_at: "Phase 71 plan 05 COMPLETE — HeatmapLayer shipped in gpx-studio: ?meta=1 probes both years at map load, geometry fetched only on first enable, one atomic heatmapState.set for availability+restored visibility, DC34 composites above DC33 regardless of enable order, paint locked to D-02 (#ff0000/#ff8c00, w3, o0.25). svelte-check delta 0 new (total 30 = baseline), build exit 0, all 12 acceptance greps PASS. dc33 probes available (110 runs); dc34 stays unavailable until 71-07 publishes. Next in wave 2: 71-06 wires the HEAT MAP section into the Phase 70 dialog."
-last_updated: "2026-07-31T03:19:40.417Z"
+stopped_at: "Phase 71 plan 07 COMPLETE — heatmap-scheduler Terraform module v1.0.0 + us-east-1 live unit created and validated by a SCOPED CI plan (actions/runs/30601617385): Plan: 9 to add, 0 to change, 0 to destroy, zero strava-sync addresses, function_name=heatmap-build-use1, timeout=300, schedules hourly cron(0 * 5-10 8 ? 2026) + daily cron(0 4 * * ? *) in America/Los_Angeles, default group. NOTHING APPLIED — the apply is 71-08 via terragrunt-apply.yml -f region=us-east-1 -f modules=heatmap-scheduler on ref gsd/phase-71-heat-map-layers. Lambda has ZERO DynamoDB/S3 IAM."
+last_updated: "2026-07-31T03:32:29.184Z"
 last_activity: 2026-07-31
 progress:
   total_phases: 31
   completed_phases: 20
   total_plans: 96
-  completed_plans: 92
+  completed_plans: 93
   percent: 65
 current_phase: 71
 current_phase_name: heat-map-layers-dc33-dc34-flame-stacks-gpx-studio
@@ -171,6 +171,10 @@ Recent decisions affecting current work:
 - [Phase ?]: 71-05: HEAT_PAINT keyed by mapbox paint names with a shared HEAT_STROKE spread — the plan's {color,width,opacity} record could not coexist with its own literal-line grep gates without duplicating the D-02 locked values
 - [Phase ?]: 71-05: lazy sibling heat layers hold a fixed z-order by inserting DC33 BENEATH an existing DC34 layer (addLayer beforeId) — 'DC33 added first' is unachievable when the runner picks enable order
 - [Phase ?]: 71-05: studio verification is a svelte-check DELTA against the 30-error upstream baseline plus a green build (PUBLIC_MAPBOX_TOKEN=pk.placeholder); gpx-studio/website has no test runner and its eslint config predates eslint 9
+- [Phase ?]: 71-07: heatmap-scheduler is a deliberate COPY of strava-sync-scheduler v1.1.0, not a second live unit — that module hardcodes function_name = strava-sync-${var.region.label}, so a second unit collides on every resource name, and generalising it would make every heat-map change re-plan a live applied Strava Lambda
+- [Phase ?]: 71-07: two schedules — hourly cron(0 * 5-10 8 ? 2026) across the DC34 con window (CON_DAYS 5-10 Aug 2026) plus a year-round daily cron(0 4 * * ? *) baseline, both America/Los_Angeles, both in the EventBridge default group (module sets no group_name)
+- [Phase ?]: 71-07: lambda_timeout default raised to 300 at the MODULE level (strava's was 120) so any future unit inherits the floor the build route's maxDuration = 300 requires
+- [Phase ?]: 71-07: us-east-1 only — no ca-central-1 heatmap-scheduler unit; run.gpx is single-live-region and a second scheduler would cron-invoke a nonexistent service forever
 
 ### Pending Todos
 
@@ -184,8 +188,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-31T03:19:37.189Z
-Stopped at: Phase 71 plan 05 COMPLETE — HeatmapLayer shipped in gpx-studio: ?meta=1 probes both years at map load, geometry fetched only on first enable, one atomic heatmapState.set for availability+restored visibility, DC34 composites above DC33 regardless of enable order, paint locked to D-02 (#ff0000/#ff8c00, w3, o0.25). svelte-check delta 0 new (total 30 = baseline), build exit 0, all 12 acceptance greps PASS. dc33 probes available (110 runs); dc34 stays unavailable until 71-07 publishes. Next in wave 2: 71-06 wires the HEAT MAP section into the Phase 70 dialog.
+Last session: 2026-07-31T03:32:29.173Z
+Stopped at: Phase 71 plan 07 COMPLETE — heatmap-scheduler Terraform module v1.0.0 + us-east-1 live unit created and validated by a SCOPED CI plan (actions/runs/30601617385): Plan: 9 to add, 0 to change, 0 to destroy, zero strava-sync addresses, function_name=heatmap-build-use1, timeout=300, schedules hourly cron(0 * 5-10 8 ? 2026) + daily cron(0 4 * * ? *) in America/Los_Angeles, default group. NOTHING APPLIED — the apply is 71-08 via terragrunt-apply.yml -f region=us-east-1 -f modules=heatmap-scheduler on ref gsd/phase-71-heat-map-layers. Lambda has ZERO DynamoDB/S3 IAM.
 Resume file: None
 
 ## Operator Next Steps
@@ -267,3 +271,4 @@ Resume file: None
 | Phase 71 P04 | 35m | 3 tasks | 3 files |
 | Phase 71 P05 | 22 | 2 tasks | 2 files |
 | Phase 71 P06 | 10min | 3 tasks | 4 files |
+| Phase 71 P07 | 25min | 3 tasks | 7 files |
