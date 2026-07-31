@@ -33,9 +33,10 @@ key-files:
     - .planning/phases/71-heat-map-layers-dc33-dc34-flame-stacks-gpx-studio/71-08-probes/transcript-pre-deploy.txt
     - .planning/phases/71-heat-map-layers-dc33-dc34-flame-stacks-gpx-studio/71-08-probes/transcript-post-deploy.txt
     - .planning/phases/71-heat-map-layers-dc33-dc34-flame-stacks-gpx-studio/71-08-probes/transcript-phase70-regression.txt
-    - .planning/phases/71-heat-map-layers-dc33-dc34-flame-stacks-gpx-studio/71-08-probes/shot-both-layers.png
-    - .planning/phases/71-heat-map-layers-dc33-dc34-flame-stacks-gpx-studio/71-08-probes/shot-dc34-only.png
-    - .planning/phases/71-heat-map-layers-dc33-dc34-flame-stacks-gpx-studio/71-08-probes/shot-dc33-only.png
+    - .planning/phases/71-heat-map-layers-dc33-dc34-flame-stacks-gpx-studio/71-08-probes/capture-heat-visual.cjs
+    - .planning/phases/71-heat-map-layers-dc33-dc34-flame-stacks-gpx-studio/71-08-probes/SCREENSHOTS.md
+    - .planning/phases/71-heat-map-layers-dc33-dc34-flame-stacks-gpx-studio/71-08-probes/ (8 screenshots, captioned in SCREENSHOTS.md)
+    - .planning/todos/pending/2026-07-31-heatmap-dc33-paint-invisible-and-con-reprobe.md
   modified:
     - apps/run.gpx/webapp/VERSION (v0.0.108 → v0.0.109, bumped by CI on main, not on this branch)
 decisions:
@@ -43,11 +44,11 @@ decisions:
   - "71-08: the DC34 seed invoke was kept even though it produced an EMPTY artifact — an existing, structurally valid, zero-run dc34.json proves the whole invoke→route→builder→S3 chain and is strictly better evidence than a 404, even though it cannot satisfy the verifier's runCount > 0 check"
   - "71-08: assertions 5 and 11 were left RED rather than adjusted. The plan's own instruction is to fix the product and never the probe; here there is no product defect to fix, so the honest outcome is a red gate with a dated, self-resolving cause"
 metrics:
-  duration: ~50 min
+  duration: ~75 min
   completed: 2026-07-31
-  tasks: 3 of 4 (Task 4 is a blocking human checkpoint, still open)
-  commits: 3
-  files_created: 7
+  tasks: 4 (Task 4 closed by Kurt's ruling; step 5 recorded UNPERFORMED)
+  commits: 4
+  files_created: 12
   tests_added: 0
 ---
 
@@ -67,7 +68,7 @@ empty. That is written up in full below rather than smoothed over.
 
 | Step | Result |
 |---|---|
-| Phase PR | [#1131](https://github.com/whereiskurt/defcon.run.34/pull/1131) — **still OPEN, never merged by the operator** |
+| Phase PR | [#1131](https://github.com/whereiskurt/defcon.run.34/pull/1131) — **CLOSED without merging** (Kurt's Decision 2); never merged by the operator |
 | Release (buildpub, `--ref gsd/phase-71-heat-map-layers`) | [run 30602642562](https://github.com/whereiskurt/defcon.run.34/actions/runs/30602642562) — success |
 | Version | `v0.0.108` → **`v0.0.109`**; `dc34-run-gpx-app:v0.0.109` pushed, digest `sha256:1a5f5059…` |
 | Release PR | [#1132](https://github.com/whereiskurt/defcon.run.34/pull/1132) "Release v20260731.0352" — merged **by CI** with the admin token at 03:55:33Z |
@@ -95,8 +96,14 @@ VERSION bump, and buildpub merged it with `GH_RUNNER_TOKEN --admin`. Main is now
 `HeatMap.svelte`, `public/heatmap/[year]/route.ts`, the `heatmap-scheduler` live unit) and
 `VERSION = v0.0.109`.
 
-Phase PR #1131 remains open as the reviewable record of the 33 atomic commits. Its content is
-already on main in squashed form; it can be closed at review time.
+Phase PR #1131 was therefore **closed without merging** (Kurt's Decision 2) — merging it would
+have landed the same changes twice. It carries a comment naming #1132 as the landing commit. The
+33 atomic per-task commits survive on the pushed, undeleted branch `gsd/phase-71-heat-map-layers`.
+
+**Consequence worth naming:** the release happened *before* the post-deploy evidence existed, so
+#1132 carried only the probe and the pre-deploy transcript. The post-deploy transcripts, the
+screenshots, this SUMMARY, the STATE/ROADMAP updates and the todo were **not** on main and, with
+#1131 closed, had no path there — so they went up as a separate **docs-only PR** off `main`.
 
 ## Quality gates — four green, two broken-by-default
 
@@ -233,16 +240,79 @@ behaviour without Kurt's input (a Rule 4 architectural call, not an executor cal
 no code change, the first time a runner submits a con-day-tagged run and the hourly schedule
 fires. They are the single most valuable thing this probe can tell us on 5 August.
 
-## Human read of `shot-both-layers.png` (D-12)
+## Human read of the D-12 visual evidence — and a NEW live finding
 
-Both layers were toggled on and the camera parked over Las Vegas at zoom 10.5. **The shot is
-honest but weak as a two-colour record**: the DC33 stack is visible as a dense cluster over the
-Strip/Spring Valley corridor, DC34 contributes nothing at all (0 runs), and the default-ON
-public route groups (DEF CON 34 Maps, Rabbit Routes) overlay the same few blocks in their own
-colours, so the ember-orange does not isolate cleanly at that zoom. **The D-12 judgement — do
-orange and red read as two years where they overlap — cannot be made from this screenshot and
-cannot be made at all until DC34 has runs.** That judgement is Task 4's, and it is deferred to
-the con along with assertions 5 and 11.
+My first read of `shot-both-layers.png` was that it was a weak record. Kurt checked and went
+further: that shot and `shot-dc33-only.png` are **visually indistinguishable**, and neither
+demonstrates a flame stack at all. He was right, and the re-shoot he ordered turned up something
+worse than a capture problem.
+
+### The re-shoot
+
+`71-08-probes/capture-heat-visual.cjs` (a capture-only script — it asserts nothing, gates
+nothing, and `heatmap-probe.cjs` was **not** touched) re-shot production with every other layer
+force-hidden and the camera parked on a **measured** hotspot rather than a guessed centre: a
+0.005° grid over all 20 001 live coordinates peaks at `-115.1650, 36.1250`, where **40 of the
+110 runs** pass through one cell.
+
+### The finding: DC33 is invisible at the shipped paint values
+
+**At `#ff8c00` / `line-opacity 0.25` / `line-width 3` (the shipped D-02 values), the DC33 stack
+is not faint — it is invisible.** With every other layer hidden, at z14.2, with up to **36
+overlapping runs under a single screen pixel**, nothing is discernible on screen.
+
+This is **not** a data problem and **not** a render-path problem. Both were ruled out:
+
+| Evidence | Result |
+|---|---|
+| `queryRenderedFeatures({layers:['heatmap-dc33']})` | **82** features at z12.6, **208** at z14.2 — mapbox believes it is drawing them |
+| Layer position in the style | index **44 of 45** — the heat layer is the **topmost** layer; nothing occludes it |
+| Source feature count | **110**, matching the artifact |
+| Forced `opacity 1 / width 4 / #ff00ff` | a dense, correctly georeferenced network of runs (`shot-dc33-DIAG-opacity1-magenta-geometry-proof.png`) |
+
+Sweeping opacity against production, all else identical:
+
+| opacity | read |
+|---|---|
+| **0.25 (shipped)** | **invisible** |
+| 0.45 | marginal — thin orange line-work, easily confused with the basemap's own orange road casings |
+| **0.70** | **legible, and the density gradient reads** — Strip / LVCC Loop / Convention Center / Westgate visibly heavier than one-off spurs. This is the effect D-12 is asking for |
+
+**Nothing was changed.** D-02's colour, width and opacity are Kurt-locked, so re-tuning is his
+call, not an executor fix — and it would need a re-release. Filed as a high-priority todo. A
+second observation for that decision: `#ff8c00` sits very close to the default basemap's own
+orange road casings, so contrast is poor at *any* opacity; DC34's `#ff0000` should fare better.
+
+**Caveat, stated rather than buried:** every capture was headless Chromium on swiftshader. The
+0.70 and 1.0 renders prove low-alpha line blending works in that environment, so a pure headless
+artifact is unlikely — but a look on a real browser before re-tuning is cheap and worth doing.
+
+### Data-quality finding in the DC33 artifact (separate, smaller)
+
+Measured off the live bytes while picking the camera:
+
+- **20 of 110 features contain a `[0, 0]` coordinate**; `features[0]` is literally
+  `[[0,0],[0,0]]`, a degenerate two-point line at null island.
+- **41 of 110 features have no coordinate inside the Las Vegas box**; the artifact bbox spans
+  `lon -119.06 … 0`, `lat 0 … 53.40`.
+
+Privacy is unaffected (`assertNonAttributable` is about attributes, not coordinates, and
+assertion 5's dc33 leg still passes). But that is noise in a "DEF CON 33 heat map", and it
+inflates `runCount` 110 against roughly 69 features that actually draw over Vegas. Folded into
+the same todo.
+
+### What the screenshots now show
+
+`71-08-probes/SCREENSHOTS.md` captions every image, including marking the three original probe
+shots ⚠️ MISLEADING with the reason. Short version: the colourful blob in the originals is the
+**route groups**, not the heat map.
+
+### D-12 verdict
+
+**Step 5 of Task 4 — do orange and red read as two years where they overlap — remains
+UNPERFORMED, and is now blocked twice over:** DC34 draws nothing (0 runs, until the con), and
+DC33 draws nothing at the shipped opacity. Neither is a defect this plan could fix without
+overriding a user-locked decision.
 
 ## Residual — SC-2 hourly cadence not observable until August 2026
 
@@ -271,6 +341,42 @@ Re-run `71-08-probes/heatmap-probe.cjs` unmodified during the con and confirm:
 - assertion 5 passes for **dc34** as well as dc33;
 - assertion 11 passes — both stacks on the map together with the locked colours;
 - then, and only then, make the D-12 human read of `shot-both-layers.png`.
+
+## Task 4 — blocking human verification (CLOSED by Kurt's ruling)
+
+Kurt ruled on the checkpoint: **"Re-shoot, then close at 11/13."** Verbatim decisions recorded:
+
+> **DECISION 1 — "Re-shoot, then close at 11/13." Accepted.** … that shot and
+> `shot-dc33-only.png` are visually INDISTINGUISHABLE. At zoom ~10.5 with the default-ON route
+> groups drawn over the same blocks, neither screenshot demonstrates a flame stack at all. That
+> is a methodology gap sitting on top of the data gap, and unlike the data gap it is fixable
+> right now. … Keep DC34 exactly as it is — empty, one row, no synthetic data. Do NOT fabricate
+> con-day rows, and do NOT hide the DC34 row on runCount === 0. … If, with the overlays off,
+> DC33's stack still does not read as a legible flame stack, SAY SO plainly — that would be a
+> real finding about D-12, not a capture problem. Do not force a flattering shot.
+>
+> **DECISION 2 — Close PR #1131 without merging.** Its content is already on main squashed via
+> Release PR #1132; merging it would land the same changes twice.
+
+Both were carried out. DC34 was left empty with its row visible; no synthetic data was injected;
+the probe and its transcripts were not edited; PR #1131 was closed with a comment pointing at
+#1132 as the landing commit.
+
+Task 4's verification steps, honestly scored against the live site:
+
+| Step | Status |
+|---|---|
+| 1. Open the studio, click Layers | **PASS** (probe assertion 9) |
+| 2. HEAT MAP section, two flame rows, both OFF, header stamp | **PASS** — section #4 of 4, rows `🔥 DC34 — live` / `🔥 DC33 — the classic`, stamp `"1m ago"` (assertions 9, 10, 12) |
+| 3. Hover DC34 → exact timestamp, run count, distance in the hint bar | **PASS** — `"Last built 7/31/2026, 12:02:14 AM · 0 runs · 0.0 km"` (assertion 10) |
+| 4. Turn on DC34 → red lines over Las Vegas, busy corridors hotter | **NOT PERFORMABLE** — DC34 has 0 runs |
+| 5. Turn on DC33 too → **both colours simultaneously legible** (the D-12 read) | **NOT PERFORMED** — blocked twice: DC34 draws nothing, and DC33 is invisible at the shipped opacity |
+| 6. Reload → both layers return ON, camera does not jump | **PASS** — Phase 70 probe assertion 16 covers exactly this (visibility restored, `moves=0`, camera unchanged) |
+| 7. Turn both off, reload, they stay off | **PASS** — assertion 12 measures the default-off path in a clean context |
+| 8. Narrow window / phone usable | **PASS** — Phase 70 probe assertion 14 (body overflows and scrolls, `clientH=562 scrollH=2236`) |
+
+**Task 4 is marked complete on Kurt's explicit ruling**, with step 5 recorded as unperformed
+rather than waived, and step 4 as unperformable. Both re-open at the con via the todo.
 
 ## Deviations from Plan
 
@@ -317,10 +423,18 @@ None. The `dc34-application` SSO session held for the whole run (verified at sta
 
 ## Deferred Issues
 
-- **The 5–10 August 2026 re-probe** (above) — the single outstanding piece of evidence.
-- **Task 4, the blocking human checkpoint**, is open and is partly blocked by the same cause:
-  step 5 of its script ("turn on 🔥 DC33 as well… confirm both colours are simultaneously
-  legible") cannot be performed until DC34 has runs. Steps 1-3 and 6-8 are performable now.
+All three below are carried by one todo:
+`.planning/todos/pending/2026-07-31-heatmap-dc33-paint-invisible-and-con-reprobe.md`
+(area `run.gpx`, priority `high`), so they surface in `/gsd-progress` and `/gsd-audit-uat`.
+
+- **DC33 renders invisible at the shipped D-02 paint values** — HIGH, and live right now. A
+  user who turns on 🔥 DC33 sees no change. Needs Kurt's re-tune (opacity toward ~0.6-0.7,
+  and/or a colour with better contrast against the basemap's orange road casings, and/or a dark
+  casing under the line). Not fixed here: D-02 is user-locked.
+- **DC33 artifact data quality** — 20 of 110 features carry a `[0,0]` coordinate and 41 have no
+  Las Vegas coordinate at all. Worth a builder filter or a backfill re-run.
+- **The 5–10 August 2026 re-probe** — assertions 5 and 11, plus the SC-2 hourly cadence and the
+  D-12 two-colour read, all resolve there and only there.
 - **D-71-A / D-71-B / D-71-D** remain open repo-wide tooling issues, unchanged by this plan.
 
 ## Known Stubs
