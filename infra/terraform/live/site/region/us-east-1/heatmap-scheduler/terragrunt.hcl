@@ -120,16 +120,51 @@ inputs = merge(include.module.locals.merged_inputs, {
     # dates in CON_DAYS (apps/run.gpx/webapp/src/lib/con-days.ts). This is the
     # cadence behind "submitting a new run changes the artifact within ~an hour".
     hourly = "cron(0 * 5-10 8 ? 2026)"
-    # Daily baseline at 04:00 PT, year-round. Without it the artifact would be
+    # Daily baseline at 04:20 PT, year-round. Without it the artifact would be
     # stale (or missing) for everyone testing before the con and everyone
     # browsing after it, and the layer would look broken outside a six-day window.
-    daily = "cron(0 4 * * ? *)"
+    #
+    # COLLISION LANDMINE — the minute is 20, NOT 0, and that is load-bearing.
+    # The hourly entry above fires at minute 0 of EVERY hour across the six con
+    # days, both entries are evaluated in the SAME timezone
+    # (schedule_expression_timezone below), so a daily at minute 0 coincides
+    # with an hourly on every one of 5-10 August 2026. EventBridge Scheduler
+    # then invokes the Lambda TWICE in the same minute, and there is no lock in
+    # the builder, no idempotency key and no reserved concurrency on the
+    # function — so two full DynamoDB scans and two full S3 fan-outs run
+    # concurrently and both write the same artifact key. Minute 20 is
+    # deliberately off BOTH the top of the hour and the half hour, so a future
+    # half-hourly cadence cannot reintroduce the collision either. Probe
+    # assertions 13 (the exact expressions) and 18 (the minute fields must
+    # differ) pin this — do not "tidy" it back to :00 or :30.
+    daily = "cron(20 4 * * ? *)"
   }
   schedule_expression_timezone = "America/Los_Angeles"
   schedule_enabled             = true
 
-  # gpx route's maxDuration is 300s; lambda_timeout must be >= that or the
-  # Lambda times out mid-flight while the scheduler retry overlaps the next
-  # build.
-  lambda_timeout = 300
+  # TIMEOUT CHAIN — three bounds, STRICTLY increasing, never equal:
+  #
+  #   240 s  the builder aborts its own work (BUILD_BUDGET_MS = 240_000 in
+  #          apps/run.gpx/webapp/src/lib/heatmap-build.ts, added by plan 71-11).
+  #          This is the innermost bound and the ONLY one the build itself
+  #          enforces — it aborts WITHOUT publishing rather than shrinking the
+  #          artifact.
+  #   300 s  the invoker Lambda bounds its own fetch (AbortSignal.timeout in
+  #          modules/heatmap-scheduler/v1.0.0/lambda/index.mjs), so it OBSERVES
+  #          the builder's failure and reports one honest error instead of being
+  #          killed while still waiting for a response.
+  #   420 s  this value — the Lambda's own budget, which must additionally
+  #          absorb the SSM GetParameter round trip, cold start, DNS and
+  #          connection setup on top of the 300 s fetch.
+  #
+  # The previous value was 300, set EQUAL to a route-level Next.js duration
+  # export. That export was inert: run.gpx builds with output: "standalone" and
+  # runs on ECS Fargate, where the standalone Node server does not enforce it,
+  # so the contract this number was written against was fictional AND equal is
+  # not enough anyway. Equal (or shorter) kills the invoker mid-flight, the
+  # invoker throws, and retry_policy { maximum_retry_attempts = 2 } fires up to
+  # two more invocations — each starting a fresh full rebuild while the first is
+  # still scanning. If any of the three numbers moves, move it in all three
+  # places and keep them strictly increasing.
+  lambda_timeout = 420
 })
