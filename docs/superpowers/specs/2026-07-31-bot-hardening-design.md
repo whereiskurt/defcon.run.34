@@ -142,8 +142,23 @@ The access pattern `LyricsResponded[fleet][key]` is preserved (asserted by
 per 10 min. A mint failure falls back to `MESHTK_RICKY_FALLBACK_URL` — a player is
 never left empty-handed.
 
-**A6. Rotation.** An operator script (modeled on `setup-ricky-flag.mts`, DRY-RUN
-by default, `--confirm` to write):
+**A6. Rotation — SPLIT INTO TWO STAGES (corrected 2026-07-31 during planning).**
+
+An ordering deadlock the spec originally missed: `service.hcl` references
+`MESHTK_RICKY_FALLBACK_URL` as a `valueFrom`, and **ECS hard-fails task start when the SSM
+parameter is missing** — `modules/secrets/locals.tf` resolves an absent key to `""`
+(`value = try(var.secret_values[secret_name][key], "")`), which AWS rejects for a
+SecureString. So the URL must exist *before* the deploy, while the destructive teardown
+must come *after* it. Verified directly.
+
+Resolution — split at a safe seam, preserving "destructive work happens after deploy":
+
+- **Stage 1 (non-destructive, pre-deploy):** rewrite the `answerHash`, print the new URL
+  once, seed SOPS, apply secrets. The old link keeps working at this point.
+- **Stage 2 (destructive, post-deploy):** delete the `Qr` row and the static S3 object.
+
+Both stages are DRY-RUN by default with a `--confirm` gate, modeled on
+`setup-ricky-flag.mts`. All four steps below still happen — just across two stages:
 
 1. generate a fresh unguessable code, write its `answerHash` to the `ricky` `Ctf`
    row (preserving `solveCount` / `createdAt` / `enabled` — never reset the
@@ -207,15 +222,39 @@ run.mqtt ghosts container **before** changing anything (the code default is
 **C2.** Set `MESHTK_GUARDRAIL_FAILMODE=closed` in the ghosts container env
 (`apps/run.mqtt/.../service.hcl`).
 
-**C3.** Replace the fail-closed silent drop with a graceful in-persona line, so a
-sidecar outage degrades visibly rather than mysteriously:
+**C3.** ~~Replace the fail-closed silent drop with a graceful in-persona line.~~
+**CORRECTED 2026-07-31 (planning):** there is no silent drop — both guard sites already
+reply with `cannedRefusal` (`cmd.go:903` input, `cmd.go:1122` output). The actual gap is
+that a **policy block** and a **sidecar outage** are indistinguishable to the player and
+in the logs. `guardText` already returns four distinct internal reasons
+(`guard-build-error`, `guard-unreachable`, `guard-status`, `guard-decode`), so the fix is
+a reason-keyed message selector.
 
-```
-👻 static on the line — say again?
-```
+⚠️ **Implementation constraint:** the degradation must be an **argument swap at the
+existing call sites**, never a new if/else branch. `reply_retry_test.go` pins
+`FleetNodeHandler` at exactly 3 reliable / 0 plain sites; adding a call breaks it.
 
-**C4.** CloudWatch alarm on guardrail-sidecar health. The task already declares
-`depends_on` HEALTHY; this adds the alerting so fail-closed is observable.
+**C4.** ~~CloudWatch alarm on guardrail-sidecar health. The task already declares
+`depends_on` HEALTHY.~~
+**CORRECTED 2026-07-31 (planning):** the task declares `depends_on` **`condition = "START"`**,
+NOT HEALTHY (`service.hcl:383-396`). Verified directly.
+
+⭐⭐ **The existing code comment's rationale INVERTS under this phase.** `service.hcl` today
+justifies START with: *"the guardrail sidecar is best-effort (meshtk fail-opens if it's
+unreachable), so a slow/crash-looping sidecar must never block the ghosts from starting.
+Brief un-guarded window while its models load on boot is the accepted trade for
+availability."* Once `MESHTK_GUARDRAIL_FAILMODE=closed`, that "brief un-guarded window"
+becomes a **brief fully-BLOCKED window** — every persona chat gets `cannedRefusal` until
+the sidecar finishes loading models. That comment must be rewritten in the same PR or it
+actively misleads the next reader.
+
+**Decision: keep START.** Flipping to HEALTHY would mean a permanently unhealthy sidecar
+stops the ghosts container starting at all — killing nodeinfo beacons and position, so the
+ghosts vanish from the map entirely. With START, only guarded chat degrades. The sidecar's
+health check has `start_period = 90`, so the fail-closed boot window is bounded at ~90s,
+and the new alarm covers a sustained outage.
+
+Add the CloudWatch alarm on guardrail-sidecar health so fail-closed is observable.
 
 ## Security / hygiene
 
@@ -279,6 +318,21 @@ sidecar outage degrades visibly rather than mysteriously:
 - meshtk changes go to `~/working/meshtk` upstream first; the monorepo
   `apps/run.mqtt/meshtk` tree is a **tracked overlay** that build.sh applies over
   a fresh GitHub clone — untracked files are silently discarded by CI.
+- ⚠️ **`meshtk.dc34.yaml` is monorepo-ONLY** — upstream carries `meshtk.defcon.yaml`, not
+  `dc34`. The LRC edit therefore needs **no upstream PR** (corrected during planning).
+- ⚠️⚠️ **`~/working/meshtk` working-tree hazard (found 2026-07-31).** The clone sits on
+  branch **`scratch/vuln-bump-test`** (another session's experiment) with **123
+  uncommitted files** — `go.mod`, `go.sum`, and 121 `vendor/` files bumping
+  paho.mqtt.golang 1.5.0→1.5.1 and protobuf 1.36.5→1.36.11. The branch has **zero commits
+  ahead of `origin/main`**, so nothing is lost, but two consequences follow:
+  1. Committing our fleet changes there would land them on a scratch branch tangled with
+     someone else's dependency experiment.
+  2. Local `go test` runs against the **bumped** deps while CI builds the **committed**
+     ones — a local pass is not a CI pass.
+
+  **Mitigation: do the meshtk work in a dedicated `git worktree` off `origin/main`**, which
+  isolates from the dirty tree entirely and builds against CI-faithful deps. Never stage
+  `go.mod` / `go.sum` / `vendor/`; assert with `git show --stat` before pushing.
 - Release via `buildpub.yml` (preferred; auto-merges the Release PR). The local
   `build.sh meshtk` path is known-broken.
 - Resolver Lambda ships via its own terragrunt unit — not the run.mqtt release.
