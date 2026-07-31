@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
-status: Ready to plan
-stopped_at: "Completed 69-07-PLAN.md — meshtk v0.0.76 LIVE on run-mqtt-use1-dc34:119 (buildpub 30556427674, deploy 30556951618); 7/7 probes PASS post-fix vs 5/5 defect probes FAIL pre-fix; MQFX-05 + MQFX-06 satisfied; Phase 69 COMPLETE. Phase 70 also complete on main (run.gpx v0.0.104 live, 12/12 prod probe green; evidence PR docs/70-post-deploy-probe left OPEN)."
+status: Ready to execute
+stopped_at: "Phase 71 PLANNED — 8 plans across 4 waves on branch gsd/phase-71-heat-map-layers (40619da0 + revision 520e2932). Plan-checker: 5 warnings → 0, VERIFICATION PASSED, no blockers. Research + UI-SPEC deliberately skipped (operator decision); pattern mapping done. Not pushed, not merged."
 last_updated: "2026-07-30T23:52:09.431Z"
 last_activity: 2026-07-30
-last_activity_desc: Phase 70 complete, transitioned to Phase 71
+last_activity_desc: Phase 71 planned — 8 plans, 4 waves, plan-checker passed
 progress:
   total_phases: 31
   completed_phases: 20
@@ -14,7 +14,7 @@ progress:
   completed_plans: 86
   percent: 65
 current_phase: 71
-current_phase_name: gpx-heatmap-layers-dc33-dc34
+current_phase_name: heat-map-layers-dc33-dc34-flame-stacks-gpx-studio
 ---
 
 # Project State
@@ -24,7 +24,7 @@ current_phase_name: gpx-heatmap-layers-dc33-dc34
 See: .planning/PROJECT.md (updated 2026-07-05)
 
 **Core value:** Participants and organizers have a seamless digital experience for DCR34 -- from device setup to event discovery to route navigation. Milestone v2.2 brings back the DC33 leaderboard-as-activity-table in run.human, shipped hidden behind the admin group until perfected.
-**Current focus:** Phase 71 — heat-map-layers-dc33-dc34-flame-stacks-gpx-studio (next to plan; 71-CONTEXT.md exists, no plans yet)
+**Current focus:** Phase 71 — heat-map-layers-dc33-dc34-flame-stacks-gpx-studio (PLANNED: 8 plans in 4 waves, plan-checker passed 0 blockers / 0 warnings; ready to execute)
 
 ## Current Position
 
