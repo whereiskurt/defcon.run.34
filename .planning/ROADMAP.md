@@ -774,7 +774,7 @@ Plans:
 - [x] 71-02-PLAN.md — DC34 builder `lib/heatmap-build.ts` (con-day scan with the owner opt-in predicate deliberately removed per D-03, dedup, bounded S3 fan-out, guard-before-write) + secret-guarded `POST /api/gpx/internal/heatmap-build` (HEAT-02) [wave 2]
 - [x] 71-03-PLAN.md — Public `GET /api/gpx/public/heatmap/[year]` with year allowlist, `?meta=1` cheap projection and CDN cache headers; parser de-duplication; HEAT-06 compliance-comment reconciliation in `aggregate/route.ts` + the three `gpx-file.ts` sibling comments (HEAT-01, HEAT-06) [wave 2]
 - [x] 71-04-PLAN.md — DC33 one-off backfill from the cross-account DynamoDB export (entity `Accomplishments`, year 2025, both polyline encodings, `generatedAt` = the export's own `2025-08-15T02:41:54.347Z`) + a self-testing artifact verifier + the `--apply` publish (HEAT-03) [wave 2]
-- [ ] 71-05-PLAN.md — Studio `heatmap-layer.ts`: `?meta=1` probe at load, single atomic restore write, lazy geometry on first enable, locked paint (`#ff0000` / `#ff8c00`, width 3, opacity 0.25, DC34 above DC33), persisted per-year ids (HEAT-04) [wave 2]
+- [x] 71-05-PLAN.md — Studio `heatmap-layer.ts`: `?meta=1` probe at load, single atomic restore write, lazy geometry on first enable, locked paint (`#ff0000` / `#ff8c00`, width 3, opacity 0.25, DC34 above DC33), persisted per-year ids (HEAT-04) [wave 2]
 
 **Wave 3** *(blocked on Wave 2 completion)*
 

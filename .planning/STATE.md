@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
 status: Ready to execute
-stopped_at: "Phase 71 plan 04 COMPLETE — DC33 heat map is LIVE at uploads/HEATMAP/dc33.json (110 runs / 658.4 km, generatedAt 2025-08-15T02:41:54.347Z, ETag 966361fea875f58619a353ef90692da4 == local md5). Backfill + self-testing artifact verifier shipped; both polyline encodings exercised on real data (5 json-array / 105 encoded); output byte-deterministic across runs; no Terraform or IAM widened. Next in wave 2: 71-05."
-last_updated: "2026-07-31T02:55:45.496Z"
+stopped_at: "Phase 71 plan 05 COMPLETE — HeatmapLayer shipped in gpx-studio: ?meta=1 probes both years at map load, geometry fetched only on first enable, one atomic heatmapState.set for availability+restored visibility, DC34 composites above DC33 regardless of enable order, paint locked to D-02 (#ff0000/#ff8c00, w3, o0.25). svelte-check delta 0 new (total 30 = baseline), build exit 0, all 12 acceptance greps PASS. dc33 probes available (110 runs); dc34 stays unavailable until 71-07 publishes. Next in wave 2: 71-06 wires the HEAT MAP section into the Phase 70 dialog."
+last_updated: "2026-07-31T03:07:10.696Z"
 last_activity: 2026-07-31
 progress:
   total_phases: 31
   completed_phases: 20
   total_plans: 96
-  completed_plans: 90
+  completed_plans: 91
   percent: 65
 current_phase: 71
 current_phase_name: heat-map-layers-dc33-dc34-flame-stacks-gpx-studio
@@ -168,6 +168,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 71-04: DC33 heat map is a frozen one-off — built locally from the 2025-08-15 DynamoDB export and published once (110 runs / 658.4 km); no Lambda or schedule, since the export can never change
 - [Phase ?]: 71-04: verify-heatmap-artifact.mjs is a standalone self-testing verifier (clean + property-carrying + at-sign-smuggled fixtures) so 71-08 can point the SAME byte-level non-attributability sweep at the live production URL for both years
 - [Phase ?]: 71-04: generatedAt for a frozen export is the export's own exportTime with NO fallback — the backfill dies rather than stamping "now"; `new Date()`/`Date.now()` appear zero times in the script
+- [Phase ?]: 71-05: HEAT_PAINT keyed by mapbox paint names with a shared HEAT_STROKE spread — the plan's {color,width,opacity} record could not coexist with its own literal-line grep gates without duplicating the D-02 locked values
+- [Phase ?]: 71-05: lazy sibling heat layers hold a fixed z-order by inserting DC33 BENEATH an existing DC34 layer (addLayer beforeId) — 'DC33 added first' is unachievable when the runner picks enable order
+- [Phase ?]: 71-05: studio verification is a svelte-check DELTA against the 30-error upstream baseline plus a green build (PUBLIC_MAPBOX_TOKEN=pk.placeholder); gpx-studio/website has no test runner and its eslint config predates eslint 9
 
 ### Pending Todos
 
@@ -181,8 +184,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-31T02:55:45.487Z
-Stopped at: Phase 71 plan 04 COMPLETE — DC33 heat map is LIVE at uploads/HEATMAP/dc33.json (110 runs / 658.4 km, generatedAt 2025-08-15T02:41:54.347Z, ETag 966361fea875f58619a353ef90692da4 == local md5). Backfill + self-testing artifact verifier shipped; both polyline encodings exercised on real data (5 json-array / 105 encoded); output byte-deterministic across runs; no Terraform or IAM widened. Next in wave 2: 71-05.
+Last session: 2026-07-31T03:07:10.686Z
+Stopped at: Phase 71 plan 05 COMPLETE — HeatmapLayer shipped in gpx-studio: ?meta=1 probes both years at map load, geometry fetched only on first enable, one atomic heatmapState.set for availability+restored visibility, DC34 composites above DC33 regardless of enable order, paint locked to D-02 (#ff0000/#ff8c00, w3, o0.25). svelte-check delta 0 new (total 30 = baseline), build exit 0, all 12 acceptance greps PASS. dc33 probes available (110 runs); dc34 stays unavailable until 71-07 publishes. Next in wave 2: 71-06 wires the HEAT MAP section into the Phase 70 dialog.
 Resume file: None
 
 ## Operator Next Steps
@@ -262,3 +265,4 @@ Resume file: None
 | Phase 71 P02 | ~35 min | 2 tasks | 3 files |
 | Phase 71 P03 | 25 min | 3 tasks | 3 files |
 | Phase 71 P04 | 35m | 3 tasks | 3 files |
+| Phase 71 P05 | 22 | 2 tasks | 2 files |
