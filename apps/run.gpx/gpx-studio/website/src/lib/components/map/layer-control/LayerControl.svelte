@@ -4,6 +4,7 @@
     import PublicOverlays from './PublicOverlays.svelte';
     import MyConRuns from './MyConRuns.svelte';
     import CommunityRoutes from './CommunityRoutes.svelte';
+    import HeatMap from './HeatMap.svelte';
     import BasemapSection from './BasemapSection.svelte';
     import { DialogShell, Section } from '$lib/components/dialog-shell/index.js';
     import ConDaySaveDialog from '$lib/components/cloud/ConDaySaveDialog.svelte';
@@ -12,6 +13,7 @@
     import { PublicOverlaysLayer, publicOverlayGroups, publicAggregate } from '../public-overlays';
     import { MyConRunsLayer, myConRunGroups } from '../my-con-runs';
     import { CommunityRoutesLayer, communityRoutes } from '../community-routes';
+    import { HeatmapLayer, heatmapState } from '../heatmap-layer';
     import { myConRunsRefresh, myConRunsReveal } from '$lib/stores/my-con-runs';
     import {
         layerSectionCollapse,
@@ -55,6 +57,9 @@
 
     let overpassLayer: OverpassLayer;
     let publicOverlaysLayer: PublicOverlaysLayer | undefined = $state();
+    // Rune-backed like publicOverlaysLayer, NOT a plain `let` like deuceLayer: both the
+    // mount guard and the `layer` prop below read this reactively.
+    let heatmapLayer: HeatmapLayer | undefined = $state();
     let myConRunsLayer: MyConRunsLayer | undefined = $state();
     // Task 11 fix: isAuthenticated resolves async (session fetch), so a one-shot
     // check at map.onLoad time raced it on a normal page load. These back the
@@ -283,6 +288,14 @@
                 void communityRoutesLayer.load();
             }
         });
+        // DC33/DC34 heat maps. Deliberately NOT inside the auth-gated subscription above:
+        // the artifact is a public, unauthenticated surface, so the heat map has to
+        // work for a signed-out visitor. loadMeta() costs two ~200-byte `?meta=1` probes
+        // and fetches no geometry; the section's own onchange drives visibility from
+        // there, so no store subscription is needed here either.
+        if (heatmapLayer) heatmapLayer.remove();
+        heatmapLayer = new HeatmapLayer(_map);
+        void heatmapLayer.loadMeta();
         if (ghostLayer) ghostLayer.remove();
         ghostLayer = new GhostLayer(_map);
         // Reveal/hide with the hidden ghostMode store (default off). map.onLoad
@@ -513,6 +526,9 @@
          "empty sections stay hidden" behavior. -->
     {#if $publicOverlayGroups.length > 0 || $publicAggregate.available}
         <PublicOverlays layer={publicOverlaysLayer} />
+    {/if}
+    {#if $heatmapState.dc33.available || $heatmapState.dc34.available}
+        <HeatMap layer={heatmapLayer} />
     {/if}
     {#if $myConRunGroups.length > 0}
         <MyConRuns layer={myConRunsLayer} />
