@@ -64,8 +64,16 @@ function gpx(n: number): string {
 </trkseg></trk></gpx>`;
 }
 
-function row(over: Partial<HeatmapRunRow> = {}): HeatmapRunRow {
-  return {
+/**
+ * `HeatmapRunRow` deliberately does NOT declare the entity's owner opt-in flag —
+ * the builder never reads it (D-03). Real scan rows still carry it, so the
+ * override type is widened here to let the D-03 test set it and prove it is
+ * ignored.
+ */
+type RowOverrides = Partial<HeatmapRunRow> & { includeInAggregate?: boolean };
+
+function row(over: RowOverrides = {}): HeatmapRunRow {
+  const base: HeatmapRunRow = {
     userId: "sub-1",
     fileId: "f1",
     bucket: "b",
@@ -73,8 +81,8 @@ function row(over: Partial<HeatmapRunRow> = {}): HeatmapRunRow {
     status: "active",
     conDay: CON_DAY,
     createdAt: 1000,
-    ...over,
   };
+  return { ...base, ...over };
 }
 
 type Put = { key: string; body: string };
