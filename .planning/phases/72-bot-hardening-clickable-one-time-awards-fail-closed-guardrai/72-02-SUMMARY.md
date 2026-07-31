@@ -46,7 +46,8 @@ key-decisions:
   - "The mint route derives the covert code even on the explicit-challenge ghost path, purely to preserve today's 422 gate on an unconfigured MESHTK_GHOST_KEY_SECRET; the derived code is then unused because the park carries the row's answerHash instead."
   - "A resolved row with NO answerHash 422s rather than parking a nonce (Rule 2 addition, not in the plan). Without this, a rotating-OTP row would silently park hashAnswer(\"\") and hand the player a link that can never award — a failure with no error surface anywhere."
   - "The persona hash-match fallback still parks the DERIVED CODE (not a flagHash) so every pre-existing assertion on that path stays literally intact; hashAnswer(code) === the row's answerHash there by construction, so the stored value is identical either way."
-  - "CLAIM_LINK_TTL_SECONDS stays exported and unchanged at 15 minutes, marked legacy. It now has zero importers but removing it was out of scope and would break any future import silently."
+  - "The 3600s award TTL applies to ALL THREE mint paths — ricky by challenge, the explicit-challenge ghost fast path, and the persona scan fallback. The plan only specified it on the challenge path, which would have left all 8 personas on the legacy 900s and shipped half the locked decision (review item B6)."
+  - "CLAIM_LINK_TTL_SECONDS stays exported and unchanged at 15 minutes, marked legacy, but the mint route no longer imports it — its only remaining references are its own definition and the legacy TTL test. Removing the export was out of scope and would break any future import silently."
   - "createPending keeps crypto.randomUUID() as its DEFAULT generator: the 30-day anonymous park keeps 122 bits, and the 60-bit nonce is injected only through the newNonce seam by the mint route, where it lives for an hour."
 
 metrics:
@@ -54,7 +55,7 @@ metrics:
   completed: 2026-07-31
   tasks: 3
   files-changed: 9
-  tests-added: 22
+  tests-added: 23
 
 status: complete
 ---
@@ -108,6 +109,14 @@ The `listCtf` fallback is retained verbatim, including its enabled-row preferenc
 a comment stating plainly why it must not be removed: persona challenge names don't
 uniformly derive from fleet ids (`grace-hopper` ↔ `ghost.hopper`).
 
+**All three paths carry the 3600s award TTL** — the locked decision covers ricky AND all
+8 personas, so the scan-fallback path was moved off the legacy 900s
+`CLAIM_LINK_TTL_SECONDS` too. The route no longer imports that constant at all (its only
+remaining references are its own definition and the legacy TTL test that pins it).
+Pinned by a literal `3600` assertion on the `{ghost}` fallback path, not just the
+imported constant, so the guard cannot pass vacuously if the constant drifts;
+mutation-verified (reverting that path to `15 * 60` fails 2 tests).
+
 URLs are `https://q.<siteDomain>/a/<nonce>` (override: `AWARD_LINK_BASE_URL`). In dev
 the route keeps returning the direct claim-page URL, because no q resolver runs locally.
 `Cache-Control: private, no-store` is preserved. No logging was added anywhere.
@@ -158,7 +167,19 @@ would not be dead code. Both halves agree; nothing outstanding.
   *behavioural* pre-existing assertion (hash-match challenge resolution, enabled-row
   preference, 403-before-parse, the four 422 triggers) is retained unchanged.
 
-**3. [Style] `unmintable()` as a plain function**
+**3. [Locked decision] The persona scan-fallback path moved to the 3600s award TTL**
+- **Found during:** Task 2
+- **Issue:** the plan kept `CLAIM_LINK_TTL_SECONDS` "so no current importer breaks", but
+  the only importer *was* `mint/route.ts` — the persona path. Task 2(d) never mentioned
+  TTL, so following the plan literally would have left all 8 personas on 900s and shipped
+  half of the `72-CONTEXT.md:58-59` locked decision (raised independently in review as B6).
+- **Fix:** both ghost sub-paths pass `AWARD_LINK_TTL_SECONDS`; the route no longer imports
+  the legacy constant, which is now referenced only by its own definition and the legacy
+  TTL test. Pinned by a literal-3600 assertion on the fallback path.
+- **Files modified:** `src/app/api/internal/ctf/mint/route.ts`, `mint/__tests__/route.test.ts`
+- **Commits:** `66e4654b` (implementation), `2ef1f941` (literal assertion + mock hardening)
+
+**4. [Style] `unmintable()` as a plain function**
 - Initially written as `NextResponse.json.bind(...)`; rewritten as an ordinary helper to
   match the file's direct style and avoid `this`-binding subtleties. No behaviour change.
 
@@ -167,7 +188,7 @@ would not be dead code. Both halves agree; nothing outstanding.
 ```
 npx vitest run src/lib/__tests__ "src/app/api/internal/ctf" "src/app/(ctf)"
   Test Files  52 passed (52)
-       Tests  619 passed (619)
+       Tests  620 passed (620)
 ```
 
 Per-task verification commands from the plan, all green:
@@ -175,7 +196,7 @@ Per-task verification commands from the plan, all green:
 | Task | Command | Result |
 |------|---------|--------|
 | 1 | `vitest run ctf-award-nonce ctf-pending ctf-pending-ttl` | 23 passed |
-| 2 | `vitest run mint/__tests__/route.test.ts mesh-ghosts.test.ts` | 31 passed |
+| 2 | `vitest run mint/__tests__/route.test.ts mesh-ghosts.test.ts` | 32 passed |
 | 3 | `vitest run "(ctf)/ctf/claim/__tests__/page.test.tsx"` | 12 passed |
 
 Acceptance greps:
