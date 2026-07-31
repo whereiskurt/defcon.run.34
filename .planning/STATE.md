@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
 status: Ready to execute
-stopped_at: "Phase 71 plan 02 COMPLETE — lib/heatmap-build.ts (buildDc34Heatmap, D-03 no-opt-in selection, guard-before-write) + POST /api/gpx/internal/heatmap-build landed with 15 vitest cases, zero new deps. Suite 303 green, build lists the route. Next in wave 2: 71-03/04."
-last_updated: "2026-07-31T02:36:24.512Z"
+stopped_at: "Phase 71 plan 03 COMPLETE — GET /api/gpx/public/heatmap/[year] (+?meta=1) serves the precomputed artifact with the allowlist running before any S3 key exists (dc32 404s with zero S3 calls); trkptCoords de-duplicated into lib/heatmap-artifact.ts; HEAT-06 first half landed — the aggregate route no longer claims exclusivity and gpx-file.ts's three flag comments name the heat map as exempt. Suite 303 green, build lists the route. Next in wave 2: 71-04."
+last_updated: "2026-07-31T02:45:05.309Z"
 last_activity: 2026-07-31
 progress:
   total_phases: 31
   completed_phases: 20
   total_plans: 96
-  completed_plans: 88
+  completed_plans: 89
   percent: 65
 current_phase: 71
 current_phase_name: heat-map-layers-dc33-dc34-flame-stacks-gpx-studio
@@ -163,6 +163,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 71-02: assertNonAttributable is deliberately NOT a BuildDeps member — no production seam can bypass the chokepoint; tests prove guard-before-put ordering by vi.mock-wrapping the module export instead
 - [Phase ?]: 71-02: builder fans out over S3 in sequential chunks of 20, not one unbounded Promise.all — the aggregate route's Promise.all is only safe because it caps at 500 routes; a precomputed builder has no cap (T-71-06)
 - [Phase ?]: 71-02: POST /api/gpx/internal/heatmap-build declares maxDuration=300 — 71-07's Terraform lambda_timeout must be >= that number or a scheduler retry overlaps the running build
+- [Phase ?]: 71-03: heat-map serve route 404s a missing artifact (absent, not broken) and 500s only a corrupt one
+- [Phase ?]: 71-03: HEAT-06 first half — aggregate route's exclusivity claim deleted, replaced with the dated 2026-07-30 supersession + assertNonAttributable as the compensating control; gpx-file.ts's three flag comments name the heat map as exempt
 
 ### Pending Todos
 
@@ -176,8 +178,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-31T02:36:02.292Z
-Stopped at: Phase 71 plan 01 COMPLETE — lib/heatmap-artifact.ts + lib/polyline-decode.ts landed with 36 vitest cases, zero new deps. Wave 1 done; 71-02/03/04 can proceed.
+Last session: 2026-07-31T02:44:55.253Z
+Stopped at: Phase 71 plan 03 COMPLETE — public heat-map serve route (+?meta=1), trkptCoords de-duplicated, HEAT-06 compliance comments reconciled. Suite 303 green. Next in wave 2: 71-04.
 Resume file: None
 
 ## Operator Next Steps
@@ -255,3 +257,4 @@ Resume file: None
 | Phase 69 P07 | ~50m | 3 tasks | 4 files |
 | Phase 71 P01 | 15m | 2 tasks | 4 files |
 | Phase 71 P02 | ~35 min | 2 tasks | 3 files |
+| Phase 71 P03 | 25 min | 3 tasks | 3 files |
