@@ -900,11 +900,28 @@ must re-probe those eight as a regression guard.
 <!-- BOT-01 single-use clickable awards · BOT-02 fail-closed guardrails · BOT-03 lyric delivery + backpressure -->
 
 **Depends on:** None — independent of Phase 71 (gpx-studio heat map, unexecuted)
-**Plans:** 0 plans
+**Plans:** 10 plans across 6 waves
+
+Wave 1 runs four plans in parallel (four different apps, zero `files_modified` overlap).
+The meshtk Go plans (72-06, 72-07) are STRICTLY SEQUENTIAL — they share `cmd.go` and the
+same upstream `~/working/meshtk` working tree, and Phase 69 established that two agents
+compiling and committing there at once produce spurious `go test` failures and
+`index.lock` races. The prod-mutating rotation is split at a safe seam: 72-08 rewrites
+the `answerHash` (non-destructive, seeds the fallback secret before ECS needs it) and
+72-10 does the irreversible teardown only AFTER 72-09 proves the new award path live.
 
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 72 to break down)
+- [ ] 72-01-PLAN.md — Reserved `/a/<nonce>` award namespace in the q.defcon.run resolver: new `award` ParseResult kind intercepted before the redirect branch, `buildClaimHandoff`, zero DynamoDB reads, zero log lines, plus the `b c d f g h p r` shadowing regression guard (BOT-01)
+- [ ] 72-02-PLAN.md — run.human mint seam: mint-by-`{challenge}` via `getCtf()` GetItem (kills the `Ctf.scan.go` per-reveal full-table scan), `createPending({flagHash})` so no raw code need exist, 12-char Crockford-base32 `newAwardNonce`, `BOT_CLAIM_LINK_TTL_SECONDS`=3600, claim-page nonce lowercasing; persona answerHash-match fallback preserved (BOT-01)
+- [ ] 72-03-PLAN.md — Drop the trailing QR-path LRC entry from `meshtk.dc34.yaml` (59 → 58 timed entries, ending on the real closing lyric) + `sync-meshtk-fleet.mjs` regeneration with byte parity (BOT-03)
+- [ ] 72-04-PLAN.md — Infra authoring: `MESHTK_GUARDRAIL_FAILMODE` open → closed, `ricky-fallback-url` secret plumbing, and a guardrail-outage metric filter + CloudWatch alarm on the existing SNS tripwire topic. Applies nothing (BOT-02)
+- [ ] 72-05-PLAN.md — Deploy the resolver (`terragrunt-apply modules=qr-resolver`) with a captured pre/post probe proving all eight live single-letter codes are byte-identical (BOT-01)
+- [ ] 72-06-PLAN.md — meshtk ricky award: `LyricsResponded` widened to `*lyricsSession`, mint-by-challenge client, two reliable award DMs at song end, line 01 promoted to reliable, `reply_retry_test.go` guard 1 → 3 (BOT-01, BOT-03)
+- [ ] 72-07-PLAN.md — meshtk backpressure + guardrail degradation: `MESHTK_LYRICS_MAX_CONCURRENT` semaphore (default 12, ~3.3 msg/s bound), stage-is-full reply that does not burn the cooldown, outage-vs-policy refusal split, outage marker token for the alarm (BOT-02, BOT-03)
+- [ ] 72-08-PLAN.md — ⚠️ PROD DATA: rotate ricky's `answerHash` via conditional UpdateItem (preserves `solveCount`/`createdAt`/`enabled`), DRY-RUN gated behind a blocking checkpoint; seed the fallback URL into SOPS and apply the secrets unit (BOT-01)
+- [ ] 72-09-PLAN.md — Release run.human + run.mqtt via `buildpub.yml`, deploy via `deploy.yml`, apply the alarm, and PROVE it live (version read, deployed task-def env, resolver regression re-diff) (BOT-01, BOT-02, BOT-03)
+- [ ] 72-10-PLAN.md — ⚠️ IRREVERSIBLE: delete the `Qr` row + the static S3 interstitial + CloudFront invalidation, hardware UAT, and file the three deferred todos (BOT-01)
 
 ---
 
