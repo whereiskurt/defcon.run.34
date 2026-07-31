@@ -56,6 +56,19 @@ resource "aws_lambda_function" "sync" {
   timeout     = var.lambda_timeout
   memory_size = var.lambda_memory_size
 
+  # Hard backstop against overlapping builds. The PRIMARY fix is the disjoint
+  # schedules in the live unit (the hourly fires at minute 0, the daily at
+  # minute 20, so they can never coincide) — this is belt-and-braces, because
+  # the builder holds no lock and no idempotency key, so two concurrent
+  # invocations mean two full DynamoDB scans and two full S3 fan-outs writing
+  # the same key. NOTE this does NOT eliminate stacked invocations after a
+  # genuine failure: the schedule's retry_policy still fires, those retries just
+  # queue behind the single reserved slot instead of running alongside.
+  # Account headroom measured before setting this (us-east-1): limit 1000,
+  # unreserved 970 (30 already reserved across 4 other functions) — AWS requires
+  # at least 100 unreserved to remain, so reserving 1 more leaves 969.
+  reserved_concurrent_executions = 1
+
   tracing_config {
     mode = "Active"
   }
