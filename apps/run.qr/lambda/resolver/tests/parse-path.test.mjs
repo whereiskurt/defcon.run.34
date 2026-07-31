@@ -152,13 +152,29 @@ describe("parsePath — award (reserved)", () => {
     expect(parsePath("/a/k7m3q9x2wr4t").kind).not.toBe("redirect");
   });
 
-  it("reserves ONLY the lowercase letter — /A/<x> stays a redirect for code A", () => {
-    expect(parsePath("/A/xyz")).toEqual({
-      kind: "redirect",
-      code: "A",
-      param: "xyz",
+  it("matches the reserved LETTER case-insensitively — /A/<nonce> is award", () => {
+    expect(parsePath("/A/k7m3q9x2wr4t")).toEqual({
+      kind: "award",
+      nonce: "k7m3q9x2wr4t",
       query: "",
     });
+    expect(parsePath("/A/k7m3q9x2wr4t").kind).not.toBe("redirect");
+  });
+
+  it("keeps the NONCE verbatim even when the whole link was uppercased", () => {
+    // A client that upcases the entire URL yields /A/K7M3…. The letter is
+    // matched case-insensitively so this still reaches the claim page; the
+    // nonce itself is passed through untouched, because run.human's claim
+    // page owns the lowercasing for lookup.
+    expect(parsePath("/A/K7M3Q9X2WR4T")).toEqual({
+      kind: "award",
+      nonce: "K7M3Q9X2WR4T",
+      query: "",
+    });
+  });
+
+  it("degrades a bare /A to empty, exactly like /a", () => {
+    expect(parsePath("/A")).toEqual({ kind: "empty", query: "" });
   });
 });
 
