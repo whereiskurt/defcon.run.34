@@ -31,6 +31,10 @@
 # GH Action with region=us-east-1, modules=heatmap-scheduler. NEVER apply from a
 # workstation (AGENTS.md rule 4) — the apply is terragrunt-apply.yml with the
 # same scoping, in Plan 71-08.
+#
+# VALIDATED: actions/runs/30601617385 (terragrunt-plan.yml, region=us-east-1,
+# modules=heatmap-scheduler) — "Plan: 9 to add, 0 to change, 0 to destroy",
+# zero strava-sync addresses, no scheduler: authorization error.
 
 include "skip" {
   path   = "${find_in_parent_folders("region")}/skip.hcl"
