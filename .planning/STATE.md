@@ -3,16 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
 status: Ready to execute
-stopped_at: "Phase 71 GAP CLOSURE PLANNED — 8 plans 71-09..71-16 across 4 waves, all gap_closure:true, ready for /gsd-execute-phase 71 --gaps-only. Closes the 3 failed truths from 71-VERIFICATION.md (status gaps_found, 18/24) plus CR-01/CR-03 from 71-REVIEW.md. Plan-checker iter1 = 0 blockers/7 warnings (all fixed, 3c59e7e5); iter2 = 0 blockers/3 false-red criteria (fixed inline, 2ca1fbd5). Waves: 1=09/10/11/12 (paint 0.25->0.70 per D-13, artifact+serve guards, internal route + builder, probe 13->19 assertions) · 2=13/14 (CloudFront cache policy + gpx-scoped edge block — BLOCKING human gate, shared infra; scheduler de-collision) · 3=15 (DC33 republish, runCount 110->~90 — BLOCKING gate, public number changes) · 4=16 (release + post-deploy probe — BLOCKING gate). Phase 71 itself remains NOT complete. Shipped state: run.gpx v0.0.109 live, probe 11/13, PR #1131 closed unmerged, PR #1136 (docs-only evidence) still OPEN and unmerged."
-last_updated: "2026-07-31T05:45:00Z"
+stopped_at: "Phase 71 plan 09 COMPLETE (gap wave 1, first of 8) — the headline gap is closed IN SOURCE: HEAT_STROKE line-opacity 0.25 -> 0.7 per D-13, width 3 and both colours (#ff8c00 dc33, #ff0000 dc34) byte-identical, and the falsified addAggregate() 0.15/width-2 rationale DELETED so nobody re-derives the invisible number. Also WR-07 (isFeatureCollection drops only the features.length > 0 liveness clause, so an empty-but-valid year builds a real empty layer and latches built — no more dead latch, no more refetch-per-toggle; detail() gained a runCount === 0 hint) and IN-05 (remove() blanks heatmapState; whenStyleReady() races map idle against STYLE_READY_TIMEOUT_MS = 10s and RESOLVES, never rejects). 18/18 acceptance criteria PASS; svelte-check delta 0 on both touched files (project baseline is 26 + 4 env-dependent = 30, D-71-E); build-frontend.sh exit 0; built chunk verified to carry \"line-opacity\":.7 with both colours intact. NOT LIVE — source only; live is still run.gpx v0.0.109 with the invisible 0.25 paint until 71-16 releases. Remaining gap plans: 71-10, 71-11, 71-12 (wave 1), 71-13/14 (wave 2, blocking human gate), 71-15 (wave 3, blocking), 71-16 (wave 4, blocking). Phase 71 itself remains NOT complete."
+last_updated: "2026-07-31T16:28:02.082Z"
 last_activity: 2026-07-31
-last_activity_desc: Phase 71 gap closure planned — 8 plans, checker passed 0 blockers
 progress:
   total_phases: 31
-  completed_phases: 21
+  completed_phases: 20
   total_plans: 104
-  completed_plans: 94
-  percent: 68
+  completed_plans: 95
+  percent: 65
 current_phase: 71
 current_phase_name: heat-map-layers-dc33-dc34-flame-stacks-gpx-studio
 ---
@@ -176,6 +175,10 @@ Recent decisions affecting current work:
 - [Phase ?]: 71-07: two schedules — hourly cron(0 * 5-10 8 ? 2026) across the DC34 con window (CON_DAYS 5-10 Aug 2026) plus a year-round daily cron(0 4 * * ? *) baseline, both America/Los_Angeles, both in the EventBridge default group (module sets no group_name)
 - [Phase ?]: 71-07: lambda_timeout default raised to 300 at the MODULE level (strava's was 120) so any future unit inherits the floor the build route's maxDuration = 300 requires
 - [Phase ?]: 71-07: us-east-1 only — no ca-central-1 heatmap-scheduler unit; run.gpx is single-live-region and a second scheduler would cron-invoke a nonexistent service forever
+- [Phase ?]: 71-09: heat-line opacity literal written 0.7, not 0.70 — the repo's Prettier normalises numeric trailing zeros, so 0.70 would be silently rewritten on the next formatter touch. Same number; the comment states 0.70 and prettier --check passes, so the source is now a formatter fixpoint
+- [Phase ?]: 71-09: the falsified addAggregate() 0.15/width-2 rationale was DELETED, not qualified — that comparison is the reasoning that produced the invisible render, and leaving it in the file as a caveat invites the next reader to re-derive the same wrong number
+- [Phase ?]: 71-09: available stays meta !== null and the shown derivation is untouched — content-gating availability on runCount is the fix WR-07 all but suggests, and it would hide the DC34 row, turning probe assertions 9/10/12 red and deleting the feature's pre-con visible promise
+- [Phase ?]: 71-09: whenStyleReady() RESOLVES on timeout and never rejects — ensureGeometry's catch would swallow a rejection and lose the layer just as silently as the unsettled promise did. Readiness is a hint here; the downstream getSource/getLayer guards already tolerate a not-quite-ready style
 
 ### Pending Todos
 
@@ -194,8 +197,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-31T04:14:21.901Z
-Stopped at: Phase 71 plan 08 SHIPPED: run.gpx v0.0.109 live us-east-1 (task def 199), heatmap-scheduler APPLIED (9 added/0 changed/0 destroyed, matches 71-07 plan exactly), both schedules ENABLED with exact expressions in America/Los_Angeles. Production probe 2/13 pre-deploy -> 11/13 post-deploy from a byte-identical script; Phase 70 dialog-shell probe re-run UNMODIFIED at 16/16. Assertions 5 (dc34 leg) + 11 RED because DC34 has zero runs (0 of 133 items carry conDay; con is 2026-08-05..10) — probe NOT softened. Release PR #1132 merged by CI; phase PR #1131 still OPEN. Task 4 blocking human verification OPEN.
+Last session: 2026-07-31T16:26:22.394Z
+Stopped at: Phase 71 plan 09 COMPLETE (gap wave 1, first of 8). The headline gap is closed IN SOURCE: HEAT_STROKE line-opacity 0.25 -> 0.7 per D-13, width 3 and both colours (#ff8c00 dc33, #ff0000 dc34) byte-identical (0 line-color lines in the whole plan diff), and the falsified addAggregate() 0.15/width-2 rationale DELETED so nobody re-derives the invisible number. WR-07: isFeatureCollection drops ONLY the features.length > 0 liveness clause (type literal + Array.isArray gate intact, T-71-21), so an empty-but-valid year builds a real empty layer and latches built — no dead latch, no refetch-per-toggle — and detail() gained a runCount === 0 hint; available and shown deliberately untouched. IN-05: remove() blanks heatmapState; whenStyleReady() races map idle against STYLE_READY_TIMEOUT_MS = 10s and RESOLVES, never rejects. 18/18 acceptance criteria PASS; svelte-check delta 0 on both touched files (project baseline 26 + 4 env-dependent = 30, D-71-E — the cold run reports 26, every later run 30); build-frontend.sh exit 0; built chunk verified to carry "line-opacity":.7 with both colours and the new zero-run hint string. NOT LIVE — source only; live is still v0.0.109 with the invisible paint until 71-16 releases. Next: 71-10, 71-11, 71-12 (rest of wave 1).
 Resume file: None
 
 ## Operator Next Steps
@@ -278,3 +281,4 @@ Resume file: None
 | Phase 71 P05 | 22 | 2 tasks | 2 files |
 | Phase 71 P06 | 10min | 3 tasks | 4 files |
 | Phase 71 P07 | 25min | 3 tasks | 7 files |
+| Phase 71 P09 | 35m | 3 tasks | 2 files |
