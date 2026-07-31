@@ -42,7 +42,9 @@ vi.mock("@/lib/qr-admin", () => ({
 vi.mock("@/lib/ctf-pending", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/ctf-pending")>();
   return {
-    CLAIM_LINK_TTL_SECONDS: actual.CLAIM_LINK_TTL_SECONDS,
+    // CLAIM_LINK_TTL_SECONDS (the legacy 900s) is deliberately NOT re-exported:
+    // the route must not import it. If it ever does again, the mock hands back
+    // undefined and the literal-3600 TTL assertions fail loudly.
     AWARD_LINK_TTL_SECONDS: actual.AWARD_LINK_TTL_SECONDS,
     newAwardNonce: actual.newAwardNonce,
     createPending: (...a: unknown[]) => mockCreatePending(...a),
@@ -262,6 +264,26 @@ describe("POST /api/internal/ctf/mint — {ghost}", () => {
       ttlSeconds: AWARD_LINK_TTL_SECONDS,
       newNonce: expect.any(Function),
     });
+    // LITERAL 3600, not just the imported constant: the locked TTL decision covers
+    // ricky AND all 8 personas, so the scan-fallback path must not silently keep
+    // the legacy 900s CLAIM_LINK_TTL_SECONDS. Asserting the constant alone would
+    // pass vacuously if that constant ever drifted.
+    expect(mockCreatePending.mock.calls[0][2].ttlSeconds).toBe(3600);
+  });
+
+  it("gives the 3600s award TTL to a persona on the scan-fallback path (not the legacy 900s)", async () => {
+    mockGetGhost.mockReturnValue(GHOST);
+    mockListCtf.mockResolvedValue([
+      { challenge: "grace-hopper", enabled: true, answerHash: hashAnswer(DERIVED) },
+    ]);
+    pendingMintsRealNonce();
+
+    const { request } = makeReq("s3cret", { ghost: GHOST.id });
+    expect((await POST(request)).status).toBe(200);
+
+    const deps = mockCreatePending.mock.calls[0][2];
+    expect(deps.ttlSeconds).toBe(3600);
+    expect(deps.ttlSeconds).not.toBe(15 * 60);
   });
 
   it("prefers an enabled row over a disabled one with the same hash", async () => {
