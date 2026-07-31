@@ -896,8 +896,9 @@ internal secret, and cac1 deployment (bots stay single-region use1).
 resolving to `didhtp1` — letters `b c d f g h p r` are all taken. Any resolver change
 must re-probe those eight as a regression guard.
 
-**Requirements**: BOT-01 (single-use clickable awards), BOT-02 (fail-closed guardrails),
-BOT-03 (lyric delivery + backpressure)
+**Requirements**: BOT-01, BOT-02, BOT-03
+<!-- BOT-01 single-use clickable awards · BOT-02 fail-closed guardrails · BOT-03 lyric delivery + backpressure -->
+
 **Depends on:** None — independent of Phase 71 (gpx-studio heat map, unexecuted)
 **Plans:** 0 plans
 
