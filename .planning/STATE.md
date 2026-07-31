@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
 status: Ready to execute
-stopped_at: "Phase 71 plan 09 COMPLETE (gap wave 1, first of 8) — the headline gap is closed IN SOURCE: HEAT_STROKE line-opacity 0.25 -> 0.7 per D-13, width 3 and both colours (#ff8c00 dc33, #ff0000 dc34) byte-identical, and the falsified addAggregate() 0.15/width-2 rationale DELETED so nobody re-derives the invisible number. Also WR-07 (isFeatureCollection drops only the features.length > 0 liveness clause, so an empty-but-valid year builds a real empty layer and latches built — no more dead latch, no more refetch-per-toggle; detail() gained a runCount === 0 hint) and IN-05 (remove() blanks heatmapState; whenStyleReady() races map idle against STYLE_READY_TIMEOUT_MS = 10s and RESOLVES, never rejects). 18/18 acceptance criteria PASS; svelte-check delta 0 on both touched files (project baseline is 26 + 4 env-dependent = 30, D-71-E); build-frontend.sh exit 0; built chunk verified to carry \"line-opacity\":.7 with both colours intact. NOT LIVE — source only; live is still run.gpx v0.0.109 with the invisible 0.25 paint until 71-16 releases. Remaining gap plans: 71-10, 71-11, 71-12 (wave 1), 71-13/14 (wave 2, blocking human gate), 71-15 (wave 3, blocking), 71-16 (wave 4, blocking). Phase 71 itself remains NOT complete."
-last_updated: "2026-07-31T16:28:02.082Z"
+stopped_at: "Phase 71 plan 10 COMPLETE (gap wave 1, 2 of 8) — the phase's single non-attributability chokepoint now covers what its docstring claimed. WR-01: assertNonAttributable gained a root-type literal check, a META_KEYS allowlist ported VERBATIM from verify-heatmap-artifact.mjs (one spelling, two callers), and an actual walk of geometry.coordinates (2-element numeric pairs, named by feature+coordinate index) — the one field carrying data was previously never inspected; the docstring now also states honestly what it still does NOT check. WR-02: the public serve route calls the same guard on the way OUT and 500s on failure — 'JSON.parse(body) as HeatmapArtifact' was an ASSERTION not a check, so a manual object copy, a backup restore, a future second builder or a compromised uploads keypair went straight to the internet; artifact.meta/features are existence-checked so a {} object no longer returns 200 with an empty body. WR-06: never-moving tracks dropped at the single assembly point + a degeneracy clause in the standalone verifier + a FOURTH --selftest fixture so it cannot go vacuous a second time. ⭐ PROVEN AGAINST PRODUCTION: the verifier now exits 1 on the LIVE DC33 artifact naming features[0], and 20 of its 110 features (indices 0-9,11,12,13,15,18,19,20,21,23,24) are entirely [[0,0],[0,0]] — a 22% inflation of a publicly-served runCount. DC33 is frozen in S3; plan 71-15 must rebuild it (110 -> 90 expected). IN-02: ?meta= is exact equality against '1', so ?meta=0 no longer projects meta. WR-09: no console call passes a caught error object (S3 exceptions carry request ids, bucket and key); the unauthenticated unbuilt-year miss dropped to warn so an outsider cannot drive CloudWatch error volume. CR-03: the CDN comments in BOTH files now name the dedicated cloudfront ordered cache behaviour (plan 71-13) they depend on and the consequence of its removal. D-14 recorded IN CODE at normalizeTrack: exact start/end at ~1.1m for non-consenting runners is an ACCEPTED RISK, 'no identifier FIELDS' is explicitly not 'not re-identifiable from geometry', reversal needs a NEW user decision — NO trim helper, NO precision change, NO opt-in predicate (all three prohibition greps read 0). TDD: 8 new tests RED against the prior source, then green; suite 303 -> 313 passed / 1 skipped unchanged; tsc --noEmit exit 0; --selftest exit 0 with four fixtures. runCount > 0 liveness check deliberately UNTOUCHED (dc34 leg stays calendar-bound red until 5 Aug 2026). NOT LIVE — source only; live is still run.gpx v0.0.109 until 71-16 releases. Remaining gap plans: 71-11, 71-12 (wave 1), 71-13/14 (wave 2, blocking human gate), 71-15 (wave 3, blocking), 71-16 (wave 4, blocking). Phase 71 itself remains NOT complete."
+last_updated: "2026-07-31T16:39:48.748Z"
 last_activity: 2026-07-31
 progress:
   total_phases: 31
   completed_phases: 20
   total_plans: 104
-  completed_plans: 95
+  completed_plans: 96
   percent: 65
 current_phase: 71
 current_phase_name: heat-map-layers-dc33-dc34-flame-stacks-gpx-studio
@@ -179,6 +179,10 @@ Recent decisions affecting current work:
 - [Phase ?]: 71-09: the falsified addAggregate() 0.15/width-2 rationale was DELETED, not qualified — that comparison is the reasoning that produced the invisible render, and leaving it in the file as a caveat invites the next reader to re-derive the same wrong number
 - [Phase ?]: 71-09: available stays meta !== null and the shown derivation is untouched — content-gating availability on runCount is the fix WR-07 all but suggests, and it would hide the DC34 row, turning probe assertions 9/10/12 red and deleting the feature's pre-con visible promise
 - [Phase ?]: 71-09: whenStyleReady() RESOLVES on timeout and never rejects — ensureGeometry's catch would swallow a rejection and lose the layer just as silently as the unsettled promise did. Readiness is a hint here; the downstream getSource/getLayer guards already tolerate a not-quite-ready style
+- [Phase ?]: 71-10: assertNonAttributable widened to check the root type literal, a META_KEYS allowlist ported verbatim from verify-heatmap-artifact.mjs, and the CONTENTS of geometry.coordinates — the three blind spots its own docstring implied it covered (WR-01); each pinned by a test that was RED against the prior source
+- [Phase ?]: 71-10: the serve route runs the same guard on the way OUT (WR-02) — JSON.parse(...) as HeatmapArtifact was an assertion, not a check, so any write bypassing the two known builders reached the internet unvalidated; a failing object 500s, and artifact.meta/features are existence-checked so a {} object no longer returns 200 with an empty body
+- [Phase ?]: 71-10: never-moving tracks are dropped at the single assembly point (WR-06) — 20 of 110 live DC33 features are entirely [[0,0],[0,0]], inflating a public runCount by 22%; the fix covers both years in source but DC33 is frozen in S3 until 71-15 rebuilds it
+- [Phase ?]: 71-10: D-14 recorded IN CODE at normalizeTrack — exact run start/end at ~1.1m for non-consenting runners is an ACCEPTED RISK (Kurt 2026-07-31), no-identifier-fields is explicitly NOT not-re-identifiable-from-geometry, and reversal needs a new user decision; no trim helper, no precision change, no opt-in predicate
 
 ### Pending Todos
 
@@ -197,8 +201,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-31T16:26:22.394Z
-Stopped at: Phase 71 plan 09 COMPLETE (gap wave 1, first of 8). The headline gap is closed IN SOURCE: HEAT_STROKE line-opacity 0.25 -> 0.7 per D-13, width 3 and both colours (#ff8c00 dc33, #ff0000 dc34) byte-identical (0 line-color lines in the whole plan diff), and the falsified addAggregate() 0.15/width-2 rationale DELETED so nobody re-derives the invisible number. WR-07: isFeatureCollection drops ONLY the features.length > 0 liveness clause (type literal + Array.isArray gate intact, T-71-21), so an empty-but-valid year builds a real empty layer and latches built — no dead latch, no refetch-per-toggle — and detail() gained a runCount === 0 hint; available and shown deliberately untouched. IN-05: remove() blanks heatmapState; whenStyleReady() races map idle against STYLE_READY_TIMEOUT_MS = 10s and RESOLVES, never rejects. 18/18 acceptance criteria PASS; svelte-check delta 0 on both touched files (project baseline 26 + 4 env-dependent = 30, D-71-E — the cold run reports 26, every later run 30); build-frontend.sh exit 0; built chunk verified to carry "line-opacity":.7 with both colours and the new zero-run hint string. NOT LIVE — source only; live is still v0.0.109 with the invisible paint until 71-16 releases. Next: 71-10, 71-11, 71-12 (rest of wave 1).
+Last session: 2026-07-31T16:37:54.523Z
+Stopped at: Phase 71 plan 10 COMPLETE (gap wave 1, 2 of 8)
 Resume file: None
 
 ## Operator Next Steps
@@ -282,3 +286,4 @@ Resume file: None
 | Phase 71 P06 | 10min | 3 tasks | 4 files |
 | Phase 71 P07 | 25min | 3 tasks | 7 files |
 | Phase 71 P09 | 35m | 3 tasks | 2 files |
+| Phase 71 P10 | 35m | 3 tasks | 4 files |
