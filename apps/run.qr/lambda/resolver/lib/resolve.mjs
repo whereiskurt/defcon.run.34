@@ -10,6 +10,7 @@
  *     empty / flush     → notFound()          (nothing to serve here)
  *     ogimage           → buildOgImage         (bundled unfurl preview PNG)
  *     ctf               → buildCtfHandoff      (forward the guess, never score)
+ *     award             → buildClaimHandoff    (forward the nonce, NO DynamoDB)
  *     redirect          → getQr → rules → enrich →
  *         crawler + item.unfurl → buildUnfurl  (OG card, code-free)
  *         otherwise             → buildRedirect
@@ -24,6 +25,11 @@
  *      as `deps.getQr` (index.mjs supplies the warm-cached GetItem) and the log
  *      sink is injected as `deps.log` (defaults to `emit`), so the whole flow is
  *      drivable from a unit test with a fake `getQr` and a capturing `log`.
+ *
+ * The `award` branch (`/a/<nonce>`) is deliberately the thinnest of them all: a
+ * PURE LEXICAL REWRITE with NO DynamoDB read, so the link every mesh bot hands a
+ * player cannot fail, throttle, or add latency. It is also silent — see the
+ * branch comment for why.
  *
  * REGION PREFIXING happens in `respond.mjs` (`buildRedirect`/`buildCtfHandoff`):
  * `run.defcon.run` destinations get `/use1` spliced in, since only use1 serves
@@ -44,6 +50,7 @@ import { enrichDestination } from "./enrich.mjs";
 import {
   buildRedirect,
   buildCtfHandoff,
+  buildClaimHandoff,
   buildUnfurl,
   buildOgImage,
   withRegion,
@@ -118,6 +125,21 @@ export async function resolve({ path, headers = {}, nowMs }, deps) {
         });
       }
 
+      // Single-use bot-award claim (`/a/<nonce>`): forward the nonce to
+      // run.defcon.run, which owns redemption. NO DynamoDB read, no await, no
+      // enrichment, no rules — a pure lexical rewrite, so the award link cannot
+      // fail, throttle, or add latency.
+      //
+      // Deliberately emits NO log line, following the `ogimage` precedent above.
+      // Two reasons: the rollup aggregator
+      // (`apps/run.qr/lambda/rollup/lib/aggregate.mjs`) recognises a fixed set of
+      // line types and this branch adds none; and a branch that logs nothing
+      // structurally cannot regress the never-log-the-nonce rule. No analytics
+      // are lost — redemption is already recorded downstream as a `CtfSolve` row
+      // in run.human, which is the authoritative audit trail.
+      case "award":
+        return buildClaimHandoff({ nonce: parsed.nonce });
+
       // Ordinary short-link redirect.
       case "redirect": {
         const { code, param, query } = parsed;
@@ -180,7 +202,7 @@ export async function resolve({ path, headers = {}, nowMs }, deps) {
       }
 
       default:
-        // parsePath only returns the four kinds above; anything else is a bug
+        // parsePath only returns the five kinds above; anything else is a bug
         // in the parser, but we still degrade gracefully.
         return notFound();
     }
