@@ -181,16 +181,33 @@ comments record vendor-sync stranding all 24 GPX nodes twice this way
 (#1009, #1028/#1029), and `internal/app/fleet/gpx_routes_test.go` exists
 specifically to fail if it happens again.
 
-Note that `go.mod`, `go.sum`, and `vendor/` are UNTRACKED in the monorepo tree,
-and its `vendor/modules.txt` is out of sync with its `go.mod` (paho.golang and
-several `x/` packages disagree). A bare `go build ./...` there therefore fails
-with `inconsistent vendoring`. This is a pre-existing local-only artifact and
-does not affect CI, which takes those files from the fresh clone.
+### Keeping the local tree buildable
 
-**Use `-mod=mod` to build or test the monorepo copy** — `go test -mod=mod
-./internal/app/fleet/` passes, including `TestDC34FleetGPXRoutesResolve`, which
-resolves all 24 GPX routes. Do not run `go mod vendor` to "fix" it: that would
-write untracked files this repo deliberately does not carry.
+`go.mod`, `go.sum`, and `vendor/` are UNTRACKED in the monorepo tree. Because
+they are never overlaid, **CI always builds against the versions in upstream's
+`go.mod`** — whatever sits in the monorepo copy is local scratch that only
+affects local builds (where `Dockerfile.meshtk` does `COPY go.mod go.sum ./`
+from the working directory).
+
+These three drifted out of sync once and broke local builds with
+`inconsistent vendoring`. The fix is to make local match CI:
+
+```bash
+cd apps/run.mqtt/meshtk
+cp ~/working/meshtk/go.mod ~/working/meshtk/go.sum .
+rsync -a --delete ~/working/meshtk/vendor/ vendor/
+```
+
+Copying from upstream — rather than running `go mod vendor` — is deliberate.
+`go mod vendor` syncs `vendor/` UP to whatever the local `go.mod` says, and the
+local `go.mod` had drifted AHEAD of upstream (paho.golang v0.23.0 vs v0.22.0,
+x/crypto v0.41.0 vs v0.36.0). That would make local builds rehearse dependency
+versions CI never ships. Copying down reproduces exactly what CI builds.
+
+Everything is gitignored, so this shows up in no diff. After syncing, a bare
+`go build ./...` and `go test ./internal/app/fleet/` both work with no
+`-mod=mod` flag, and `./build.sh meshtk` produces the image including the
+24-route GPX assertion.
 
 | File | Change |
 |---|---|
