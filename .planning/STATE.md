@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
 status: Ready to execute
-stopped_at: "Phase 71 plan 03 COMPLETE — GET /api/gpx/public/heatmap/[year] (+?meta=1) serves the precomputed artifact with the allowlist running before any S3 key exists (dc32 404s with zero S3 calls); trkptCoords de-duplicated into lib/heatmap-artifact.ts; HEAT-06 first half landed — the aggregate route no longer claims exclusivity and gpx-file.ts's three flag comments name the heat map as exempt. Suite 303 green, build lists the route. Next in wave 2: 71-04."
-last_updated: "2026-07-31T02:45:05.309Z"
+stopped_at: "Phase 71 plan 04 COMPLETE — DC33 heat map is LIVE at uploads/HEATMAP/dc33.json (110 runs / 658.4 km, generatedAt 2025-08-15T02:41:54.347Z, ETag 966361fea875f58619a353ef90692da4 == local md5). Backfill + self-testing artifact verifier shipped; both polyline encodings exercised on real data (5 json-array / 105 encoded); output byte-deterministic across runs; no Terraform or IAM widened. Next in wave 2: 71-05."
+last_updated: "2026-07-31T02:55:45.496Z"
 last_activity: 2026-07-31
 progress:
   total_phases: 31
   completed_phases: 20
   total_plans: 96
-  completed_plans: 89
+  completed_plans: 90
   percent: 65
 current_phase: 71
 current_phase_name: heat-map-layers-dc33-dc34-flame-stacks-gpx-studio
@@ -165,6 +165,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 71-02: POST /api/gpx/internal/heatmap-build declares maxDuration=300 — 71-07's Terraform lambda_timeout must be >= that number or a scheduler retry overlaps the running build
 - [Phase ?]: 71-03: heat-map serve route 404s a missing artifact (absent, not broken) and 500s only a corrupt one
 - [Phase ?]: 71-03: HEAT-06 first half — aggregate route's exclusivity claim deleted, replaced with the dated 2026-07-30 supersession + assertNonAttributable as the compensating control; gpx-file.ts's three flag comments name the heat map as exempt
+- [Phase ?]: 71-04: DC33 heat map is a frozen one-off — built locally from the 2025-08-15 DynamoDB export and published once (110 runs / 658.4 km); no Lambda or schedule, since the export can never change
+- [Phase ?]: 71-04: verify-heatmap-artifact.mjs is a standalone self-testing verifier (clean + property-carrying + at-sign-smuggled fixtures) so 71-08 can point the SAME byte-level non-attributability sweep at the live production URL for both years
+- [Phase ?]: 71-04: generatedAt for a frozen export is the export's own exportTime with NO fallback — the backfill dies rather than stamping "now"; `new Date()`/`Date.now()` appear zero times in the script
 
 ### Pending Todos
 
@@ -178,8 +181,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-31T02:44:55.253Z
-Stopped at: Phase 71 plan 03 COMPLETE — public heat-map serve route (+?meta=1), trkptCoords de-duplicated, HEAT-06 compliance comments reconciled. Suite 303 green. Next in wave 2: 71-04.
+Last session: 2026-07-31T02:55:45.487Z
+Stopped at: Phase 71 plan 04 COMPLETE — DC33 heat map is LIVE at uploads/HEATMAP/dc33.json (110 runs / 658.4 km, generatedAt 2025-08-15T02:41:54.347Z, ETag 966361fea875f58619a353ef90692da4 == local md5). Backfill + self-testing artifact verifier shipped; both polyline encodings exercised on real data (5 json-array / 105 encoded); output byte-deterministic across runs; no Terraform or IAM widened. Next in wave 2: 71-05.
 Resume file: None
 
 ## Operator Next Steps
@@ -258,3 +261,4 @@ Resume file: None
 | Phase 71 P01 | 15m | 2 tasks | 4 files |
 | Phase 71 P02 | ~35 min | 2 tasks | 3 files |
 | Phase 71 P03 | 25 min | 3 tasks | 3 files |
+| Phase 71 P04 | 35m | 3 tasks | 3 files |
