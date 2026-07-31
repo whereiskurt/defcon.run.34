@@ -12,11 +12,17 @@
  *   node scripts/verify-heatmap-artifact.mjs https://.../api/gpx/public/heatmap/dc33
  *   node scripts/verify-heatmap-artifact.mjs --selftest
  *
- * `--selftest` runs the checks against three in-memory fixtures — one clean
+ * `--selftest` runs the checks against FOUR in-memory fixtures — one clean
  * (must PASS), one carrying a feature property (must FAIL), one clean-looking
- * but with an at-sign smuggled into a string (must FAIL). Without it a verifier
- * that accidentally checks nothing would pass everything and look green
- * forever; the self-test is what stops this file from being decorative.
+ * but with an at-sign smuggled into a string (must FAIL), and one whose
+ * geometry never moves (must FAIL). Without it a verifier that accidentally
+ * checks nothing would pass everything and look green forever; the self-test is
+ * what stops this file from being decorative.
+ *
+ * The degeneracy fixture exists because this verifier ALREADY went vacuous once
+ * (WR-06): it certified the live DC33 artifact in which 20 of 110 features are
+ * entirely `[[0,0],[0,0]]`, because a range check proves bounds and says
+ * nothing about whether a "run" ever moved. Do not remove that fixture.
  *
  * Exits 0 only when every check passes. Prints one line per check.
  */
@@ -145,9 +151,19 @@ const CHECKS = [
             fail(`features[${i}].coordinates[${j}] lat ${lat} out of range`);
           }
         });
+        // WR-06 — bounded is not the same as real. A track whose every
+        // coordinate equals its first never moved, draws nothing, and inflates
+        // the publicly-served runCount. The range walk above passes it happily,
+        // which is exactly how 20 of the 110 live DC33 features were certified.
+        const [f0lon, f0lat] = g.coordinates[0];
+        if (g.coordinates.every((c) => c[0] === f0lon && c[1] === f0lat)) {
+          fail(
+            `features[${i}] is degenerate: all ${g.coordinates.length} coordinates are [${f0lon}, ${f0lat}]`
+          );
+        }
         points += g.coordinates.length;
       });
-      return `${points} coordinates across ${doc.features.length} LineStrings, all in range`;
+      return `${points} coordinates across ${doc.features.length} LineStrings, all in range, 0 degenerate`;
     },
   },
   {
@@ -228,6 +244,18 @@ function withSmuggledAtSign() {
   return doc;
 }
 
+function withDegenerateGeometry() {
+  const doc = structuredClone(CLEAN_FIXTURE);
+  // Every key is right, every coordinate is in range, and the run never moved.
+  // This is the exact shape of 20 of the 110 live DC33 features (WR-06), which
+  // this verifier certified as clean before the degeneracy check existed.
+  doc.features[0].geometry.coordinates = [
+    [-115.1398, 36.1699],
+    [-115.1398, 36.1699],
+  ];
+  return doc;
+}
+
 function selftest() {
   let ok = true;
 
@@ -243,6 +271,7 @@ function selftest() {
   for (const [label, build] of [
     ["feature carrying a property", withFeatureProperty],
     ["at-sign smuggled into meta", withSmuggledAtSign],
+    ["degenerate geometry — a run that never moved", withDegenerateGeometry],
   ]) {
     console.log(`selftest: doctored fixture — ${label} (must FAIL)`);
     try {
