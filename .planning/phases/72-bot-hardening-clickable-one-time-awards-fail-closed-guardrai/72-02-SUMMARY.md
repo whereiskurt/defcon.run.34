@@ -131,11 +131,9 @@ Verified the two halves join up: `parse-path.mjs:108` matches the award letter w
 `first.toLowerCase() === "a"` and passes the nonce through verbatim, so an uppercased
 link (`/A/K7M3…`) reaches the claim page and this plan's lowercasing redeems it.
 
-⚠️ 72-01-SUMMARY.md's key-decisions bullet says the letter is matched "VERBATIM
-lowercase `a`; `/A/...` deliberately stays an ordinary redirect" — that contradicts its
-own shipped code and its own inline comment. The **code** is case-insensitive, which is
-what this plan depends on. Flagging for the phase verifier to reconcile the doc; no code
-change is warranted.
+72-01 originally specified a verbatim-lowercase letter and revised it to case-insensitive
+under its own review item W5 (`5caa4cc5`), explicitly so this plan's `?nonce` lowercasing
+would not be dead code. Both halves agree; nothing outstanding.
 
 ## Deviations from Plan
 
