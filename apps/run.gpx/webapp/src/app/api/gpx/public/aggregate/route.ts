@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { GpxFile } from "@/entities/gpx-file";
 import { s3Client } from "@/lib/s3-client";
+import { trkptCoords } from "@/lib/heatmap-artifact";
 
 /**
  * GET /api/gpx/public/aggregate - Public, UNAUTHENTICATED "All Runners" aggregate (Phase 32).
@@ -18,19 +19,6 @@ import { s3Client } from "@/lib/s3-client";
 
 const CACHE_SECONDS = 600;
 const MAX_ROUTES = 500; // bound on-demand cost; log if exceeded
-
-// Minimal GPX → coordinates: pull every <trkpt lat=".." lon=".."> as [lon, lat].
-function trkptCoords(gpx: string): [number, number][] {
-  const coords: [number, number][] = [];
-  const re = /<trkpt[^>]*\blat="([-\d.]+)"[^>]*\blon="([-\d.]+)"/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(gpx)) !== null) {
-    const lat = parseFloat(m[1]);
-    const lon = parseFloat(m[2]);
-    if (Number.isFinite(lat) && Number.isFinite(lon)) coords.push([lon, lat]);
-  }
-  return coords;
-}
 
 export async function GET() {
   try {
