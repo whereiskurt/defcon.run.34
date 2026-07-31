@@ -3,7 +3,7 @@ phase: 71-heat-map-layers-dc33-dc34-flame-stacks-gpx-studio
 plan: 13
 subsystem: infra
 tags: [terraform, terragrunt, cloudfront, cache-policy, cloudfront-function, edge-block, blast-radius, CR-01, CR-03]
-status: checkpointed
+status: complete
 
 requires:
   - phase: 71-10
@@ -17,6 +17,9 @@ provides:
   - "aws_cloudfront_cache_policy.heatmap_artifact — min 0 / default 900 / max 3600, cookies+headers none, query-string whitelist exactly [meta] (CR-03)"
   - "three gpx-gated ordered cache behaviours authored ABOVE the /{region}/* ALB wildcard"
   - "a re-derived, command-backed blast-radius table for every internal-route caller in the monorepo"
+  - "LIVE: repeat heat-map fetches now hit the edge 3/3 (was 0/3) — probe assertions 1 and 2 flip green"
+  - "LIVE: all six gpx internal paths refused at the edge with a marked 404 and an empty body — probe assertion 8 flips green"
+  - "LIVE: assertion 16's two non-gpx internal paths byte-identical to the pre-fix record — the block did not over-reach"
 affects: [71-15, 71-16, run.gpx, run.human, run.auth, run.mqtt]
 
 tech-stack:
@@ -37,11 +40,13 @@ key-decisions:
   - "71-13: 404 not 403 at the edge, matching the estate's non-disclosure posture; and the FULL method set is allowed on the block so CloudFront never short-circuits to an UNMARKED 403 before the function runs"
   - "71-13: post-change ordered-behaviour count is 21 of the 25 quota (headroom 4) — below the plan's 22 threshold, so the full three-region shape shipped and NO fallback collapse to use1-only was applied"
   - "71-13: terragrunt-plan.yml cannot scope a global unit — its modules input is only honoured when region is ALSO set, and is then resolved as region/$REGION/$MODULE. The scoped dispatch therefore fell through to a CI-side read-only plan of every unit. Recorded, not worked around."
+  - "71-13: the apply ran from MAIN, not the phase branch — the terraform-apply environment is main-only. An infra-ONLY PR (6 files, all under infra/) carried this plan's commit plus 71-14's three, merged --admin, and both scoped applies then ran from main. Plan from the branch, apply from main."
+  - "71-13 LANDMINE: terragrunt-apply.yml's concurrency group is ${{ github.workflow }}-${{ github.ref }} with cancel-in-progress:true — two scoped applies dispatched from the SAME ref will cancel each other unless serialised. 71-13's and 71-14's applies were run one after the other on purpose."
 
 metrics:
-  duration: ~35 min
+  duration: ~75 min
   completed: 2026-07-31
-  tasks_completed: 3
+  tasks_completed: 4
   tasks_total: 4
 ---
 
@@ -50,10 +55,14 @@ metrics:
 Two new global CloudFront resources and three gpx-gated ordered cache behaviours authored
 above the `/{region}/*` ALB wildcard — closing CR-03 (repeat heat-map fetches all missed the
 edge) and CR-01's network half (the internal build route was reachable from the open
-internet) in one file, proven confined by a CI plan of `2 to add, 1 to change, 0 to destroy`.
+internet) in one file, proven confined by a CI plan of `2 to add, 1 to change, 0 to destroy`
+and then re-derived live: **edge hits 3/3 (was 0/3), all six gpx internal paths refused at
+the edge with a marked 404 and no body, and assertion 16's two non-gpx paths byte-identical
+to their pre-fix record.**
 
-**STATUS: CHECKPOINTED at Task 3b. Task 4 (the scoped apply and the live re-derivation of
-both fixes) is DEFERRED, not skipped — see "Task 4: DEFERRED" below.**
+**STATUS: COMPLETE.** Kurt approved at the Task 3b gate; the infra-only PR landed on main and
+the scoped apply ran from main (`Apply complete! Resources: 2 added, 1 changed, 0 destroyed.`).
+All four tasks executed. See "Task 4" below for the live evidence.
 
 ---
 
@@ -416,7 +425,8 @@ out of order — the `0 to destroy` confirms it.
 | **Headroom remaining** | **4** |
 
 **21 is below the plan's documented 22 threshold, so the full three-region shape shipped and
-NO fallback collapse was applied.** For the record, had the count reached 22 the documented
+NO fallback collapse was applied. The apply confirmed the call — no `TooManyCacheBehaviors`;
+the distribution modification completed in 48 s.** For the record, had the count reached 22 the documented
 fallbacks were (i) collapse the internal block to the no-region form plus use1 only (both
 scheduler units live under `region/us-east-1/`; there is no cac1 or apse1 heatmap or
 strava-sync unit), saving 2; and (ii) scope the heat-map behaviour to use1 only, saving 2 more.
@@ -469,16 +479,17 @@ commit modified; all are pre-existing drift or a sibling plan's work:
 
 ### checkov
 
-`gh run list --workflow=checkov-scan.yml` returns `[]` — the scan is PR-triggered and there
-is no PR for this branch yet, so it has not evaluated the new behaviours. It will run on the
-infra PR that carries this commit to main; **any finding must be recorded and dispositioned
-there, not suppressed.**
+At the time of the plan, `gh run list --workflow=checkov-scan.yml` returned `[]` — the scan
+is PR-triggered and there was no PR for this branch. The commit subsequently went to main via
+infra PR #1146; **no checkov finding was reported back against the new behaviours.** Nothing
+was suppressed. If a finding surfaces later it must be recorded and dispositioned, not
+silenced.
 
 ---
 
-## Task 3b: BLOCKING REVIEW — the checkpoint this plan stops at
+## Task 3b: BLOCKING REVIEW — APPROVED
 
-See the CHECKPOINT block returned to the orchestrator. In short:
+**Kurt approved at this gate on 2026-07-31.** The material he reviewed:
 
 1. **Plan shape:** `Plan: 2 to add, 1 to change, 0 to destroy.` — the single changed address
    is `aws_cloudfront_distribution.main["gpx"]` (id `E1D1R5LJNFGRLE`, `gpx.defcon.run`).
@@ -493,10 +504,12 @@ See the CHECKPOINT block returned to the orchestrator. In short:
 
 ---
 
-## Task 4: DEFERRED — not skipped
+## Task 4: Scoped CI apply and live re-derivation — DONE
 
-**Task 4 (the scoped apply and the live re-derivation of both fixes) was NOT executed, and
-could not have been from this branch.**
+Executed by the phase orchestrator from `main` after Kurt's Task 3b approval, using the
+resume commands this SUMMARY recorded at the checkpoint.
+
+### How the change reached main
 
 The `terraform-apply` GitHub environment has exactly one deployment-branch policy: `main`.
 Plan 71-14 proved this empirically — its `terragrunt-apply.yml` dispatch from
@@ -506,92 +519,138 @@ Plan 71-14 proved this empirically — its `terragrunt-apply.yml` dispatch from
 > environment protection rules.
 
 `terragrunt-apply.yml`'s `workflow_dispatch` has no `ref` input (only its `workflow_call`
-does), so there is no way to apply phase-branch code without landing it on main first.
+does), so phase-branch code cannot be applied without landing on main first.
 
-**Kurt's decision (2026-07-31):** an infra-only PR carrying 71-14's three commits
-(`d49f928d`, `f5ab57c8`, `924b0d82`) plus this plan's `50efc526` goes to main, he approves
-the merge, and THEN both scoped applies run from main. Task 4 is the orchestrator's to
-dispatch after that merge.
+**PR #1146** — *"infra(71): CloudFront heat-map cache policy + gpx edge block, scheduler
+de-collision"*. Infra-**only**: 6 files, +346/-14, everything under `infra/`. Carried this
+plan's `50efc526` plus 71-14's `d49f928d` / `f5ab57c8` / `924b0d82`, cherry-picked onto
+`origin/main`. Merged **2026-07-31T18:21:43Z**, squash commit
+`27422a21d0a9ad791c56160b2cbe085958d52643`.
 
-### Resume commands for Task 4 — run these from `main` after the infra PR merges
+Merged with `--admin`: main's ruleset requires one approving review plus signed commits, the
+commits are unsigned, and the author cannot self-approve. Same mechanism 71-08 used. **The
+merge itself was explicitly approved by Kurt at the Task 3b gate** — Essential Rule 2 is
+satisfied by that approval, not bypassed by the `--admin` flag.
 
-**Step 1 — the scoped apply (this plan's half):**
+### The scoped apply
 
-```bash
-gh workflow run terragrunt-apply.yml -f modules=global/cloudfront
-gh run watch <run-id> --exit-status
+**Run:** https://github.com/whereiskurt/defcon.run.34/actions/runs/30654859050
+**Dispatch:** `gh workflow run terragrunt-apply.yml --ref main -f modules=global/cloudfront`
+**Conclusion:** success
+
+```
+aws_cloudfront_cache_policy.heatmap_artifact: Creation complete after 1s [id=f8eee9d1-3ff1-4974-a10d-0f9d9daef2e5]
+aws_cloudfront_function.internal_block: Creation complete after 3s [id=dc34-gpx-internal-block]
+aws_cloudfront_distribution.main["gpx"]: Modifications complete after 48s [id=E1D1R5LJNFGRLE]
+
+Apply complete! Resources: 2 added, 1 changed, 0 destroyed.
 ```
 
-Record the run URL and confirm the apply summary matches `2 to add, 1 to change, 0 to
-destroy`. **CloudFront distribution updates propagate for several minutes after the apply
-returns** — wait for `Status: Deployed` before probing:
+**Matches the approved plan shape exactly.** No `TooManyCacheBehaviors` — the 21-of-25
+headroom call held. The distribution reported `Deployed` before any probing began.
 
-```bash
-AWS_PROFILE=dc34-application aws cloudfront get-distribution \
-  --id E1D1R5LJNFGRLE --query 'Distribution.Status' --output text
+**No local `terragrunt apply` was run at any point.** The apply ran in CI; run id
+`30654859050`.
+
+### ⚠ LANDMINE for future scoped applies from the same ref
+
+71-14's apply ran **second** (run `30655157386`, success). `terragrunt-apply.yml`'s
+concurrency group is `${{ github.workflow }}-${{ github.ref }}` with
+`cancel-in-progress: true`, so **two scoped applies dispatched from the same ref cancel each
+other** — the second kills the first mid-flight. The two were serialised deliberately: this
+plan's apply ran to completion first, then 71-14's. Anyone dispatching multiple scoped
+applies from `main` must wait for each to finish, or they will silently lose one.
+
+---
+
+### (a) CR-03 — repeat fetches now hit the edge
+
+Four sequential GETs of `https://gpx.defcon.run/use1/api/gpx/public/heatmap/dc33`:
+
+```
+Miss from cloudfront | 200 | 441779 bytes | cache-control: public, s-maxage=900, stale-while-revalidate=900
+Hit  from cloudfront | 200 | 441779 bytes
+Hit  from cloudfront | 200 | 441779 bytes
+Hit  from cloudfront | 200 | 441779 bytes
 ```
 
-**Step 2 (a) — CR-03: repeat fetches must hit the edge.**
+**edge-hits 3/3.** Pre-fix this exact measurement was 4× `Miss from cloudfront`,
+`edge-hits=0/3` — the CachingDisabled wildcard was swallowing the origin's `s-maxage`. The
+route's `s-maxage=900` is now doing something, and the ~441 KB body is served off the edge
+instead of costing the single run.gpx ECS task an S3 GetObject per anonymous hit.
+**Probe assertions 1 and 2 flip green. FIXED.**
 
-```bash
-for i in 1 2 3 4; do
-  curl -sD- -o /dev/null 'https://gpx.defcon.run/use1/api/gpx/public/heatmap/dc33' \
-    | grep -i '^x-cache:'
-done
-# EXPECT: request 1 "Miss from cloudfront"; at least one of 2-4 "Hit from cloudfront".
-# PRE-FIX this was 4x Miss (probe edge-hits=0/3) — probe assertions 1 and 2.
+The bare artifact is 441 779 bytes and the meta projection is 87 bytes — materially
+different, so the two occupy separate cache entries and the `meta` whitelist is doing its
+job. Had Managed-CachingOptimized been used, these would have collided into one entry and
+served each other.
 
-# The two cache entries must be separate:
-curl -s  'https://gpx.defcon.run/use1/api/gpx/public/heatmap/dc33'          | wc -c
-curl -s  'https://gpx.defcon.run/use1/api/gpx/public/heatmap/dc33?meta=1'   | wc -c
-# EXPECT: materially different byte counts (full artifact ~441 KB vs a few hundred bytes).
+### (b) CR-01 network half — all six internal paths refused at the edge
+
+All three routes × both spellings = **6/6 blocked**, each returning:
+
+```
+HTTP 404
+x-dc34-edge-block: 1
+x-cache: FunctionGeneratedResponse from cloudfront
+server: CloudFront
+content-length: 0
 ```
 
-**Step 2 (b) — CR-01: all six internal-path probes must return a MARKED 404.**
+- `/use1/api/gpx/internal/heatmap-build` · `/use1/api/gpx/internal/strava-sync` · `/use1/api/gpx/internal/reconcile`
+- `/api/gpx/internal/heatmap-build` · `/api/gpx/internal/strava-sync` · `/api/gpx/internal/reconcile`
 
-```bash
-for p in heatmap-build strava-sync reconcile; do
-  for u in "https://gpx.defcon.run/use1/api/gpx/internal/$p" \
-           "https://gpx.defcon.run/api/gpx/internal/$p"; do
-    echo "--- $u"
-    curl -sS -X POST -D- -o /dev/null "$u"
-  done
-done
-# EXPECT for all six: HTTP/2 404 AND a "x-dc34-edge-block: 1" response header.
-# MUST NOT contain the application's own {"error":"Forbidden"} body — probe assertion 8.
+`x-cache: FunctionGeneratedResponse from cloudfront` is the positive proof the refusal came
+from the CloudFront Function — the request never reached the origin, the ALB, or Next.js.
+`content-length: 0` confirms no body. Pre-fix the same request returned the application's own
+`{"error":"Forbidden"}` payload, which is exactly the edge-vs-app ambiguity the marker exists
+to remove. **Probe assertion 8 flips green. FIXED.** The no-region spelling being blocked
+confirms covering only the region-prefixed form would have left the hole open one URL to the
+left.
+
+### (c) BLAST-RADIUS REGRESSION GATE — assertion 16 STILL GREEN
+
+GET (the probe's exact method — never POST, so no mint endpoint is poked):
+
+```
+405  x-dc34-edge-block absent  https://run.defcon.run/use1/api/internal/ctf/mint
+401  x-dc34-edge-block absent  https://auth.defcon.run/use1/api/internal/quota/probe-nonexistent-user
 ```
 
-**Step 2 (c) — BLAST-RADIUS REGRESSION GATE. If either of these carries the marker, the
-block is too wide and must be narrowed immediately.**
+**Byte-identical to 71-12's pre-fix record** (mint 405 / quota 401, neither marked). The
+block did not over-reach: run.human's and run.auth's internal families are untouched, so
+meshtk's ghost claim-link mint over public HTTPS (`MESHTK_RUN_INTERNAL_URL`) still works.
+This was the single most dangerous way this change could have gone wrong, and it did not.
 
-```bash
-curl -sD- -o /dev/null 'https://run.defcon.run/use1/api/internal/ctf/mint'
-curl -sD- -o /dev/null 'https://auth.defcon.run/use1/api/internal/quota/probe-nonexistent-user'
-# EXPECT: mint -> 405, quota -> 401, and NEITHER carrying the marker header.
-# This is probe assertion 16 and it is GREEN pre-fix; keeping it green matters as much as
-# turning assertion 8 red-to-green.
+### (d) The legitimate internal caller is intact
+
+```
+aws lambda invoke --function-name heatmap-build-use1
+  -> StatusCode 200, FunctionError null, 2.8 s
+  {"ok":true,"year":"dc34","generatedAt":"2026-07-31T18:32:03.294Z",
+   "runCount":0,"totalKm":0,"scanned":0,"skipped":0}
 ```
 
-**Step 2 (d) — the scheduled path must still work. Most important post-apply check, because
-this failure mode is silent.**
+Same shape as the pre-apply baseline (200 in 2.5 s). The Lambda reaches the route at the
+Cloud Map private name and never traverses CloudFront, so the edge block cannot be in its
+path — but this was checked anyway because the failure mode is silent: a mistake here would
+stop the heat map updating during the con with no error anywhere a user could see.
+`runCount: 0` is correct and expected — no row carries a `conDay` until 2026-08-05.
 
-```bash
-AWS_PROFILE=dc34-application AWS_REGION=us-east-1 \
-  aws lambda invoke --function-name heatmap-build-use1 \
-  --cli-binary-format raw-in-base64-out --payload '{}' /tmp/heatmap-invoke.json
-cat /tmp/heatmap-invoke.json
-# EXPECT a 200 in a few seconds with {"ok":true,"year":"dc34",...}.
-# 71-14's pre-apply baseline was 200 in 2.5 s with {"ok":true,"year":"dc34",...,"runCount":0},
-# so the VPC-private Cloud Map hop is known intact — a failure here is THIS change, not
-# pre-existing. Structurally the Lambda never traverses CloudFront, but the check exists
-# precisely because a mistake would stop the heat map updating during the con with no visible
-# error.
-```
+---
 
-**Step 3 — re-run the 71-12 production probe** and confirm assertions 1, 2 and 8 flip to
-green while 16 stays green.
+### Observed and attributed, NOT a defect of this work: `?meta=0` still projects meta
 
-Feed all output back so it can be folded into this SUMMARY and the plan closed.
+`?meta=0` on the public route still returns the 87-byte meta projection (the bare URL returns
+441 779). That is **71-10's IN-02 truthiness bug** and it is **expected to still be live** —
+71-10's application code is not deployed yet. Production is still run.gpx **v0.0.109**; the
+route on that build uses the old truthiness test rather than the exact `=== "1"` equality.
+71-16 ships the app release that carries 71-10, and should confirm this flips.
+
+Nothing in this plan's CloudFront work touches it. The cache policy's `meta` whitelist is
+behaving correctly either way — it keys on the query string's presence and value, so once
+71-10 deploys, `?meta=0` and `?meta=1` remain distinct cache entries with the corrected
+semantics.
 
 ---
 
@@ -613,7 +672,9 @@ Feed all output back so it can be folded into this SUMMARY and the plan closed.
   been wrong for a global unit; editing the workflow is out of scope for this plan.
 - **Filed for post-con:** give `terragrunt-plan.yml` the slash-aware module resolution
   `terragrunt-apply.yml` already has.
-- **The apply is unaffected** — `terragrunt-apply.yml` DOES honour `modules=global/cloudfront`.
+- **The apply was unaffected** — `terragrunt-apply.yml` DOES honour
+  `modules=global/cloudfront`, confirmed by run `30654859050`, which applied that unit and
+  nothing else.
 
 ### 2. [Scope decision] `terragrunt validate` on the live unit replaced with an isolated module validate
 
@@ -627,23 +688,46 @@ Feed all output back so it can be folded into this SUMMARY and the plan closed.
   credentials are unavailable locally, note it and rely on Task 3's CI plan"), and Task 3's
   CI plan is the authoritative check.
 
-### 3. [Deferred by orchestrator decision] Task 4 not executed
+### 3. [Sequencing, resolved] Task 4 applied from `main`, not from the phase branch
 
-- Documented in full under "Task 4: DEFERRED" above. Not a failure and not a skip — the
-  `terraform-apply` environment's `main`-only branch policy makes it structurally impossible
-  from this branch, and Kurt has decided the sequencing (infra PR → approved merge → applies
-  from main).
+- **Found during:** Task 3b / Task 4
+- **Issue:** The `terraform-apply` GitHub environment permits only `main`, and
+  `terragrunt-apply.yml`'s `workflow_dispatch` has no `ref` input — so a scoped apply of
+  phase-branch code is structurally impossible. 71-14 hit this first (rejected in 2 s, zero
+  steps).
+- **Fix:** Kurt approved at the Task 3b gate; an **infra-only** PR (#1146, 6 files, all under
+  `infra/`) carried this plan's `50efc526` plus 71-14's three commits onto main and was
+  merged (`27422a21`). Both scoped applies then ran from main, serialised. Task 4 executed in
+  full afterwards with the results recorded above.
+- **Kept as a standing rule:** plan from the branch, apply from main.
+
+### 4. [Landmine found during Task 4] Two scoped applies from the same ref cancel each other
+
+- **Found during:** Task 4
+- **Issue:** `terragrunt-apply.yml`'s concurrency group is
+  `${{ github.workflow }}-${{ github.ref }}` with `cancel-in-progress: true`. Dispatching
+  71-13's and 71-14's scoped applies from `main` concurrently would have had the second kill
+  the first mid-apply — on shared production infrastructure.
+- **Fix:** They were run one after the other on purpose (`30654859050` then `30655157386`,
+  both success). Recorded here and in this plan's key-decisions so a future multi-unit apply
+  from one ref does not discover it the hard way.
 
 ---
 
 ## Threat Flags
 
 None. No new security-relevant surface beyond what the plan's `<threat_model>` already
-registers. Every mitigation disposition in that register is either implemented in this
-commit (T-71-13-01 cache behaviour, T-71-13-02 edge block, T-71-13-03 gpx-only scoping,
-T-71-13-04 cookie/header `none` plus the in-file revisit instruction, T-71-13-05 ordering
-proven by line number and by the plan's block positions) or scheduled for Task 4's live
-re-derivation (T-71-13-06 the Lambda invoke).
+registers. **Every `mitigate` disposition in that register is now implemented AND re-derived
+live:**
+
+| Threat | Mitigation | Live proof |
+|---|---|---|
+| T-71-13-01 DoS on the uncached public artifact | dedicated cache behaviour + real policy | edge-hits 3/3, ~441 KB served off the edge |
+| T-71-13-02 EoP via the internet-reachable internal build route | gpx-scoped edge behaviour, marked 404 | 6/6 refused, `FunctionGeneratedResponse`, `content-length: 0` |
+| T-71-13-03 over-wide block killing meshtk's claim-link mint | gpx distribution + gpx prefix only | mint 405 / quota 401, marker absent on both — byte-identical to the pre-fix record |
+| T-71-13-04 shared cache entry leaking per-user variation | cookie + header behaviour `none`, route does no session read, in-file revisit instruction | bare 441 779 B vs meta 87 B — separate entries, no per-viewer variation to leak |
+| T-71-13-05 behaviours authored below the wildcard become dead code | authored above; line numbers compared | both fixes demonstrably active in production, which is only possible if the behaviours match |
+| T-71-13-06 edge block covering the Lambda's Cloud Map path | structurally impossible; proven anyway | `heatmap-build-use1` → 200 in 2.8 s, `{"ok":true,...}` |
 
 ## Known Stubs
 
@@ -651,13 +735,30 @@ None. This plan produces no application code.
 
 ---
 
+## Success Criteria
+
+| Criterion | Result |
+|---|---|
+| Repeat fetches of the public heat-map artifact are served from the edge | **PASS** — 3/3 hits after the first miss (was 0/3) |
+| The bare artifact and the meta projection occupy separate cache entries | **PASS** — 441 779 B vs 87 B |
+| Every `/api/gpx/internal/*` path on the gpx host returns a marked 404 from CloudFront, region-prefixed and no-region | **PASS** — 6/6, `FunctionGeneratedResponse from cloudfront`, `content-length: 0` |
+| Neither run.defcon.run's nor auth.defcon.run's internal family is affected | **PASS** — 405 / 401, marker absent on both |
+| The invoker Lambda still completes a build | **PASS** — 200, `FunctionError null`, 2.8 s |
+| Plan shape 2 add / 1 change / 0 destroy, human-reviewed before apply, applied in CI | **PASS** — plan `30653364910`, Kurt approved at Task 3b, apply `30654859050` |
+
 ## Self-Check: PASSED
 
 - `infra/terraform/modules/cloudfront/v1.0.0/main.tf` — FOUND (modified, committed)
-- Commit `50efc526` — FOUND in `git log`
-- CI run `30653364910` — FOUND, conclusion `success`, artifact `plan_output.txt` downloaded
-  and quoted above
+- Commit `50efc526` — FOUND in `git log`; landed on main as squash `27422a21` via PR #1146
+- CI plan run `30653364910` — FOUND, conclusion `success`, artifact `plan_output.txt`
+  downloaded and quoted above
+- CI apply run `30654859050` — FOUND, conclusion `success`,
+  `Apply complete! Resources: 2 added, 1 changed, 0 destroyed.`
+- Live resources — `aws_cloudfront_cache_policy.heatmap_artifact`
+  (`f8eee9d1-3ff1-4974-a10d-0f9d9daef2e5`), `aws_cloudfront_function.internal_block`
+  (`dc34-gpx-internal-block`), distribution `E1D1R5LJNFGRLE` modified
 - `.planning/phases/71-heat-map-layers-dc33-dc34-flame-stacks-gpx-studio/71-13-SUMMARY.md` —
   this file
-- No local `terragrunt apply` in this plan's shell history; no `--with-terragrunt`; no PR
-  merged; no AWS WAF web ACL created
+- No local `terragrunt apply` at any point; no `--with-terragrunt`; no local `--all`; no
+  AWS WAF web ACL created. The one PR merge (#1146) was explicitly approved by Kurt at the
+  Task 3b gate.
