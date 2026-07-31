@@ -1,0 +1,39 @@
+==============================================================================
+Phase 71 HEAT-06 — DC33/DC34 heat-map production probe
+==============================================================================
+timestamp   : 2026-07-31T03:43:08.119Z
+git sha     : 38da6350
+target      : https://gpx.defcon.run/use1/studio/app
+heat base   : https://gpx.defcon.run/use1/api/gpx/public/heatmap
+PRE-DEPLOY BASELINE. Live version is v0.0.108 (Phase 70) — the heat-map routes,
+the studio HEAT MAP section and the heatmap-scheduler are NOT deployed yet.
+Assertions 3 and 8 may legitimately PASS here: 3 because an unknown year 404s
+whether or not the route exists, and 8 because a route that does not exist also
+answers non-2xx. Those passes are NOT passes of the phase — they only become
+meaningful in the post-deploy run, where the route DOES exist and must still
+answer 404 / non-2xx. Everything else is expected to FAIL; that contrast is
+what makes the post-deploy transcript evidence.
+------------------------------------------------------------------------------
+FAIL  1. GET /api/gpx/public/heatmap/dc34 is 200 JSON with an s-maxage CDN header — status 404; content-type "text/html; charset=utf-8"; cache-control "private, no-cache, no-store, max-age=0, must-revalidate" — status=404 content-type="text/html; charset=utf-8" cache-control="private, no-cache, no-store, max-age=0, must-revalidate" bytes=11055
+FAIL  2. GET /api/gpx/public/heatmap/dc33 is 200 JSON with an s-maxage CDN header — status 404; content-type "text/html; charset=utf-8"; cache-control "private, no-cache, no-store, max-age=0, must-revalidate" — status=404 content-type="text/html; charset=utf-8" cache-control="private, no-cache, no-store, max-age=0, must-revalidate" bytes=11055
+PASS  3. GET /api/gpx/public/heatmap/dc32 is 404 (year allowlist holds) — status=404
+FAIL  4. ?meta=1 on dc34 returns only the bare meta block, under 500 bytes — status 404 — status=404 bytes=11055 keys=[]
+      verifier dc33: NON-ZERO EXIT — ERROR fetch https://gpx.defcon.run/use1/api/gpx/public/heatmap/dc33 → HTTP 404
+      verifier dc34: NON-ZERO EXIT — ERROR fetch https://gpx.defcon.run/use1/api/gpx/public/heatmap/dc34 → HTTP 404
+FAIL  5. Live bytes are non-attributable for BOTH years (verify-heatmap-artifact.mjs, exit 0) — dc33: ERROR fetch https://gpx.defcon.run/use1/api/gpx/public/heatmap/dc33 → HTTP 404 | dc34: ERROR fetch https://gpx.defcon.run/use1/api/gpx/public/heatmap/dc34 → HTTP 404
+      71-04-SUMMARY.md HEATMAP_DC33_RUNCOUNT parsed as: 110
+      live dc33 meta: generatedAt=null runCount=null (HTTP 404)
+FAIL  6. Served dc33 meta matches 71-04 (generatedAt exact, runCount from the summary) — live ?meta=1 for dc33 returned 404; generatedAt is "null", expected "2025-08-15T02:41:54.347Z"; runCount is null, summary says 110
+FAIL  7. dc34 meta.generatedAt is a valid instant within the last 26h — ?meta=1 for dc34 returned 404
+PASS  8. Unauthenticated POST to /api/gpx/internal/heatmap-build is non-2xx — status=404
+      schedule heatmap-build-use1-hourly: UNREADABLE — An error occurred (ResourceNotFoundException) when calling the GetSchedule operation: Schedule heatmap-build-use1-hourly does not exist.
+      schedule heatmap-build-use1-daily: UNREADABLE — An error occurred (ResourceNotFoundException) when calling the GetSchedule operation: Schedule heatmap-build-use1-daily does not exist.
+FAIL  13. Both DC34 schedules exist, are ENABLED, and carry 71-07's exact expression + timezone — heatmap-build-use1-hourly: An error occurred (ResourceNotFoundException) when calling the GetSchedule operation: Schedule heatmap-build-use1-hourly does not exist.; heatmap-build-use1-daily: An error occurred (ResourceNotFoundException) when calling the GetSchedule operation: Schedule heatmap-build-use1-daily does not exist.
+FAIL  9. Map Layers has a "Heat Map" section with exactly two rows labelled DC34 and DC33 — no section labelled "Heat Map" — sections present: [Basemap | User Check-ins | DEF CON 34 Routes | Rabbit Routes]
+FAIL  10. Section header carries a relative stamp and hovering DC34 fills the hint bar — the Heat Map section does not exist
+FAIL  11. Both heat layers render simultaneously with their locked colours (D-12) — the Heat Map section with two rows does not exist
+      before toggle: meta requests=0 [] bare requests=0
+      before toggle on map: dc33={"layer":false,"source":false} dc34={"layer":false,"source":false}
+FAIL  12. Heat layers are off by default and fetch no geometry until toggled (SC-4) — no ?meta=1 request for dc33; no ?meta=1 request for dc34; no DC34 row to toggle — meta=0, bare-before=0, not reached
+------------------------------------------------------------------------------
+RESULT: 2/13 assertions passed
