@@ -743,7 +743,7 @@ Plans:
 
 ### Phase 71: Heat Map Layers — DC33 + DC34 Flame Stacks (gpx-studio)
 
-**Goal:** Toggleable per-year heat-map layers in the gpx studio built from runners' submitted runs, DC33-faithful "stacked flame" style: every run rendered as a translucent line (DC34 flame red `#ff0000`, DC33 ember orange `#ff8c00`, ~25% opacity, width ~3) so overlap = heat. A scheduled builder precomputes a per-year S3 artifact (bare non-attributable LineStrings + `meta {generatedAt, runCount, totalKm}`) hourly during the con from EVERY con-day-assigned run with geometry (GpxFile tracks + Strava polylines — **no opt-in gate, Kurt's explicit decision 2026-07-30**, consciously superseding the aggregate route's opt-in-only compliance comment, which must be updated to tell one story). DC33's artifact is built ONCE by a one-off script from the DynamoDB export at `s3://defcon.run.33.backup/AWSDynamoDB/01755225714347-c2695bcb/` (730 items, ~200 runs w/ polylines verified; `generatedAt` = the honest Aug-2025 export date). Served via `/api/gpx/public/heatmap/{dc33|dc34}` with CDN caching. UI = a HEAT MAP section in the Phase 70 Map Layers dialog (shared Section kit): rows `🔥 DC34 — live` / `🔥 DC33 — the classic`, "last calculated" relative stamp in the section's trailing slot, exact timestamp + run count via the hint bar. Layer class follows the rabbit/deuce lazy setVisible pattern, default OFF, fetch on first toggle.
+**Goal:** Toggleable per-year heat-map layers in the gpx studio built from runners' submitted runs, DC33-faithful "stacked flame" style: every run rendered as a translucent line (DC34 flame red `#ff0000`, DC33 ember orange `#ff8c00`, **70% opacity per D-13 (2026-07-31)**, width 3) so overlap = heat. *(The original goal said ~25%; at that value the DC33 stack proved not faint but INVISIBLE over the Mapbox basemap — see 71-VERIFICATION.md gap #1 and the two controlled captures. Exact opacity was always Claude's Discretion in 71-CONTEXT.md with 25% only a suggested start, so D-13 is a tuning, not a reversal. Colours and width are unchanged and remain locked.)* A scheduled builder precomputes a per-year S3 artifact (bare non-attributable LineStrings + `meta {generatedAt, runCount, totalKm}`) hourly during the con from EVERY con-day-assigned run with geometry (GpxFile tracks + Strava polylines — **no opt-in gate, Kurt's explicit decision 2026-07-30**, consciously superseding the aggregate route's opt-in-only compliance comment, which must be updated to tell one story). DC33's artifact is built ONCE by a one-off script from the DynamoDB export at `s3://defcon.run.33.backup/AWSDynamoDB/01755225714347-c2695bcb/` (730 items, ~200 runs w/ polylines verified; `generatedAt` = the honest Aug-2025 export date). Served via `/api/gpx/public/heatmap/{dc33|dc34}` with CDN caching. UI = a HEAT MAP section in the Phase 70 Map Layers dialog (shared Section kit): rows `🔥 DC34 — live` / `🔥 DC33 — the classic`, "last calculated" relative stamp in the section's trailing slot, exact timestamp + run count via the hint bar. Layer class follows the rabbit/deuce lazy setVisible pattern, default OFF, fetch on first toggle.
 **Depends on:** Phase 70 (Section + hint-bar kit, Map Layers dialog).
 **Out of scope:** Konami/matrix-rain page, standalone /heatmap route, stats overlays, per-day heat filtering, true heatmap-kernel rendering (artifact format must not preclude these).
 **Requirements:**
@@ -762,7 +762,7 @@ Plans:
   3. No feature in either artifact carries any attributable property; the aggregate route's compliance comment matches the shipped reality.
   4. Layers default off, cost nothing until toggled, and live artifact fetches are CDN-cached.
 
-**Plans:** 8 plans (4 waves)
+**Plans:** 16 plans (8 waves — 8 shipped, then 8 gap-closure after 71-VERIFICATION.md `gaps_found` 18/24)
 
 Plans:
 **Wave 1**
@@ -783,7 +783,27 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 71-08-PLAN.md — Ship: gates → PR → buildpub → deploy.yml → scoped terragrunt-apply; 13-assertion production probe with pre/post transcripts, non-attributability verified on the LIVE bytes, schedule state/expression/timezone asserted (SC-2's hourly cadence recorded as a wall-clock residual), Phase 70 probe re-run, blocking human check on the two-colour overlap (HEAT-01..06) [wave 4]
+- [x] 71-08-PLAN.md — Ship: gates → PR → buildpub → deploy.yml → scoped terragrunt-apply; 13-assertion production probe with pre/post transcripts, non-attributability verified on the LIVE bytes, schedule state/expression/timezone asserted (SC-2's hourly cadence recorded as a wall-clock residual), Phase 70 probe re-run, blocking human check on the two-colour overlap (HEAT-01..06) [wave 4]
+
+**Gap-Closure Wave 1** *(from 71-VERIFICATION.md `gaps_found` 18/24 + 71-REVIEW.md 3 Critical / 9 Warning; user decisions D-13 and D-14 locked 2026-07-31)*
+
+- [x] 71-09-PLAN.md — Studio: `HEAT_STROKE` line-opacity 0.25 → **0.70** per D-13 (colours and width unchanged — the phase's headline failure: at 0.25 the DC33 stack is invisible, not faint); an empty-but-valid year stops latching a dead checkbox and re-fetching on every toggle (WR-07); `remove()` blanks the store and `whenStyleReady()` can no longer hang (IN-05) (HEAT-04, HEAT-05) [gap wave 1]
+- [x] 71-10-PLAN.md — Artifact + serve route: widen `assertNonAttributable` to inspect `meta`, `coordinates` and the root type (WR-01); drop degenerate never-moving tracks at the assembly point (WR-06); run the guard on the serve path and 500 on a bad object (WR-02); exact `?meta=1` test (IN-02); stop logging raw SDK errors (WR-09); teach the verifier to reject degeneracy with a doctored fixture; record **D-14** (CR-02 accepted risk — NO trimming, NO precision change) at `normalizeTrack` (HEAT-01, HEAT-03) [gap wave 1]
+- [x] 71-11-PLAN.md — Internal route + builder: `timingSafeEqual` + non-disclosing 404 + `||` fallback and a no-secret log (CR-01 app half, IN-04); rewrite the false network-posture comment; a REAL 240 s builder deadline that aborts rather than publishing a partial artifact (WR-03); bounded S3 reads and a loud truncation warning (WR-05); consistent comparator (IN-01) (HEAT-02) [gap wave 1]
+- [x] 71-12-PLAN.md — Probe: strengthen assertions 1/2 (require a CDN hit, not a header) and 8 (require the edge marker, not any non-2xx) — the two blind spots that let CR-03 and CR-01 ship; add assertions 14-19 incl. a **blast-radius regression gate** proving the edge block did not catch meshtk's public-HTTPS claim-link mint; `TOTAL` 13 → 19; pre-fix contrast transcript (HEAT-06) [gap wave 1]
+
+**Gap-Closure Wave 2** *(blocked on gap wave 1)*
+
+- [x] 71-13-PLAN.md — CloudFront (SHARED module, gpx-gated): a real cache behaviour for `/{region}/api/gpx/public/heatmap/*` with a `meta`-whitelisting cache policy (CR-03 — three consecutive requests all missed because `/{region}/*` uses Managed-CachingDisabled), plus an `x-dc34-edge-block`-marked 404 for `/api/gpx/internal/*` in both region-prefixed and no-region forms (CR-01 network half; fixes the inherited strava-sync exposure). Blast radius proven, not asserted: plan shape must be 2 add / 1 change / 0 destroy, blocking human review, scoped CI apply (HEAT-01) [gap wave 2]
+- [x] 71-14-PLAN.md — heatmap-scheduler: daily cron 04:00 → **04:20** PT so it can no longer collide with the hourly on all six con days (WR-04); `lambda_timeout` 300 → 420 and an explicit 300 s fetch bound, making the chain 420 > 300 > 240 strictly increasing (WR-03); `aws:SourceAccount` on both trust policies (WR-08); invoker log hygiene (WR-09); scoped CI plan + apply (HEAT-02) [gap wave 2]
+
+**Gap-Closure Wave 3** *(blocked on gap wave 2)*
+
+- [x] 71-15-PLAN.md — Republish the frozen DC33 artifact through the new degeneracy filter: 20 of 110 live features are entirely `[[0,0],[0,0]]`, so the public `runCount` overstates real runs by 22% (WR-06). **Changes a publicly-served number (110 → ~90)** — blocking human approval on the measured dry-run diff, `generatedAt` and `totalKm` preserved, contract line updated in place, CDN invalidated (HEAT-03) [gap wave 3]
+
+**Gap-Closure Wave 4** *(blocked on gap wave 3)*
+
+- [ ] 71-16-PLAN.md — Ship: gates → VERSION bump → buildpub → deploy.yml with invalidation → byte-identical 19-assertion probe post-deploy vs the pre transcript → Phase 70 dialog-shell regression re-run → controlled visual re-capture (all non-heat layers hidden, camera on the measured hotspot) → blocking human check of the flame stack on real hardware (HEAT-01..06) [gap wave 4]
 
 ---
 

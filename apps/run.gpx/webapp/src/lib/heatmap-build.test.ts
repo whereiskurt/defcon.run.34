@@ -49,8 +49,13 @@ vi.mock("@/lib/heatmap-artifact", async (importOriginal) => {
   };
 });
 
-import { assertNonAttributable } from "./heatmap-artifact";
-import { buildDc34Heatmap, type HeatmapRunRow } from "./heatmap-build";
+import { assertNonAttributable, MAX_RUNS } from "./heatmap-artifact";
+import {
+  buildDc34Heatmap,
+  compareRunRows,
+  CHUNK_SIZE,
+  type HeatmapRunRow,
+} from "./heatmap-build";
 
 const CON_DAY = "2026-08-07"; // Friday, a real CON_DAYS[].date
 
@@ -270,5 +275,137 @@ describe("buildDc34Heatmap — non-attributability chokepoint ordering", () => {
     await expect(buildDc34Heatmap(h.deps)).rejects.toThrow(/assertNonAttributable/);
     expect(h.puts).toHaveLength(0);
     expect(guard.order).toEqual(["guard"]);
+  });
+});
+
+/**
+ * WR-03. `export const maxDuration` was inert under standalone output on ECS, so
+ * the build had NO upper bound and the Terraform "contract" was written against
+ * a fictional number. `BUILD_BUDGET_MS` is the real one, enforced in the chunk
+ * loop — and these tests are the only thing that keeps it real.
+ */
+describe("buildDc34Heatmap — wall-clock deadline (WR-03)", () => {
+  /** A clock that jumps `stepMs` on every read, starting at epoch 0. */
+  function steppingClock(stepMs: number) {
+    let t = 0;
+    return () => {
+      const at = new Date(t);
+      t += stepMs;
+      return at;
+    };
+  }
+
+  /** 41 rows → 3 chunks at CHUNK_SIZE 20, so the loop reads the clock 3 times. */
+  function manyRows(n: number) {
+    return Array.from({ length: n }, (_, i) =>
+      row({ fileId: `f${i}`, key: `k${i}` })
+    );
+  }
+
+  it("REJECTS mid-loop once the budget is exceeded", async () => {
+    const h = harness(manyRows(41));
+    // start=0, chunk0=100s, chunk1=200s, chunk2=300s > 240s budget.
+    const deps = { ...h.deps, now: steppingClock(100_000) };
+    await expect(buildDc34Heatmap(deps)).rejects.toThrow(/budget|deadline/i);
+  });
+
+  it("does NOT publish a partial artifact on deadline — putArtifact is never called", async () => {
+    const h = harness(manyRows(41));
+    const deps = { ...h.deps, now: steppingClock(100_000) };
+    await expect(buildDc34Heatmap(deps)).rejects.toThrow();
+    expect(h.puts).toHaveLength(0);
+    expect(guard.order).toEqual([]);
+  });
+
+  it("names the budget and the chunks completed, and leaks no identifier", async () => {
+    const h = harness(manyRows(41));
+    const deps = { ...h.deps, now: steppingClock(100_000) };
+    const err = await buildDc34Heatmap(deps).catch((e: unknown) => e as Error);
+    expect(err).toBeInstanceOf(Error);
+    const msg = (err as Error).message;
+    expect(msg).toContain("240000");
+    // Two chunks completed before the third read breached.
+    expect(msg).toMatch(/\b2\b/);
+    expect(msg).not.toMatch(/sub-1|f\d|k\d|uploads\//);
+  });
+
+  it("completes normally under a non-advancing clock and writes exactly once", async () => {
+    const h = harness(manyRows(41));
+    const result = await buildDc34Heatmap(h.deps);
+    expect(result.runCount).toBe(41);
+    expect(h.puts).toHaveLength(1);
+  });
+});
+
+/**
+ * WR-05. A capped build reported exactly MAX_RUNS and read as healthy, and paid
+ * one S3 GetObject for every row it was about to discard.
+ */
+describe("buildDc34Heatmap — MAX_RUNS truncation (WR-05)", () => {
+  it("stops issuing loads once the cap is reached, instead of loading every row", async () => {
+    const rows = Array.from({ length: MAX_RUNS + 500 }, (_, i) =>
+      row({ fileId: `f${i}`, key: `k${i}` })
+    );
+    let loads = 0;
+    const h = harness(rows, {
+      loadGpx: async (_b, key) => {
+        loads++;
+        return gpx(Number(key.replace(/\D/g, "")) || 0);
+      },
+    });
+    const result = await buildDc34Heatmap(h.deps);
+    expect(result.runCount).toBe(MAX_RUNS);
+    // The loop may only overshoot by the in-flight chunk it was already running.
+    expect(loads).toBeLessThanOrEqual(MAX_RUNS + CHUNK_SIZE);
+    expect(loads).toBeLessThan(rows.length);
+  });
+
+  it("warns when the artifact is capped, naming MAX_RUNS", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const rows = Array.from({ length: MAX_RUNS + 500 }, (_, i) =>
+      row({ fileId: `f${i}`, key: `k${i}` })
+    );
+    const h = harness(rows);
+    await buildDc34Heatmap(h.deps);
+    expect(warn).toHaveBeenCalledTimes(1);
+    const msg = String(warn.mock.calls[0][0]);
+    expect(msg).toContain("[heatmap]");
+    expect(msg).toContain(String(MAX_RUNS));
+    expect(msg).not.toMatch(/sub-1|uploads\//);
+    warn.mockRestore();
+  });
+
+  it("does NOT warn on an uncapped build", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const h = harness([row({ fileId: "a", key: "k1" }), row({ fileId: "b", key: "k2" })]);
+    await buildDc34Heatmap(h.deps);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+});
+
+/**
+ * IN-01. `(a.fileId < b.fileId ? -1 : 1)` returned 1 for equal elements, which
+ * violates the comparator contract the "deterministic output" property rests on.
+ */
+describe("compareRunRows — comparator consistency (IN-01)", () => {
+  it("returns 0 for two rows with identical createdAt and identical fileId", () => {
+    const a = row({ fileId: "same", createdAt: 1000 });
+    const b = row({ fileId: "same", createdAt: 1000, key: "other" });
+    expect(compareRunRows(a, b)).toBe(0);
+    expect(compareRunRows(a, a)).toBe(0);
+  });
+
+  it("is antisymmetric on the fileId tie-break", () => {
+    const a = row({ fileId: "aaa", createdAt: 1000 });
+    const b = row({ fileId: "bbb", createdAt: 1000 });
+    expect(Math.sign(compareRunRows(a, b))).toBe(-1);
+    expect(Math.sign(compareRunRows(b, a))).toBe(1);
+  });
+
+  it("orders on createdAt before falling back to fileId", () => {
+    const early = row({ fileId: "zzz", createdAt: 1 });
+    const late = row({ fileId: "aaa", createdAt: 2 });
+    expect(Math.sign(compareRunRows(early, late))).toBe(-1);
   });
 });
