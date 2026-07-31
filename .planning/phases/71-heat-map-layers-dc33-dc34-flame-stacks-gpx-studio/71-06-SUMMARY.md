@@ -243,3 +243,13 @@ None.
 **Ready for 71-07 and 71-08.** 71-08 should re-run `70-06-probes/dialog-shell-probe.cjs` to convert this plan's section-order reasoning from source analysis into a live pass, and should confirm live that the DC33 row renders with a `~350d ago` stamp and a hint bar reading `Last built 8/15/2025, … · 110 runs · 658.4 km`.
 
 Expected at UAT time before 71-07 runs: **one flame row (DC33)**, not two. A second row appearing is the signal 71-07's artifact landed.
+
+## Self-Check: PASSED
+
+- `.../layer-control/HeatMap.svelte` — FOUND
+- `.../stores/layer-section-collapse.ts` — FOUND
+- `.../map/heatmap-layer.ts` — FOUND
+- `.../layer-control/LayerControl.svelte` — FOUND
+- `71-06-SUMMARY.md` — FOUND
+- commits `7b4d67aa`, `063684cc`, `868df636`, `1a1539fd` — all FOUND
+- no file deleted across the four commits; working tree clean
