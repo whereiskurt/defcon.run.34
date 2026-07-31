@@ -767,7 +767,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 71-01-PLAN.md — Pure foundations: `lib/heatmap-artifact.ts` (year allowlist, `uploads/HEATMAP/{year}.json` key, bounded geometry helpers, artifact assembler, `assertNonAttributable` chokepoint) + `lib/polyline-decode.ts` (dual-format DC33 decoder, ported — zero new dependencies) (HEAT-01, HEAT-03) [wave 1]
+- [x] 71-01-PLAN.md — Pure foundations: `lib/heatmap-artifact.ts` (year allowlist, `uploads/HEATMAP/{year}.json` key, bounded geometry helpers, artifact assembler, `assertNonAttributable` chokepoint) + `lib/polyline-decode.ts` (dual-format DC33 decoder, ported — zero new dependencies) (HEAT-01, HEAT-03) [wave 1]
 
 **Wave 2** *(blocked on Wave 1 completion)*
 

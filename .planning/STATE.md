@@ -3,15 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
 status: Ready to execute
-stopped_at: "Phase 71 PLANNED — 8 plans across 4 waves on branch gsd/phase-71-heat-map-layers (40619da0 + revision 520e2932). Plan-checker: 5 warnings → 0, VERIFICATION PASSED, no blockers. Research + UI-SPEC deliberately skipped (operator decision); pattern mapping done. Not pushed, not merged."
-last_updated: "2026-07-30T23:52:09.431Z"
-last_activity: 2026-07-30
-last_activity_desc: Phase 71 planned — 8 plans, 4 waves, plan-checker passed
+stopped_at: Phase 71 plan 01 COMPLETE — lib/heatmap-artifact.ts + lib/polyline-decode.ts landed with 36 vitest cases, zero new deps. Wave 1 done; 71-02/03/04 can proceed.
+last_updated: "2026-07-31T02:11:53.212Z"
+last_activity: 2026-07-31
 progress:
   total_phases: 31
   completed_phases: 20
-  total_plans: 88
-  completed_plans: 86
+  total_plans: 96
+  completed_plans: 87
   percent: 65
 current_phase: 71
 current_phase_name: heat-map-layers-dc33-dc34-flame-stacks-gpx-studio
@@ -24,7 +23,7 @@ current_phase_name: heat-map-layers-dc33-dc34-flame-stacks-gpx-studio
 See: .planning/PROJECT.md (updated 2026-07-05)
 
 **Core value:** Participants and organizers have a seamless digital experience for DCR34 -- from device setup to event discovery to route navigation. Milestone v2.2 brings back the DC33 leaderboard-as-activity-table in run.human, shipped hidden behind the admin group until perfected.
-**Current focus:** Phase 71 — heat-map-layers-dc33-dc34-flame-stacks-gpx-studio (PLANNED: 8 plans in 4 waves, plan-checker passed 0 blockers / 0 warnings; ready to execute)
+**Current focus:** Phase 71 — heat-map-layers-dc33-dc34-flame-stacks-gpx-studio
 
 ## Current Position
 
@@ -52,7 +51,7 @@ only us-east-1 was deployed for the copy-migrated apps, so there was no second l
 observe against. The per-region mechanism (master → Litestream worker → revalidate) is
 identical and will hold when a 2nd region deploys. Not counted as debt.
 
-Last activity: 2026-07-30 — Phase 70 complete, transitioned to Phase 71
+Last activity: 2026-07-31
 
 ## Roadmap Summary (v1.9)
 
@@ -156,6 +155,10 @@ Recent decisions affecting current work:
 - [Phase ?]: 69-07: deployed with pr_number=skip, never latest — an UNRELATED run.human Release PR (#1109) was dispatched mid-rolling-replace, so latest would have --admin-merged another team's work outside the Phase-69 waiver
 - [Phase ?]: 69-07: the probe script was NOT edited between the PRE baseline and the POST contrast, even to fix loose prose — identical committed bytes outrank cosmetics, which is what makes the contrast a measurement
 - [Phase ?]: 69-07: the ECS drain gate is polling the OLD task to STOPPED — deploy.yml went green at 15:32:13Z but the old task served every long-lived MQTT connection until 15:41:35Z
+- [Phase ?]: 71-01: heat-map artifact meta is EMBEDDED on the FeatureCollection (one atomic write, one fetch) rather than a sidecar
+- [Phase ?]: 71-01: artifact S3 key is uploads/HEATMAP/{year}.json — the uploads/ prefix is an IAM hard requirement; always call heatmapArtifactKey()
+- [Phase ?]: 71-01: encoded-polyline decoder ported in-repo instead of adding the Mapbox polyline npm package (T-71-SC, zero new deps)
+- [Phase ?]: 71-01: assertNonAttributable() is the single publish chokepoint compensating for HEAT-06 dropping the opt-in gate — every write path must call it, no catch-and-continue
 
 ### Pending Todos
 
@@ -169,8 +172,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-30T15:57:33.043Z
-Stopped at: Completed 69-07-PLAN.md — meshtk v0.0.76 LIVE on run-mqtt-use1-dc34:119 (buildpub 30556427674, deploy 30556951618); 7/7 probes PASS post-fix vs 5/5 defect probes FAIL pre-fix; MQFX-05 + MQFX-06 satisfied; Phase 69 COMPLETE. Phase 70 also complete on main (run.gpx v0.0.104 live, 12/12 prod probe green; evidence PR docs/70-post-deploy-probe left OPEN).
+Last session: 2026-07-31T02:11:46.741Z
+Stopped at: Phase 71 plan 01 COMPLETE — lib/heatmap-artifact.ts + lib/polyline-decode.ts landed with 36 vitest cases, zero new deps. Wave 1 done; 71-02/03/04 can proceed.
 Resume file: None
 
 ## Operator Next Steps
@@ -246,3 +249,4 @@ Resume file: None
 | Phase 69 P05 | 30m | 2 tasks | 6 files |
 | Phase 69 P06 | ~12m | 3 tasks | 18 files |
 | Phase 69 P07 | ~50m | 3 tasks | 4 files |
+| Phase 71 P01 | 15m | 2 tasks | 4 files |
