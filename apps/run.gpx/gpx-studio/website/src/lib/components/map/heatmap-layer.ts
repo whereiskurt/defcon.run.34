@@ -75,15 +75,38 @@ type HeatStroke = {
 };
 
 /**
- * Width and opacity are year-independent and Kurt-locked (D-02).
+ * Width and opacity are year-independent. Width 3 is Kurt-locked (D-02). The
+ * opacity is 0.70 — confirmed by Kurt on 2026-07-31 as D-13, after a measured
+ * 0.25 / 0.45 / 0.70 sweep shot at a 40-run hotspot with every non-heat layer
+ * hidden. The literal below is written 0.7; that is the same number.
  *
- * DC33's own renderer used opacity 0.7 / weight 4, but that was Leaflet drawing
- * one polyline per activity; Mapbox composites a single multi-feature source far
- * more aggressively, and the shipped in-repo precedent for this exact effect is
- * `public-overlays.ts` `addAggregate()` at opacity 0.15 / width 2. 0.25 at width
- * 3 sits deliberately between the two.
+ * WHY IT IS NOT LOWER. This layer originally shipped at 0.25, and at that value
+ * the DC33 stack was not faint — it was perceptually absent. Two controlled
+ * captures settled it: identical camera, identical data, all non-heat layers off.
+ * The 0.25 frame is indistinguishable from a bare basemap; the same frame at
+ * 0.70 shows a dense stack with a real density gradient. Data and render path
+ * were both ruled out first (36 overlapping features under one screen pixel, and
+ * a forced opaque render drew a correct network), so the number was the fault.
+ *
+ * ACCEPTED TRADE-OFF. At 0.70 a single line is already fairly opaque, so overlap
+ * saturates sooner and the gradient is coarser than a true low-alpha stack would
+ * give. Legibility beat fidelity: a coarse gradient a runner can see is worth
+ * more than a beautiful one they cannot.
+ *
+ * KNOWN AND DELIBERATELY NOT FIXED. DC33's ember orange sits on top of the
+ * Mapbox basemap's own orange road casings, so DC33 contrast stays imperfect at
+ * any opacity. A colour change, a dark casing / under-stroke layer beneath the
+ * heat line, and a runtime-tunable paint knob were each offered to Kurt and each
+ * declined. Do not add them.
+ *
+ * THIS IS A TUNING, NOT A REVERSAL. "Exact opacity/width tuning" was always
+ * Claude's Discretion in 71-CONTEXT.md, with the original figure only a suggested
+ * starting point. The colours ARE locked (D-02, reaffirmed by D-13) and did not
+ * move. Do not lower this value back toward the old one on the strength of
+ * `public-overlays.ts` `addAggregate()` running thinner — that comparison is what
+ * produced the invisible render in the first place.
  */
-const HEAT_STROKE = { 'line-width': 3, 'line-opacity': 0.25 } as const;
+const HEAT_STROKE = { 'line-width': 3, 'line-opacity': 0.7 } as const;
 
 /**
  * DC34 flame red, DC33 ember orange (D-02, Kurt-locked).
