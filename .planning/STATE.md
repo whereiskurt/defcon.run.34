@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
 status: Ready to execute
-stopped_at: "Phase 72 plan 03 COMPLETE — ricky's LRC blob is 58 timed entries ending on [03:28.40]; b64 3412->3352, decoded 2559->2512, zero slash-prefixed entries. run.human snapshot regenerated, mesh-ghosts byte-parity 11/11 green (parity case RAN, not skipped). Monorepo-only, no upstream meshtk PR, NOTHING DEPLOYED."
-last_updated: "2026-07-31T21:25:13.131Z"
+stopped_at: "Phase 72 plan 04 COMPLETE (AUTHORING ONLY, NOTHING APPLIED) — ghosts container flipped to MESHTK_GUARDRAIL_FAILMODE=closed with the depends_on START rationale rewritten (HEALTHY would kill beacons/position and drop the ghosts off the map); MESHTK_RICKY_FALLBACK_URL + ricky-fallback-url secret key declared with a CHANGEME placeholder only; guardrail-outage metric filter (plain-text MESHTK_GUARDRAIL_OUTAGE, NOT a JSON selector) + >=3/5min alarm on the existing dcr-admin-reports-tripwire topic, count-gated, ghosts log group kept OUT of the retention adoption set. Applies sequenced: secrets 72-08 BEFORE ecs-task 72-09."
+last_updated: "2026-07-31T21:32:05.223Z"
 last_activity: 2026-07-31
 progress:
   total_phases: 32
   completed_phases: 20
   total_plans: 106
-  completed_plans: 94
+  completed_plans: 97
   percent: 63
 current_phase: 71
 current_phase_name: heat-map-layers-dc33-dc34-flame-stacks-gpx-studio
@@ -178,6 +178,10 @@ Recent decisions affecting current work:
 - [Phase ?]: 71-07: us-east-1 only — no ca-central-1 heatmap-scheduler unit; run.gpx is single-live-region and a second scheduler would cron-invoke a nonexistent service forever
 - [Phase ?]: 72-03: ricky's LRC blob trimmed 59 -> 58 timed entries — the /qr/ claim path is no longer broadcast over LoRa; 72-06 fills the trailing slot with reliable award DMs
 - [Phase ?]: Config-blob edits are scripted with abort-before-write assertions on decoded length, encoded length, entry count and tail text — never hand-edited (meshtk base64 LRC precedent)
+- [Phase ?]: 72-02: bot award links park the Ctf row's OWN answerHash via a new createPending flagHash option — no raw flag code is constructed anywhere on the mint-by-challenge path (judgeSolve compares verifyAnswerHash for answerType static)
+- [Phase ?]: 72-02: the persona answerHash-match listCtf fallback in /api/internal/ctf/mint is RETAINED deliberately — persona challenge names do not uniformly derive from fleet ids (grace-hopper <-> ghost.hopper); an optional explicit `challenge` in MESHTK_FLAG_CHALLENGES opts a ghost into the GetItem path
+- [Phase ?]: 72-02: a resolved Ctf row with NO answerHash 422s rather than parking a nonce — otherwise a rotating-OTP row silently parks hashAnswer("") and hands the player a link that can never award
+- [Phase ?]: 72-02: createPending keeps crypto.randomUUID as its DEFAULT generator (30-day anon park stays 122 bits); the 60-bit 12-char Crockford nonce is injected only through the newNonce seam by the mint route, where it lives for one hour
 
 ### Pending Todos
 
@@ -191,8 +195,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-31T21:25:13.123Z
-Stopped at: Phase 72 plan 03 COMPLETE — ricky's LRC blob is 58 timed entries ending on [03:28.40]; b64 3412->3352, decoded 2559->2512, zero slash-prefixed entries. run.human snapshot regenerated, mesh-ghosts byte-parity 11/11 green (parity case RAN, not skipped). Monorepo-only, no upstream meshtk PR, NOTHING DEPLOYED.
+Last session: 2026-07-31T21:32:05.202Z
+Stopped at: Phase 72 plan 04 COMPLETE (AUTHORING ONLY, NOTHING APPLIED) — ghosts container flipped to MESHTK_GUARDRAIL_FAILMODE=closed with the depends_on START rationale rewritten (HEALTHY would kill beacons/position and drop the ghosts off the map); MESHTK_RICKY_FALLBACK_URL + ricky-fallback-url secret key declared with a CHANGEME placeholder only; guardrail-outage metric filter (plain-text MESHTK_GUARDRAIL_OUTAGE, NOT a JSON selector) + >=3/5min alarm on the existing dcr-admin-reports-tripwire topic, count-gated, ghosts log group kept OUT of the retention adoption set. Applies sequenced: secrets 72-08 BEFORE ecs-task 72-09.
 Resume file: None
 
 ## Operator Next Steps

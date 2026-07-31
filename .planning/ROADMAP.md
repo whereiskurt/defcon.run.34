@@ -912,10 +912,10 @@ the `answerHash` (non-destructive, seeds the fallback secret before ECS needs it
 
 Plans:
 
-- [ ] 72-01-PLAN.md — Reserved `/a/<nonce>` award namespace in the q.defcon.run resolver: new `award` ParseResult kind intercepted before the redirect branch, `buildClaimHandoff`, zero DynamoDB reads, zero log lines, plus the `b c d f g h p r` shadowing regression guard (BOT-01)
-- [ ] 72-02-PLAN.md — run.human mint seam: mint-by-`{challenge}` via `getCtf()` GetItem (kills the `Ctf.scan.go` per-reveal full-table scan), `createPending({flagHash})` so no raw code need exist, 12-char Crockford-base32 `newAwardNonce`, `BOT_CLAIM_LINK_TTL_SECONDS`=3600, claim-page nonce lowercasing; persona answerHash-match fallback preserved (BOT-01)
+- [x] 72-01-PLAN.md — Reserved `/a/<nonce>` award namespace in the q.defcon.run resolver: new `award` ParseResult kind intercepted before the redirect branch, `buildClaimHandoff`, zero DynamoDB reads, zero log lines, plus the `b c d f g h p r` shadowing regression guard (BOT-01)
+- [x] 72-02-PLAN.md — run.human mint seam: mint-by-`{challenge}` via `getCtf()` GetItem (kills the `Ctf.scan.go` per-reveal full-table scan), `createPending({flagHash})` so no raw code need exist, 12-char Crockford-base32 `newAwardNonce`, `BOT_CLAIM_LINK_TTL_SECONDS`=3600, claim-page nonce lowercasing; persona answerHash-match fallback preserved (BOT-01)
 - [x] 72-03-PLAN.md — Drop the trailing QR-path LRC entry from `meshtk.dc34.yaml` (59 → 58 timed entries, ending on the real closing lyric) + `sync-meshtk-fleet.mjs` regeneration with byte parity (BOT-03)
-- [ ] 72-04-PLAN.md — Infra authoring: `MESHTK_GUARDRAIL_FAILMODE` open → closed, `ricky-fallback-url` secret plumbing, and a guardrail-outage metric filter + CloudWatch alarm on the existing SNS tripwire topic. Applies nothing (BOT-02)
+- [x] 72-04-PLAN.md — Infra authoring: `MESHTK_GUARDRAIL_FAILMODE` open → closed, `ricky-fallback-url` secret plumbing, and a guardrail-outage metric filter + CloudWatch alarm on the existing SNS tripwire topic. Applies nothing (BOT-02)
 - [ ] 72-05-PLAN.md — Deploy the resolver (`terragrunt-apply modules=qr-resolver`) with a captured pre/post probe proving all eight live single-letter codes are byte-identical (BOT-01)
 - [ ] 72-06-PLAN.md — meshtk ricky award: `LyricsResponded` widened to `*lyricsSession`, mint-by-challenge client, two reliable award DMs at song end, line 01 promoted to reliable, `reply_retry_test.go` guard 1 → 3 (BOT-01, BOT-03)
 - [ ] 72-07-PLAN.md — meshtk backpressure + guardrail degradation: `MESHTK_LYRICS_MAX_CONCURRENT` semaphore (default 12, ~3.3 msg/s bound), stage-is-full reply that does not burn the cooldown, outage-vs-policy refusal split, outage marker token for the alarm (BOT-02, BOT-03)
