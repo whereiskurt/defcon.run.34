@@ -17,9 +17,11 @@
  * are intercepted first). That interception order is load-bearing for `award`:
  * `/a/` must be un-shadowable by any `Qr` row, because every mesh bot award link
  * points there. The award LETTER alone is matched case-insensitively — `/a/` and
- * `/A/` both reserve — so a client that upcases the whole link still reaches the
- * claim page, which lowercases the nonce for lookup. Both `A` and `a` were free
- * as short codes, so reserving the pair shadows nothing live.
+ * `/A/` both reserve — because award links are TRANSCRIBED BY HAND: a player reads
+ * one off a Meshtastic device screen and types it into a phone, where the keyboard
+ * autocapitalizes the first letter. The nonce keeps its case here; run.human's
+ * claim page lowercases that half. Both `A` and `a` were free as short codes, so
+ * reserving the pair shadows nothing live.
  *
  * The parse is purely lexical — no I/O, no validation of whether a code exists.
  * It never throws; malformed input degrades to `empty`.
@@ -95,11 +97,13 @@ export function parsePath(rawPathAndQuery) {
 
   // Reserved: single-use bot-award claim.
   //
-  // The LETTER is matched case-insensitively so a client that upcases the whole
-  // link (`/A/K7M3…`) still reaches the claim page, which lowercases the nonce
-  // for lookup — without this, that downstream tolerance would be dead code and
-  // an uppercased award link would 404 here as short code `A`. Both `A` and `a`
-  // were free as codes, so reserving the pair shadows nothing live.
+  // The LETTER is matched case-insensitively. The failure this prevents is not a
+  // buggy client — it is a PLAYER READING THE AWARD URL OFF A RADIO SCREEN and
+  // typing it into a phone browser, where mobile keyboards autocapitalize the
+  // first letter. `/A/k7m3…` would otherwise fall through to a short-code lookup
+  // for `A`, miss, and 404 the player's award — and the claim page's `?nonce`
+  // lowercasing would never get the chance to help, making it dead code. Both
+  // `A` and `a` were free as codes, so reserving the pair shadows nothing live.
   //
   // The NONCE stays verbatim (case kept, unlike a redirect code) — not trimmed,
   // cased or validated here. This parser stays purely lexical; shape validation
