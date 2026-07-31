@@ -54,7 +54,7 @@ decisions:
 metrics:
   duration: ~55m
   completed: 2026-07-31
-  tasks: 5 (Task 5 is a blocking human checkpoint — OPEN)
+  tasks: 5 (Task 5 accepted on evidence 2026-07-31; on-hardware visual check NOT performed)
   commits: 2 (plus CI's Release PR #1147)
   probe_score_pre: 8/19
   probe_score_post: 17/19
@@ -65,16 +65,16 @@ metrics:
 run.gpx **v0.0.110** is live in us-east-1 carrying all seven gap-closure plans. The
 byte-identical 19-assertion probe went from **8/19 pre-fix to 17/19 post-deploy** — which
 is the *perfect* pre-con score, not a shortfall. Phase 70's dialog-shell probe still scores
-**16/16** unmodified. And the thing this whole phase was about is finally visible: at the
-shipped 0.70 opacity the DC33 flame stack reads, with busy corridors visibly heavier than
-one-off spurs.
+**16/16** unmodified. In the headless post-deploy captures the DC33 flame stack reads at the
+shipped 0.70 opacity, with busy corridors visibly heavier than one-off spurs — but see the
+Task 5 caveat below: that judgement has not been made by a human eye on real hardware.
 
 **Assertion 16 — the blast-radius regression gate — stayed GREEN**, byte-identical to its
 pre-fix record. The edge block did not catch meshtk's claim-link mint or run.auth's quota
 family.
 
-**Task 5, the blocking human verification on real hardware, is OPEN.** The gap-closure set
-is not closed until Kurt replies.
+**Task 5 was accepted on the automated evidence, NOT on an on-hardware visual check.** See
+the Task 5 section — three visual items remain unperformed and are recorded as residual.
 
 ## Ship record
 
@@ -421,11 +421,63 @@ working builder over an empty input set, and the DC34 row is honest about it:
 None. This plan added no network endpoint, no auth path and no schema change; it released
 surfaces plans 71-09 through 71-15 already enumerated.
 
-## Task 5 — blocking human verification: **OPEN**
+## Task 5 — accepted on evidence; on-hardware check NOT performed
 
-The gap-closure set is **not** complete. Task 5 requires Kurt to confirm on real hardware
-that the flame stack reads, that the corrected DC33 run count looks right, and ideally to
-exercise a ghost claim link. Returned to the orchestrator as a checkpoint.
+Kurt closed this gate on **2026-07-31**, choosing "close it out" over holding for the browser
+check and over logging the items as a pending UAT. He did **not** report having opened the
+studio. So this task is closed on the strength of the automated evidence — the 17/19 probe,
+the Phase 70 16/16 regression, the ECS/ECR reads and the `?meta=0` behavioural sentinel — and
+**not** on a human having looked at the map.
+
+That distinction is load-bearing here. Every capture in this phase is headless Chromium on a
+software rasteriser, and D-13 (0.25 → 0.70) is fundamentally a judgement about whether the
+stack *reads as heat to a human eye*. The automated evidence proves the opacity shipped and
+that the layer renders; it cannot prove the aesthetic call was right.
+
+**Residual — three unperformed visual items, worth picking up before 2026-08-05:**
+
+1. Open `https://gpx.defcon.run/use1/studio/app` in a real browser → Map Layers → turn OFF
+   DEF CON 34 Routes / Rabbit Routes / User Check-ins → turn ON `🔥 DC33 — the classic` →
+   zoom to the Strip. Confirm a visible orange stack with busy corridors heavier than spurs.
+2. Confirm the DC33 hint bar reads ~90 runs (down from 110) with distance ~658.4 km.
+3. Spot-check a ghost claim link. Assertion 16 gates it and is green both pre- and
+   post-deploy, but a silent break would only surface during the con.
+
+### Orchestrator-side confirmation of the ship (independent of the executor's own reads)
+
+- ECS service `run-gpx-use1` on cluster `app-use1-dc34`: task definition
+  `run-gpx-use1-dc34:200`, image
+  `427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-gpx-app:v0.0.110`,
+  `rolloutState: COMPLETED`, deployments **1** (no old task still draining), running 1 / desired 1.
+- Behavioural sentinel post-deploy: `?meta=0` → **439,858 bytes** (86 bytes pre-deploy),
+  bare → 439,858, `?meta=1` → 86 bytes carrying
+  `{"year":"dc33","generatedAt":"2025-08-15T02:41:54.347Z","runCount":90,"totalKm":658.4}`.
+  Only 71-10's exact-match fix produces the `?meta=0` result, so this is the strongest
+  available proof the new image is genuinely serving.
+- Assertion 16 re-checked independently after the deploy: mint → 405, quota → 401, neither
+  carrying `x-dc34-edge-block`.
+
+### Two process corrections this plan surfaced
+
+1. **The plan's live-version command is wrong for run.gpx.**
+   `curl https://gpx.defcon.run/use1/ | grep -oE 'v0\.0\.[0-9]+'` can never return a value —
+   `/use1/` is a 308 stub and run.gpx exposes no version over HTTP at all; that is a
+   run.human idiom. An empty grep scored as a pass is a false-verify. The working
+   substitutes are the ECS task-definition read and the `?meta=0` sentinel above. Future
+   run.gpx ship plans should use those and not re-derive this.
+2. **Never hand-bump VERSION before a `buildpub` dispatch.** buildpub runs `version.sh` from
+   the dispatched ref, so a manual bump double-bumps — this would have shipped v0.0.111. The
+   orchestrator's dispatch brief incorrectly instructed a manual bump to v0.0.110; the
+   executor overrode it and was right to. Correct sequence: confirm the target tag is free in
+   ECR, dispatch buildpub, let CI perform the bump. Recorded so this file is not read as
+   endorsing hand-bumping.
+
+### Carried forward
+
+`terragrunt-apply.yml` sets `concurrency: group: ${{ github.workflow }}-${{ github.ref }}`
+with `cancel-in-progress: true` — keyed on the **ref**, not the `modules` scope. Two scoped
+applies dispatched from the same ref cancel each other mid-flight on shared production
+infrastructure. 71-13's and 71-14's applies were serialised deliberately for this reason.
 
 ## Self-Check: PASSED
 
