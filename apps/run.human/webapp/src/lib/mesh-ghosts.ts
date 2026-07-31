@@ -40,6 +40,13 @@ export interface MeshGhost {
   flagCode?: string;
   /** Trigger phrase(s) the player raises to earn the reveal (from the challenge blob). */
   triggers?: string[];
+  /**
+   * The explicit Ctf challenge name for this ghost, when the operator has
+   * recorded one in the challenge blob. Optional: persona challenge names do not
+   * uniformly derive from fleet ids (challenge "grace-hopper" ↔ "ghost.hopper"),
+   * so a ghost without this key still resolves by answer-hash match.
+   */
+  challenge?: string;
   /** Committed otpauth URL from the YAML (its secret is a decoy once meshtk#10 is live). */
   committedOtpauth?: string;
   hasOtp: boolean;
@@ -96,7 +103,7 @@ function toGhost(entry: any): MeshGhost | null {
  *  call so tests and env swaps are honoured; malformed JSON degrades to empty. */
 function flagChallenges(): Record<
   string,
-  { triggers?: string[]; committedCode?: string }
+  { triggers?: string[]; committedCode?: string; challenge?: string }
 > {
   try {
     return JSON.parse(process.env.MESHTK_FLAG_CHALLENGES || "{}");
@@ -125,6 +132,7 @@ export function loadMeshGhosts(): MeshGhost[] {
     ...g,
     flagCode: ch[g.id]?.committedCode,
     triggers: ch[g.id]?.triggers,
+    challenge: ch[g.id]?.challenge,
   }));
 }
 
