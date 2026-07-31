@@ -22,3 +22,7 @@ public/studio/
 # OS
 .DS_Store
 Thumbs.db
+
+# One-off heat-map backfill dry-run output (scripts/backfill-dc33-heatmap.ts).
+# Rebuilt deterministically from the frozen DC33 export; never committed.
+dc33-heatmap.local.json
