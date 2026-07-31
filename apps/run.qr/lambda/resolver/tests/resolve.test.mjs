@@ -297,6 +297,128 @@ describe("resolve — ctf hand-off", () => {
   });
 });
 
+describe("resolve — award hand-off (/a/<nonce>)", () => {
+  const NONCE = "k7m3q9x2wr4t";
+
+  it("302s no-store to the claim page carrying the nonce", async () => {
+    const getQr = vi.fn();
+    const { log } = captureLog();
+
+    const res = await resolve(
+      { path: `/a/${NONCE}`, headers: {}, nowMs: NOW },
+      { getQr, log }
+    );
+
+    expect(res.statusCode).toBe(302);
+    expect(res.headers.Location).toBe(
+      `https://run.defcon.run/use1/ctf/claim?nonce=${NONCE}`
+    );
+    expect(res.headers["Cache-Control"]).toBe("no-store");
+  });
+
+  it("NEVER reads DynamoDB — getQr is not called (cannot fail, throttle or lag)", async () => {
+    const getQr = vi.fn();
+    const { log } = captureLog();
+
+    await resolve({ path: `/a/${NONCE}`, headers: {}, nowMs: NOW }, { getQr, log });
+
+    expect(getQr).not.toHaveBeenCalled();
+  });
+
+  it("LOG HYGIENE: emits ZERO log lines, so the nonce cannot reach CloudWatch", async () => {
+    const getQr = vi.fn();
+    const { lines, log } = captureLog();
+
+    await resolve({ path: `/a/${NONCE}`, headers: {}, nowMs: NOW }, { getQr, log });
+
+    expect(lines).toHaveLength(0);
+    expect(JSON.stringify(lines)).not.toContain(NONCE);
+  });
+
+  it("still 302s when getQr would reject — the branch never awaits it", async () => {
+    const getQr = vi.fn(async () => {
+      throw new Error("dynamo exploded");
+    });
+    const { log } = captureLog();
+
+    const res = await resolve(
+      { path: `/a/${NONCE}`, headers: {}, nowMs: NOW },
+      { getQr, log }
+    );
+
+    expect(res.statusCode).toBe(302);
+    expect(getQr).not.toHaveBeenCalled();
+  });
+
+  it("404s a bare /a (nothing to claim) without touching DynamoDB", async () => {
+    const getQr = vi.fn();
+    const { lines, log } = captureLog();
+
+    const res = await resolve({ path: "/a", headers: {}, nowMs: NOW }, { getQr, log });
+
+    expect(res.statusCode).toBe(404);
+    expect(getQr).not.toHaveBeenCalled();
+    expect(lines).toHaveLength(0);
+  });
+
+  it("encodes a metacharacter-bearing nonce rather than forwarding it raw", async () => {
+    const getQr = vi.fn();
+    const { log } = captureLog();
+
+    const res = await resolve(
+      { path: "/a/x&admin=1", headers: {}, nowMs: NOW },
+      { getQr, log }
+    );
+
+    const url = new URL(res.headers.Location);
+    expect([...url.searchParams.keys()]).toEqual(["nonce"]);
+    expect(url.searchParams.get("nonce")).toBe("x&admin=1");
+  });
+});
+
+describe("resolve — live single-letter short codes (regression guard)", () => {
+  // Reserving `/a/` must not have disturbed the eight single-letter codes that
+  // are already live on q.defcon.run. Each must still reach DynamoDB and 302.
+  const LIVE_SINGLE_LETTER_CODES = ["B", "C", "D", "F", "G", "H", "P", "R"];
+
+  it.each(LIVE_SINGLE_LETTER_CODES)(
+    "/%s still looks up its code and 302s to the destination",
+    async (code) => {
+      const item = { destination: `https://example.com/${code}`, enabled: true };
+      const getQr = vi.fn(async () => item);
+      const { lines, log } = captureLog();
+
+      const res = await resolve(
+        { path: `/${code}`, headers: {}, nowMs: NOW },
+        { getQr, log }
+      );
+
+      expect(getQr).toHaveBeenCalledWith(code);
+      expect(res.statusCode).toBe(302);
+      expect(res.headers.Location).toBe(`https://example.com/${code}`);
+      expect(lines[0]).toMatchObject({ type: "redirect", code });
+    }
+  );
+
+  it("the lowercase form of each live code resolves identically", async () => {
+    for (const code of LIVE_SINGLE_LETTER_CODES) {
+      const getQr = vi.fn(async () => ({
+        destination: "https://example.com/x",
+        enabled: true,
+      }));
+      const { log } = captureLog();
+
+      const res = await resolve(
+        { path: `/${code.toLowerCase()}`, headers: {}, nowMs: NOW },
+        { getQr, log }
+      );
+
+      expect(getQr).toHaveBeenCalledWith(code);
+      expect(res.statusCode).toBe(302);
+    }
+  });
+});
+
 describe("resolve — unfurl (opt-in social card)", () => {
   const SLACK = "Slackbot-LinkExpanding 1.0 (+https://api.slack.com/robots)";
   const HUMAN =
