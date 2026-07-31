@@ -94,6 +94,14 @@ inputs = {
   threshold_alb_5xx_per_5min     = local.site_vars.locals.admin_reports.thresholds.alb_5xx_per_5min
   alb_anomaly_alarm_enabled      = try(local.site_vars.locals.admin_reports.alb_anomaly_alarm_enabled, false)
 
+  # --- Guardrail-sidecar outage alarm (72-04) ---
+  # The ghosts log group is passed on its OWN input, not folded into
+  # log_group_names: the latter is adopted by retention.tf (import{} +
+  # prevent_destroy + 90-day retention), which this alarm neither needs nor wants.
+  # try(..., "") keeps the filter+alarm count-gated off if the keys are absent.
+  guardrail_log_group_name             = try(local.site_vars.locals.admin_reports.guardrail_log_group_name, "")
+  threshold_guardrail_outages_per_5min = try(local.site_vars.locals.admin_reports.thresholds.guardrail_outages_per_5min, 3)
+
   tags = {
     Site      = local.site_vars.locals.site.label
     Component = "admin-reports"

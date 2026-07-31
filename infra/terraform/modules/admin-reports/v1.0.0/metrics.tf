@@ -130,3 +130,32 @@ resource "aws_cloudwatch_log_metric_filter" "uploads" {
     unit          = "Count"
   }
 }
+
+# --- run.mqtt ghosts (72-04) --------------------------------------------------
+
+# Guardrail-sidecar outage counter. UNLIKE every filter above, this one is a
+# PLAIN-TEXT pattern, not a `$.evt` JSON selector: meshtk's guard logs are
+# unstructured logrus text, so a JSON selector would never match and the metric
+# would read a convincing, permanent zero.
+#
+# The pattern keys on the stable marker token meshtk emits on every guard-outage
+# branch (added in 72-07). Until that ships the metric reads a real 0, which is
+# correct and harmless.
+#
+# count-gated so an unset log-group name provisions nothing rather than binding a
+# filter to a nonexistent group. The group is NOT in var.log_group_names on
+# purpose — see that variable's docs (retention.tf would adopt it).
+resource "aws_cloudwatch_log_metric_filter" "guardrail_outages" {
+  count          = var.guardrail_log_group_name == "" ? 0 : 1
+  name           = "dcr-mqtt-guardrail-outages"
+  log_group_name = var.guardrail_log_group_name
+  pattern        = "MESHTK_GUARDRAIL_OUTAGE"
+
+  metric_transformation {
+    name          = "GuardrailOutages"
+    namespace     = var.metric_namespace
+    value         = "1"
+    default_value = "0"
+    unit          = "Count"
+  }
+}

@@ -71,6 +71,39 @@ describe("loadMeshGhosts", () => {
     }
   });
 
+  it("overlays an OPTIONAL explicit challenge name from the blob (Phase 72)", () => {
+    const OLD = process.env.MESHTK_FLAG_CHALLENGES;
+    process.env.MESHTK_FLAG_CHALLENGES = JSON.stringify({
+      // Named explicitly → the mint route resolves it with a GetItem, no scan.
+      "ghost.goldstein": { committedCode: "hackers4evr", challenge: "goldstein" },
+      // No `challenge` key → the answerHash-match fallback still has to run,
+      // because "grace-hopper" does not derive from "ghost.hopper".
+      "ghost.hopper": { committedCode: "adalovelace" },
+    });
+    try {
+      expect(getMeshGhost("ghost.goldstein")?.challenge).toBe("goldstein");
+      expect(getMeshGhost("ghost.hopper")?.challenge).toBeUndefined();
+    } finally {
+      if (OLD === undefined) delete process.env.MESHTK_FLAG_CHALLENGES;
+      else process.env.MESHTK_FLAG_CHALLENGES = OLD;
+    }
+  });
+
+  it("leaves challenge undefined for an un-updated blob (purely additive)", () => {
+    const OLD = process.env.MESHTK_FLAG_CHALLENGES;
+    process.env.MESHTK_FLAG_CHALLENGES = JSON.stringify({
+      "ghost.goldstein": { triggers: ["hack the planet"], committedCode: "hackers4evr" },
+    });
+    try {
+      const g = getMeshGhost("ghost.goldstein");
+      expect(g?.flagCode).toBe("hackers4evr");
+      expect(g?.challenge).toBeUndefined();
+    } finally {
+      if (OLD === undefined) delete process.env.MESHTK_FLAG_CHALLENGES;
+      else process.env.MESHTK_FLAG_CHALLENGES = OLD;
+    }
+  });
+
   it("carries committed otpauth URLs for the OTP-bearing ghosts", () => {
     const withOtp = ghosts.filter((g) => g.hasOtp);
     expect(withOtp.length).toBe(8);

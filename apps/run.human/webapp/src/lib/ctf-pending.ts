@@ -31,8 +31,58 @@ const PENDING_TTL_SECONDS = 30 * 24 * 60 * 60;
 /**
  * TTL for a ghost claim-link nonce (minted by /api/internal/ctf/mint): short
  * enough to blunt link sharing, long enough to walk to a phone and sign in.
+ *
+ * LEGACY (Phase 72): the 15-minute constant, superseded by AWARD_LINK_TTL_SECONDS
+ * for bot-minted award links. Kept exported and unchanged so no current importer
+ * breaks.
  */
 export const CLAIM_LINK_TTL_SECONDS = 15 * 60;
+
+/** Fallback award-link TTL when BOT_CLAIM_LINK_TTL_SECONDS is absent or garbage. */
+const DEFAULT_AWARD_LINK_TTL_SECONDS = 60 * 60;
+
+/**
+ * TTL for a bot-minted award link (Phase 72), read once at module load from
+ * BOT_CLAIM_LINK_TTL_SECONDS and defaulting to 3600s. Anything non-numeric or
+ * non-positive clamps back to the default — a typo in the env must never mint an
+ * award that is already expired. Applies to ricky AND all 8 persona ghosts.
+ */
+function readAwardLinkTtlSeconds(): number {
+  const raw = process.env.BOT_CLAIM_LINK_TTL_SECONDS;
+  if (!raw) return DEFAULT_AWARD_LINK_TTL_SECONDS;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0
+    ? Math.floor(parsed)
+    : DEFAULT_AWARD_LINK_TTL_SECONDS;
+}
+
+export const AWARD_LINK_TTL_SECONDS = readAwardLinkTtlSeconds();
+
+/** Crockford base32, lowercase — 32 symbols with `i`, `l`, `o` and `u` removed. */
+const AWARD_NONCE_ALPHABET = "0123456789abcdefghjkmnpqrstvwxyz";
+/** 12 symbols over a 32-symbol alphabet = 60 bits. */
+const AWARD_NONCE_LENGTH = 12;
+
+/**
+ * A short award nonce for a bot-delivered claim link (`q.defcon.run/a/<nonce>`).
+ *
+ * 12 Crockford base32 lowercase symbols — 60 bits, which is infeasible to
+ * brute-force against a token that is single-use AND dead within the hour. The
+ * excluded glyphs (`i`, `l`, `o`, `u`) mean a player reading the link off a radio
+ * screen cannot land on an ambiguous character.
+ *
+ * Randomness comes from crypto.getRandomValues. Because 256 is an exact multiple
+ * of the 32-symbol alphabet, masking the low five bits of each byte is already a
+ * uniform mapping — there is no modulo skew here and therefore no need for
+ * reject-sampling.
+ */
+export function newAwardNonce(): string {
+  const bytes = new Uint8Array(AWARD_NONCE_LENGTH);
+  crypto.getRandomValues(bytes);
+  let out = "";
+  for (const byte of bytes) out += AWARD_NONCE_ALPHABET[byte & 31];
+  return out;
+}
 
 const NON_SOLVE: JudgeResult = {
   solved: false,
@@ -65,6 +115,16 @@ export interface PendingDeps {
   newNonce?: () => string;
   /** TTL override in seconds (default: 30 days). */
   ttlSeconds?: number;
+  /**
+   * A pre-computed answer hash to park VERBATIM, bypassing `hashAnswer(guess)`.
+   *
+   * Lets the mint-by-challenge path park a `Ctf` row's OWN stored `answerHash`,
+   * so no raw flag code has to exist anywhere for that flow. This stays inside
+   * the T-45-01 hygiene invariant: a hash goes in, a hash is stored, and no raw
+   * guess is ever retained. Redemption still works because `judgeSolve` compares
+   * `verifyAnswerHash(guessHash, ctf.answerHash)` for `answerType: "static"`.
+   */
+  flagHash?: string;
 }
 
 /** Electro-backed PendingStore on the CtfPending entity (keyed by nonce). */
@@ -92,6 +152,9 @@ export const defaultPendingStore: PendingStore = {
  * Park an anon scan: hash the guess, store `{ nonce, challenge, submittedFlagHash,
  * ttl }`, and return the nonce (persisted client-side for the later claim). The
  * raw guess is discarded after hashing — it is never stored or logged.
+ *
+ * `deps.flagHash` parks a caller-supplied hash verbatim instead (the bot mint
+ * path); the guess argument is then never hashed at all.
  */
 export async function createPending(
   challenge: string,
@@ -105,7 +168,7 @@ export async function createPending(
   await store.putPending({
     nonce,
     challenge: normalizeChallenge(challenge),
-    submittedFlagHash: hashAnswer(guess),
+    submittedFlagHash: deps.flagHash ?? hashAnswer(guess),
     ttl,
   });
   return { nonce };

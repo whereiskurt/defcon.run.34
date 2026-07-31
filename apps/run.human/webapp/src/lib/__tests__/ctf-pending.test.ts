@@ -86,6 +86,54 @@ describe("createPending — parks only the hash (T-45-01)", () => {
   });
 });
 
+describe("createPending flagHash — parks a caller-supplied hash verbatim", () => {
+  it("stores the supplied flagHash instead of hashing the guess", async () => {
+    const { store, rows } = makeStore();
+    await createPending(CHALLENGE, "", {
+      store,
+      flagHash: "deadbeef",
+      newNonce: () => "fh1",
+    });
+    const row = rows.get("fh1")!;
+    expect(row.submittedFlagHash).toBe("deadbeef");
+    // NOT the hash of the (empty) guess argument.
+    expect(row.submittedFlagHash).not.toBe(hashAnswer(""));
+  });
+
+  it("prefers flagHash over the guess, and the raw guess never reaches the row", async () => {
+    const { store, rows } = makeStore();
+    await createPending(CHALLENGE, GUESS, {
+      store,
+      flagHash: "abc",
+      newNonce: () => "fh2",
+    });
+    const row = rows.get("fh2")!;
+    expect(row.submittedFlagHash).toBe("abc");
+    expect(row.submittedFlagHash).not.toBe(hashAnswer(GUESS));
+    expect(JSON.stringify(row)).not.toContain(GUESS);
+  });
+
+  it("without flagHash the existing hash-the-guess path is unchanged", async () => {
+    const { store, rows } = makeStore();
+    await createPending(CHALLENGE, GUESS, { store, newNonce: () => "fh3" });
+    expect(rows.get("fh3")!.submittedFlagHash).toBe(hashAnswer(GUESS));
+  });
+
+  it("still normalizes the challenge and sets a TTL on the flagHash path", async () => {
+    const { store, rows } = makeStore();
+    await createPending(CHALLENGE, "", {
+      store,
+      now: 0,
+      ttlSeconds: 3600,
+      flagHash: "abc",
+      newNonce: () => "fh4",
+    });
+    const row = rows.get("fh4")!;
+    expect(row.challenge).toBe("meshmaze");
+    expect(row.ttl).toBe(3600);
+  });
+});
+
 describe("claimPending — credits exactly once via judgeSolve (T-45-02)", () => {
   it("present row → calls judge with { guessHash, channel:'qr' } and deletes the row", async () => {
     const { store, rows } = makeStore();

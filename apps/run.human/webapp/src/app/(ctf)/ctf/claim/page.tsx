@@ -99,8 +99,17 @@ export default async function ClaimPage({
 
   const challenge = safeNormalize(c);
   const guess = typeof v === "string" && v.length > 0 ? v : null;
+  // The `?nonce` link nonce is LOWERCASED on read, once, before either the
+  // signed-in redeem branch (N1) or the anonymous park branch (N2) sees it —
+  // so the cookie N2 parks matches what branch (B) later looks up. This is safe
+  // in both directions: every nonce this system has ever generated is already
+  // lowercase (crypto.randomUUID emits lowercase hex; the Phase-72 award
+  // generator uses a lowercase-only Crockford alphabet), so lowercasing on read
+  // can only repair a link a client mangled in transit, never break a good one.
   const linkNonce =
-    typeof nonceParam === "string" && nonceParam.length > 0 ? nonceParam : null;
+    typeof nonceParam === "string" && nonceParam.length > 0
+      ? nonceParam.toLowerCase()
+      : null;
 
   // (N1) SIGNED-IN + ?nonce → redeem the minted claim link now. A spent/expired
   // nonce is an idempotent non-award (claimPending returns NON_SOLVE).
