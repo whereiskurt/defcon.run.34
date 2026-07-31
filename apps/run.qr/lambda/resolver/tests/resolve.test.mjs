@@ -361,6 +361,26 @@ describe("resolve — award hand-off (/a/<nonce>)", () => {
     expect(lines).toHaveLength(0);
   });
 
+  it("an UPPERCASED link (/A/<NONCE>) still hands off — no DynamoDB read", async () => {
+    // A client that upcases the whole URL must still land on the claim page,
+    // which lowercases the nonce for lookup. Without a case-insensitive letter
+    // this 404s here and that downstream tolerance is dead code.
+    const getQr = vi.fn();
+    const { lines, log } = captureLog();
+
+    const res = await resolve(
+      { path: "/A/K7M3Q9X2WR4T", headers: {}, nowMs: NOW },
+      { getQr, log }
+    );
+
+    expect(getQr).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(302);
+    expect(res.headers.Location).toBe(
+      "https://run.defcon.run/use1/ctf/claim?nonce=K7M3Q9X2WR4T"
+    );
+    expect(lines).toHaveLength(0);
+  });
+
   it("encodes a metacharacter-bearing nonce rather than forwarding it raw", async () => {
     const getQr = vi.fn();
     const { log } = captureLog();
