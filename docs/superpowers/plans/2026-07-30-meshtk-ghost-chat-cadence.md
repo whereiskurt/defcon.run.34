@@ -659,14 +659,28 @@ Leave everything above it in `handleLLMChat` exactly as-is: the `generateReply` 
 		n.Config.Log.Errorf("LLM reply produced no sendable messages")
 		return
 	}
-	time.Sleep(openingDelay(rand.Float64()))
-	for i, m := range msgs {
-		n.sendPKIReply(toFleetIdx, to, from, topic, m)
-		if i < len(msgs)-1 {
-			time.Sleep(applyJitter(baseDelay(len(m)), rand.Float64()))
+	go func() {
+		time.Sleep(openingDelay(rand.Float64()))
+		for i, m := range msgs {
+			n.sendPKIReply(toFleetIdx, to, from, topic, m)
+			if i < len(msgs)-1 {
+				time.Sleep(applyJitter(baseDelay(len(m)), rand.Float64()))
+			}
 		}
-	}
+	}()
 ```
+
+> **Revised during execution, user-approved.** The paced send runs on its own
+> goroutine, mirroring `handleLyricsChat` at `cmd.go:1041`. The original version
+> of this block ran inline, which blocks paho's ordered dispatch goroutine for up
+> to ~27s — `mqtt.go:257` calls the handler synchronously and `SetOrderMatters`
+> is never set, so paho's default of `true` applies. That matters beyond latency:
+> `isRetransmit` anchors a FIXED 30s dedup window that does not refresh on a hit
+> (`cmd.go:568-579`), so occupancy past 30s makes a queued retransmit read as a
+> new request and fire a SECOND full burst. ACKs stall for the duration too.
+>
+> Message shaping and both log lines stay synchronous — only the sleep-and-send
+> loop moves.
 
 - [ ] **Step 3: Delete the dead splitter**
 

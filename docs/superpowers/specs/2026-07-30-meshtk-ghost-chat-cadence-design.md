@@ -152,9 +152,16 @@ roughly 12–15 seconds. At these sizes the airtime cost is well inside budget.
 ## Files
 
 Code changes land in **both** trees. `cmd.go` and `llm.go` exist upstream at
-`~/working/meshtk` and in the tracked monorepo overlay at
-`apps/run.mqtt/meshtk/`, and `build.sh` overlays the monorepo copies over a
-fresh GitHub clone — so an upstream-only fix is invisible in prod.
+`~/working/meshtk` and in the tracked monorepo tree at `apps/run.mqtt/meshtk/`,
+and the two are currently byte-identical for both files.
+
+`Dockerfile.meshtk` builds with `COPY . .` from `apps/run.mqtt/meshtk/` as its
+context, so the **monorepo tree is what ships** — an upstream-only fix never
+reaches prod. Upstream still gets the same change, because the next vendor-sync
+overwrites the monorepo tree from upstream, and an upstream that lacks the fix
+would silently revert it. That is not hypothetical: the Dockerfile's own
+comments record vendor-sync stranding all 24 GPX nodes twice this way
+(#1009, #1028/#1029).
 
 | File | Change |
 |---|---|
