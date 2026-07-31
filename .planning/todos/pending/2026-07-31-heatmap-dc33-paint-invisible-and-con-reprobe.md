@@ -1,86 +1,79 @@
 ---
 created: 2026-07-31T04:35:00Z
-title: "gpx heat map — DC33 stack renders INVISIBLE at shipped paint values; plus the 5-10 Aug 2026 con re-probe"
+updated: 2026-07-31T22:20:00Z
+title: "gpx heat map — 5-10 Aug 2026 con re-probe (paint + data-quality items RESOLVED by Phase 71 gap closure)"
 area: run.gpx
 priority: high
 ---
 
-Two items from Phase 71 (71-08), both left open deliberately. The first is a **live defect in
-what users see today**; the second is a **dated re-check** that will resolve itself at the con.
-Full evidence: `.planning/phases/71-heat-map-layers-.../71-08-SUMMARY.md` and
-`71-08-probes/SCREENSHOTS.md`.
+Originally two items from Phase 71 (71-08). **Item 1 and its data-quality sub-finding are now
+RESOLVED and shipped** — see below. **Item 2, the dated con re-probe, remains open** and is the
+only reason Phase 71 is not marked complete.
 
 ---
 
-## 1. DC33 heat stack is invisible at the shipped D-02 paint values — needs Kurt's call
+## 1. DC33 heat stack invisible at shipped paint values — ✅ RESOLVED, LIVE
 
-**Live now on gpx.defcon.run v0.0.109.** Turning on 🔥 DC33 changes the map by nothing a user
-can see.
+Closed by the Phase 71 gap closure (plan **71-09**), shipped in **run.gpx v0.0.110** on
+2026-07-31.
 
-`HEAT_PAINT` in `apps/run.gpx/gpx-studio/website/src/lib/components/map/heatmap-layer.ts:86-98`
-ships `line-color #ff8c00`, `line-opacity 0.25`, `line-width 3`. Measured against production:
+- **D-13** locked `line-opacity` **0.25 → 0.70** (the literal in source is `0.7`; Prettier
+  normalises trailing zeros). `line-color #ff8c00` / `#ff0000` and `line-width 3` unchanged and
+  still Kurt-locked.
+- Probe **assertion 19** reads `line-opacity` back off the **live Mapbox style object** as `0.7`,
+  so the paint contract is pinned at runtime, not merely in source.
+- **Confirmed by Kurt on real hardware, 2026-07-31** — the check the original note called for
+  ("a quick look on a real browser before re-tuning is cheap and worth doing"). Screenshot at
+  `gpx.defcon.run/use1/studio/app#18.21/36.133603/-115.158769/11.2/53` (LVCC / Westgate
+  Connector) shows the LVCC Loop → Westgate corridor as a thick bundle of dozens of overlapping
+  strands while one-off spurs stay thin single strokes. The density gradient reads. Recorded as
+  UAT test 1 pass in `71-UAT.md`.
 
-| opacity | result |
-|---|---|
-| **0.25 (shipped)** | **invisible** — nothing discernible, even with every other layer hidden |
-| 0.45 | marginal; reads as thin orange line-work easily confused with the basemap's own orange road casings |
-| **0.70** | **legible, and the density gradient reads** — Strip / LVCC Loop / Convention Center clearly heavier than one-off spurs |
+The open colour-contrast question (`#ff8c00` sitting close to the basemap's orange road casings)
+was **not** pursued — at 0.70 the stack is legible without it. Re-open only if it reads poorly
+against a different basemap style.
 
-This is **not** a data problem and **not** a render-path problem, both ruled out:
+### Related data-quality finding — ✅ RESOLVED, LIVE
 
-- A 0.005° density grid over all 20 001 live coordinates peaks at `-115.1650, 36.1250`, where
-  **40 of the 110 runs** pass through one cell; `queryRenderedFeatures` finds up to **36
-  overlapping features under a single screen pixel**.
-- `queryRenderedFeatures` returns 82 features at z12.6 and 208 at z14.2 — mapbox believes it is
-  drawing them, and `heatmap-dc33` is the **topmost** layer in the style (index 44 of 45).
-- Forcing `line-opacity 1 / width 4 / #ff00ff` at runtime produces a dense, correctly
-  georeferenced network (`shot-dc33-DIAG-opacity1-magenta-geometry-proof.png`).
+Closed by plans **71-10** (filter at the assembly point + the standalone verifier learned to
+reject degeneracy) and **71-15** (republished the frozen DC33 artifact through the new filter).
 
-**Nothing was changed.** D-02's colour/width/opacity are Kurt-locked, so this is a decision, not
-an executor fix. Also worth deciding: `#ff8c00` ember-orange sits very close to the default
-basemap's own orange road casings, so contrast is poor at *any* opacity — DC34's `#ff0000`
-should fare better. Options: raise opacity toward ~0.6-0.7; and/or re-pick DC33's colour for
-basemap contrast; and/or add a subtle dark halo/casing under the line.
-
-**Caveat, stated honestly:** all captures were headless Chromium on swiftshader. The 0.70 and
-1.0 renders prove low-alpha blending *works* in that environment, so a pure headless artifact is
-unlikely — but a quick look on a real browser before re-tuning is cheap and worth doing.
-
-### Related data-quality finding (separate, smaller)
-
-The live `dc33.json` carries junk the DC33 backfill (71-04) let through:
-
-- **20 of 110 features contain a `[0, 0]` coordinate**; `features[0]` is literally
-  `[[0,0],[0,0]]` — a degenerate 2-point line at null island.
-- **41 of 110 features have no coordinate inside the Las Vegas box at all**; the artifact bbox
-  spans `lon -119.06 … 0` and `lat 0 … 53.40`.
-
-Nothing crashes and `assertNonAttributable` is unaffected (privacy is fine), but those features
-are noise in a "DEF CON 33 heat map" and inflate `runCount` (110) beyond what actually renders
-over Vegas (~69). Worth a filter in the builder / a re-run of the backfill.
+- The 20 degenerate `[[0,0],[0,0]]` features are gone: the live artifact now has **0 degenerate**
+  of **90** features, independently re-verified by the Phase 71 security audit's structural walk.
+- `runCount` **110 → 90**. `totalKm` **658.4 → 658.4**, unmoved to the decimal — the invariant
+  proving no real run was dropped. A set comparison confirmed the 90 published features *are*
+  the 90 non-degenerate features from before.
+- `generatedAt` deliberately unchanged (`2025-08-15T02:41:54.347Z`) — it is the honest Aug-2025
+  export instant, and probe assertion 6 is pinned to that literal.
+- The wider "41 of 110 features have no coordinate inside the Las Vegas box" observation is
+  partly absorbed by the degeneracy filter; any residual out-of-box features are in-range,
+  non-degenerate real geometry and were **not** filtered. Not currently believed to be a defect.
 
 ---
 
-## 2. Re-probe during DEF CON 34, 5-10 August 2026
+## 2. Re-probe during DEF CON 34, 5-10 August 2026 — ⏳ STILL OPEN
 
-`71-08-probes/heatmap-probe.cjs` currently scores **11/13** against production. Assertions **5**
-(dc34 leg) and **11** are red for exactly one reason: **DC34 has no runs yet.** Verified at the
-data layer — `aws dynamodb scan --table-name run-gpx-electro --filter-expression
-"attribute_exists(conDay)" --select COUNT` returns **0 of 133**. CON_DAYS for DC34 is
-2026-08-05 … 2026-08-10.
+**This is the only remaining blocker on Phase 71 completion.**
 
-The probe was deliberately **not** softened and no synthetic data was injected (Kurt declined
-both). These should go green on their own during the con.
+`71-08-probes/heatmap-probe.cjs` now carries **19 assertions** (71-12 raised it from 13) and
+scores **17/19** against production. Assertions **5** (dc34 leg) and **11** are red for exactly
+one reason: **DC34 has no runs yet.** Verified at the data layer — a live `heatmap-build-use1`
+invoke on 2026-07-31 returned `runCount: 0`. CON_DAYS for DC34 is 2026-08-05 … 2026-08-10.
+
+**17/19 is the perfect pre-con score, not a shortfall.** The probe was deliberately **not**
+softened and no synthetic data was injected (Kurt declined both, twice).
 
 **During 5-10 Aug 2026, run the probe unmodified** and confirm:
 
-- assertion 7's `generatedAt` **moves hourly**, not just daily — this is the only way to observe
-  the con-window schedule `cron(0 * 5-10 8 ? 2026)`, which physically cannot fire before 5 Aug
-  and is the open half of ROADMAP SC-2;
+- assertion 7's `generatedAt` **moves hourly**, not just daily — the only way to observe the
+  con-window schedule `cron(0 * 5-10 8 ? 2026)`, which physically cannot fire before 5 Aug and
+  is the open half of ROADMAP SC-2. (Note the daily schedule moved to `cron(20 4 * * ? *)` in
+  71-14 so it can no longer collide with the hourly on con days.)
 - assertion 5 passes for **dc34** as well as dc33;
 - assertion 11 passes — both stacks on the map together at their locked colours;
-- **then** make the D-12 two-colour overlap read (Task 4 step 5), which is unperformable today
-  because DC34 draws nothing.
+- **then** make the D-12 two-colour overlap read, which is unperformable today because DC34
+  draws nothing. 71-CONTEXT.md calls this "the emotional core of the feature" and it has
+  **never been rendered**.
 
 ```bash
 MAPBOX_TOKEN=$(aws ssm get-parameter \
@@ -90,4 +83,5 @@ MAPBOX_TOKEN=$(aws ssm get-parameter \
 node .planning/phases/71-heat-map-layers-*/71-08-probes/heatmap-probe.cjs
 ```
 
-If item 1 above is re-tuned before the con, re-shoot the visual evidence at the same time.
+Expect **19/19**. Then re-run phase verification so `71-VERIFICATION.md` can move off
+`human_needed` and Phase 71 can be marked complete.
