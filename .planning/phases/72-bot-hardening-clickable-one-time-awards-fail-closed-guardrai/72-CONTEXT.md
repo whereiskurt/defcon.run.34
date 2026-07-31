@@ -173,9 +173,19 @@ Removing index 58 yields 58 numbered lines ending at `58: Never gonna tell a lie
 **Landmines carried from prior phases:**
 - ANY `meshtk.dc34.yaml` edit requires `node scripts/sync-meshtk-fleet.mjs` or the
   run.human byte-parity test (`mesh-ghosts.test.ts`) goes red.
-- meshtk code changes go UPSTREAM to `~/working/meshtk` first; the monorepo
+- ⚠️⚠️ **USE `~/working/meshtk-p72`, NOT `~/working/meshtk`.** The main clone sits on
+  `scratch/vuln-bump-test` with 123 uncommitted files (another session's paho
+  1.5.0→1.5.1 + protobuf bump). A dedicated worktree was created 2026-07-31 for this
+  phase — `~/working/meshtk-p72`, branch `feat/phase-72-bot-hardening`, tracking
+  `origin/main`, verified clean with CI-faithful deps (paho v1.5.0, protobuf v1.36.5)
+  and a green `go test ./internal/app/fleet/...` baseline (0.513s).
+  **Run every Go build/test there.** Never stage `go.mod`/`go.sum`/`vendor/`; assert with
+  `git show --stat` before pushing. Do NOT disturb the other session's dirty tree.
+- meshtk code changes go UPSTREAM first (now via `~/working/meshtk-p72`); the monorepo
   `apps/run.mqtt/meshtk` tree is a TRACKED overlay that build.sh applies over a fresh
   GitHub clone — untracked files are silently discarded by CI.
+- ⚠️ `meshtk.dc34.yaml` is **monorepo-only** — upstream has `meshtk.defcon.yaml`. The LRC
+  edit needs NO upstream PR.
 - `chatHardLimit = 200` (DATA_PAYLOAD_LEN 233); there is no length check in the send path.
 - Release via `buildpub.yml` (auto-merges the Release PR); local `build.sh meshtk` is
   known-broken. Deploy is ALWAYS GitHub Actions, never local `terragrunt apply`.
