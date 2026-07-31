@@ -183,7 +183,12 @@ which would have swept 9 unrelated pre-existing drift files into the diff.
 
 A review flagged four defective verify commands in `72-04-PLAN.md`. All were corrected **in
 the plan file** — the plan's assertions were wrong, not the code, so no source file was
-churned to satisfy a broken grep. Commit `d0f30bd0`.
+churned to satisfy a broken grep.
+
+The `72-04-PLAN.md` edits landed in `0b2e15b1`; this SUMMARY section in `5bc05f3d`. (The
+plan edits were staged when a peer agent committed in this shared worktree and swept them
+in — same as `deferred-items.md` landing in 72-02's `05fae6b1`. Content verified present
+in HEAD, listed below.)
 
 | ID | Line | Defect | Correction |
 |----|------|--------|------------|
