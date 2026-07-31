@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
 status: Ready to execute
-stopped_at: Phase 71 plan 01 COMPLETE — lib/heatmap-artifact.ts + lib/polyline-decode.ts landed with 36 vitest cases, zero new deps. Wave 1 done; 71-02/03/04 can proceed.
-last_updated: "2026-07-31T02:11:53.212Z"
+stopped_at: "Phase 71 plan 02 COMPLETE — lib/heatmap-build.ts (buildDc34Heatmap, D-03 no-opt-in selection, guard-before-write) + POST /api/gpx/internal/heatmap-build landed with 15 vitest cases, zero new deps. Suite 303 green, build lists the route. Next in wave 2: 71-03/04."
+last_updated: "2026-07-31T02:36:24.512Z"
 last_activity: 2026-07-31
 progress:
   total_phases: 31
   completed_phases: 20
   total_plans: 96
-  completed_plans: 87
+  completed_plans: 88
   percent: 65
 current_phase: 71
 current_phase_name: heat-map-layers-dc33-dc34-flame-stacks-gpx-studio
@@ -159,6 +159,10 @@ Recent decisions affecting current work:
 - [Phase ?]: 71-01: artifact S3 key is uploads/HEATMAP/{year}.json — the uploads/ prefix is an IAM hard requirement; always call heatmapArtifactKey()
 - [Phase ?]: 71-01: encoded-polyline decoder ported in-repo instead of adding the Mapbox polyline npm package (T-71-SC, zero new deps)
 - [Phase ?]: 71-01: assertNonAttributable() is the single publish chokepoint compensating for HEAT-06 dropping the opt-in gate — every write path must call it, no catch-and-continue
+- [Phase ?]: 71-02: DC34 heat-map selection carries NO includeInAggregate predicate (D-03, user-locked) — HeatmapRunRow does not even declare the flag, so restoring it requires re-adding a field and trips a test; the compensating control is assertNonAttributable() on the write path
+- [Phase ?]: 71-02: assertNonAttributable is deliberately NOT a BuildDeps member — no production seam can bypass the chokepoint; tests prove guard-before-put ordering by vi.mock-wrapping the module export instead
+- [Phase ?]: 71-02: builder fans out over S3 in sequential chunks of 20, not one unbounded Promise.all — the aggregate route's Promise.all is only safe because it caps at 500 routes; a precomputed builder has no cap (T-71-06)
+- [Phase ?]: 71-02: POST /api/gpx/internal/heatmap-build declares maxDuration=300 — 71-07's Terraform lambda_timeout must be >= that number or a scheduler retry overlaps the running build
 
 ### Pending Todos
 
@@ -172,7 +176,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-31T02:11:46.741Z
+Last session: 2026-07-31T02:36:02.292Z
 Stopped at: Phase 71 plan 01 COMPLETE — lib/heatmap-artifact.ts + lib/polyline-decode.ts landed with 36 vitest cases, zero new deps. Wave 1 done; 71-02/03/04 can proceed.
 Resume file: None
 
@@ -250,3 +254,4 @@ Resume file: None
 | Phase 69 P06 | ~12m | 3 tasks | 18 files |
 | Phase 69 P07 | ~50m | 3 tasks | 4 files |
 | Phase 71 P01 | 15m | 2 tasks | 4 files |
+| Phase 71 P02 | ~35 min | 2 tasks | 3 files |
