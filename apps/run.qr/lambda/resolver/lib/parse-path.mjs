@@ -2,18 +2,22 @@
  * Request-target parser for the q.defcon.run resolver.
  *
  * The resolver front-door receives a raw path (plus optional query string) and
- * must classify it into one of four shapes before any DynamoDB lookup:
+ * must classify it into one of five shapes before any DynamoDB lookup:
  *
  *   - `empty`    — the bare root (`/`); nothing to resolve → 404 upstream.
  *   - `flush`    — the reserved `/_flush` trigger for the rollup path.
  *   - `ogimage`  — the reserved `/_og/<theme>.png` unfurl preview image.
  *   - `ctf`      — the reserved `/ctf/<challenge>/<value...>` submission form.
+ *   - `award`    — the reserved `/a/<nonce>` single-use bot-award claim link.
  *   - `redirect` — everything else: `/<CODE>[/<param>]` short-link lookups.
  *
- * `ctf`, `_flush`, and `_og` are RESERVED namespaces: they can never be
+ * `ctf`, `award`, `_flush`, and `_og` are RESERVED namespaces: they can never be
  * classified as a redirect code, so an operator can never mint a short link that
  * shadows them (a code is the first segment UPPERCASED, and `_`-prefixed segments
- * are intercepted first).
+ * are intercepted first). That interception order is load-bearing for `award`:
+ * `/a/` must be un-shadowable by any `Qr` row, because every mesh bot award link
+ * points there. Note the reservation is on the VERBATIM lowercase first segment,
+ * so `/A/...` is still an ordinary redirect for code `A`.
  *
  * The parse is purely lexical — no I/O, no validation of whether a code exists.
  * It never throws; malformed input degrades to `empty`.
@@ -25,6 +29,7 @@
  *   | { kind: "flush",    query: string }
  *   | { kind: "ogimage",  theme: string, query: string }
  *   | { kind: "ctf",      challenge: string, value: string, query: string }
+ *   | { kind: "award",    nonce: string, query: string }
  *   | { kind: "redirect", code: string, param: string|null, query: string }
  * )} ParseResult
  */
@@ -84,6 +89,19 @@ export function parsePath(rawPathAndQuery) {
     const challenge = segments[1];
     const value = segments.slice(2).join("/");
     return { kind: "ctf", challenge, value, query };
+  }
+
+  // Reserved: single-use bot-award claim. nonce = 2nd segment, verbatim
+  // (case kept, unlike a redirect code). A bare `/a` has nothing to claim, so it
+  // degrades to `empty` — same short-path rule as `ctf`. The nonce is NOT
+  // trimmed, cased or validated here: this parser stays purely lexical, and
+  // shape validation belongs to run.human's pending-row lookup, which simply
+  // misses on garbage.
+  if (first === "a") {
+    if (segments.length < 2) {
+      return { kind: "empty", query };
+    }
+    return { kind: "award", nonce: segments[1], query };
   }
 
   // Ordinary short-link redirect.
