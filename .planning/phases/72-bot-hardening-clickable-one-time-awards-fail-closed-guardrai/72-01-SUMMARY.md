@@ -227,12 +227,15 @@ as written.
   the reserved check is on the verbatim first segment, so `/A/xyz` stays a redirect for
   code `A`. Assert this so the reservation surface is unambiguous." My first
   implementation and its test matched that text.
-- **Problem:** it does not compose with the other half of the case-tolerance story.
-  CONTEXT locks "Claim-page lookup must lowercase before matching so a case-mangling
-  client still resolves," and 72-02 Task 3 implements exactly that. But a client that
-  upcases the whole link produces `q.defcon.run/A/K7M3Q9X2WR4T`, whose first segment
-  routed to a short-code lookup for `A` → miss → **404 at the resolver**. The request
-  never reached the claim page, so the downstream lowercasing was unreachable code.
+- **Problem:** it leaves a real trap for players, and it does not compose with the other
+  half of the case-tolerance story. The realistic failure mode is not a buggy client —
+  it is a **player reading the award URL off a Meshtastic device screen and typing it
+  into a phone browser, where mobile keyboards autocapitalize the first letter**. That
+  is exactly how the payphone awards this feature mimics are used. `q.defcon.run/A/k7m3…`
+  routed to a short-code lookup for `A` → miss → **404 on the player's award**.
+  Meanwhile CONTEXT locks "Claim-page lookup must lowercase before matching so a
+  case-mangling client still resolves" and 72-02 Task 3 implements exactly that — but
+  the request never reached the claim page, so that tolerance was unreachable code.
 - **Change:** match the reserved letter with `first.toLowerCase() === "a"`. The nonce
   segment is still passed through verbatim — the split is deliberate: the resolver
   normalizes only the letter it owns, run.human normalizes the nonce it owns.
