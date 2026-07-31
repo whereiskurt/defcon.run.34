@@ -198,14 +198,27 @@ function parseMeta(v: unknown): HeatMeta | null {
 }
 
 /**
- * Structural gate on untrusted geometry (T-71-21): only a FeatureCollection with
- * a non-empty feature array is ever handed to `addSource`. Anything else is not
- * a heat map and is dropped without touching the map.
+ * Structural gate on untrusted geometry (T-71-21): only a FeatureCollection
+ * carrying a feature array is ever handed to `addSource`. Anything else is not a
+ * heat map and is dropped without touching the map.
+ *
+ * AN EMPTY FEATURE ARRAY IS VALID. A year whose artifact exists but currently
+ * holds no runs — DC34 at any point before the con opens — is a real artifact
+ * awaiting data, not a malformed one. Rejecting it here used to make
+ * `ensureGeometry` bail before it could latch `built`, so the row's checkbox
+ * turned on, painted nothing, said nothing, and re-downloaded the whole artifact
+ * on every subsequent toggle (WR-07).
+ *
+ * THIS RELAXES A LIVENESS CHECK, NOT A STRUCTURAL ONE. The type literal and the
+ * array check below ARE the untrusted-input gate (T-71-21) — they are what keeps
+ * an arbitrary JSON body out of `addSource` — and must not be loosened further.
+ * "Has this year got data yet" is a different question from "is this JSON a
+ * FeatureCollection", and only the second one belongs in this function.
  */
 function isFeatureCollection(v: unknown): v is GeoJSON.FeatureCollection {
     if (!v || typeof v !== 'object' || Array.isArray(v)) return false;
     const o = v as { type?: unknown; features?: unknown };
-    return o.type === 'FeatureCollection' && Array.isArray(o.features) && o.features.length > 0;
+    return o.type === 'FeatureCollection' && Array.isArray(o.features);
 }
 
 export class HeatmapLayer {
