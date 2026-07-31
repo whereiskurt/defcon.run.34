@@ -14,6 +14,12 @@ export interface FirmwareVersionEntry {
   experimental: boolean;
 }
 
+/** Both offered slots are plain upstream `develop` nightlies — they carry no
+ *  meshtastic/firmware `event/defcon34` content, so labels must not call them
+ *  "event firmware". The default pin (b4ff1df) is the direct parent of 0fef83d,
+ *  the commit event/defcon34 was branched from, i.e. develop as of immediately
+ *  before the branch point. DC34 radio settings (US / SHORT_TURBO / slot 31)
+ *  are pushed to the device after flashing — see config/meshtastic.ts. */
 export const FIRMWARE_VERSIONS: FirmwareVersionEntry[] =
   firmwareManifest.versions as FirmwareVersionEntry[];
 
