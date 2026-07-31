@@ -1,5 +1,8 @@
 # Build stage - compile meshobserv binary from meshtk source
-FROM golang:1.24-alpine AS builder
+# Must track the `go` directive in meshtk's go.mod (this stage compiles the same
+# source as Dockerfile.meshtk). The x/crypto v0.54.0 bump raised it to 1.25.0,
+# and a builder older than the directive fails at `go mod download`.
+FROM golang:1.25-alpine AS builder
 
 RUN apk add --no-cache git
 
