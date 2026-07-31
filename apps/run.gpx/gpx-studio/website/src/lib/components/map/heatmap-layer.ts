@@ -221,6 +221,25 @@ function isFeatureCollection(v: unknown): v is GeoJSON.FeatureCollection {
     return o.type === 'FeatureCollection' && Array.isArray(o.features);
 }
 
+/**
+ * How long `whenStyleReady` waits on the map's `idle` event before proceeding
+ * anyway.
+ *
+ * RESOLVING ON TIMEOUT IS DELIBERATE — it must never reject. A map that never
+ * reaches idle (a style load that failed, a tab backgrounded before the first
+ * idle) used to leave that promise unsettled forever, so the `await` inside
+ * `ensureGeometry` never returned and that year's toggle never persisted, with
+ * no timeout and no rejection to notice it by (IN-05). Rejecting instead would
+ * only move the problem: `ensureGeometry`'s catch would swallow it and the layer
+ * would be lost just as silently.
+ *
+ * Proceeding early is safe because readiness is a HINT here, not a precondition:
+ * the `getSource` / `getLayer` guards downstream already tolerate a style that is
+ * not quite ready, so the worst case of going early is a no-op that the next
+ * toggle repeats, while the worst case of waiting forever is a wedged control.
+ */
+const STYLE_READY_TIMEOUT_MS = 10_000;
+
 export class HeatmapLayer {
     map: mapboxgl.Map;
     private built: Record<HeatYear, boolean> = blankFlags();
@@ -232,7 +251,13 @@ export class HeatmapLayer {
 
     private whenStyleReady(): Promise<void> {
         if (this.map.isStyleLoaded()) return Promise.resolve();
-        return new Promise((resolve) => this.map.once('idle', () => resolve()));
+        // Raced, and the loser is harmless: whichever fires first settles, and a second
+        // resolve on an already-settled promise is a no-op.
+        return new Promise((resolve) => {
+            const settle = () => resolve();
+            setTimeout(settle, STYLE_READY_TIMEOUT_MS);
+            this.map.once('idle', settle);
+        });
     }
 
     /**
@@ -365,5 +390,9 @@ export class HeatmapLayer {
             this.built[year] = false;
             this.visible[year] = false;
         }
+        // The store is documented as the HEAT MAP section's source of truth, so a teardown
+        // that leaves it populated makes that documentation false — the section would go on
+        // rendering rows for layers that no longer exist until the next loadMeta() lands.
+        heatmapState.set(blankState());
     }
 }
