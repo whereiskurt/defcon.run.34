@@ -847,6 +847,64 @@ rather than merge on any red item.
 
 **Not in this phase:** the flash radio-registration ownership hole (confirmed cross-owner overwrite + a pre-existing private-key-to-CloudWatch leak) is already fixed in **PR #1087**, open against `main`, awaiting review. Remaining flash-registration robustness work (no server-side reconciliation from first MQTT contact, fire-and-forget client retry, tab-close orphaning, empty-key fail-open) is tracked in `.planning/todos/pending/2026-07-29-flash-radio-registration-robustness.md`.
 
+### Phase 72: Bot Hardening — Clickable One-Time Awards, Fail-Closed Guardrails, Lyric Delivery
+
+**Goal:** Every mesh bot award becomes a short, clickable, genuinely single-use URL,
+and the two hardening gaps sitting next to that mechanic get closed. Design spec
+approved and committed: `docs/superpowers/specs/2026-07-31-bot-hardening-design.md`
+(commit `e0ff5643`).
+
+**(A) Award integrity.** New reserved `/a/<nonce>` namespace in the q.defcon.run
+resolver Lambda — a pure lexical rewrite alongside `_flush`/`_og`/`ctf`, no DynamoDB
+read, so it cannot fail or add latency. Nonce shrinks from a 36-char UUID to 12
+Crockford-base32 chars (60 bits), taking the award link from **79 chars to 35**.
+`/api/internal/ctf/mint` gains a mint-by-challenge path using `getCtf()` **GetItem**,
+killing the `Ctf.scan.go({pages:"all"})` full-table scan that runs on every persona
+flag reveal today; `createPending()` gains a `flagHash` option so the row's stored
+`answerHash` is used directly and no raw flag code need exist anywhere. TTL becomes
+env-tunable `BOT_CLAIM_LINK_TTL_SECONDS` = 3600, applied to ricky **and** all 8
+persona ghosts. An operator script rotates ricky's static, freely-shareable code
+dead (`solveCount: 0` — zero blast radius), deletes the `Qr` row and the static S3
+interstitial at `defcon.run/qr/rick_astley_loves_desert_running`, and the fresh code
+goes to SOPS as `MESHTK_RICKY_FALLBACK_URL`, used *only* on mint failure and never
+published.
+
+**(B) Delivery reliability.** Drop the `/qr/` LRC entry from `meshtk.dc34.yaml` so
+the song ends at 58 numbered lines on the real closing lyric, followed by two
+reliable award DMs. Promote line 01 to `sendPKIReplyReliable` (drops observed live,
+root-caused downstream of MQTT). `reply_retry_test.go` moves from exactly-1 to
+exactly-3 reliable sites — a deliberate guard-test change, the lyric body stays
+single-shot. Add a `MESHTK_LYRICS_MAX_CONCURRENT` semaphore (default 12) so a crowd
+can't fan out unbounded; over-cap gets a "stage is full" reply, never a silent
+blackhole. Bounds worst case to ~3.3 msg/s.
+
+**(C) Guardrails.** Flip `MESHTK_GUARDRAIL_FAILMODE` from the **prod-confirmed
+`open`** to `closed`, replace the silent drop with a graceful in-persona line, and
+add a CloudWatch alarm on sidecar health so fail-closed is observable.
+
+**Not in this phase (Kurt's explicit decision):** LLM rate limiting / Bedrock cost
+ceiling — `llm.go` has no limiter and the only throttle anywhere is a 30s
+byte-identical dedup window, so abuse and spend both remain **unbounded**; raised
+during design and consciously deferred. Also excluded: per-bot scoping of the mint
+internal secret, and cac1 deployment (bots stay single-region use1).
+
+**Pre-flight checks — ALL PASSED 2026-07-31 (before planning):** prod
+`MESHTK_GUARDRAIL_FAILMODE=open` confirmed on task def `run-mqtt-use1-dc34:122`;
+`Qr` code `A`/`a` absent so the namespace is free; ricky `Ctf` row confirmed
+`challenge=ricky`, static, 100pts, 24h interval, enabled, `solveCount=0`.
+⭐ `/c/` was the original namespace choice but `q.defcon.run/c` is a LIVE short code
+resolving to `didhtp1` — letters `b c d f g h p r` are all taken. Any resolver change
+must re-probe those eight as a regression guard.
+
+**Requirements**: BOT-01 (single-use clickable awards), BOT-02 (fail-closed guardrails),
+BOT-03 (lyric delivery + backpressure)
+**Depends on:** None — independent of Phase 71 (gpx-studio heat map, unexecuted)
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 72 to break down)
+
 ---
 
 <details>

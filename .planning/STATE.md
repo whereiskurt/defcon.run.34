@@ -73,6 +73,7 @@ Deferred to v2: MIGR-04 (flash/human/auth/gpx migration), I18N-01 (locale popula
 - Phase 55 added: CTF Flag Types — Slice 2 Scoring Windows (Day/Time/TZ Gating + DEF CON Run-Hours Quick Set)
 - Phase 56 added: CTF Flag Types — Slice 3 Wordlist One-Time Codes (CtfCode Entity + Atomic Single-Use Claim)
 - v2.3 milestone now fully sliced into phases 53 (done) → 54 → 55 → 56; autonomous execution of 54–56 authorized 2026-07-15
+- Phase 72 added: Bot Hardening — Clickable One-Time Awards, Fail-Closed Guardrails, Lyric Delivery. Spec `docs/superpowers/specs/2026-07-31-bot-hardening-design.md` (`e0ff5643`). Independent of Phase 71. Fully autonomous execution through PR → merge → buildpub deploy authorized by Kurt 2026-07-31.
 
 ### Decisions
 
