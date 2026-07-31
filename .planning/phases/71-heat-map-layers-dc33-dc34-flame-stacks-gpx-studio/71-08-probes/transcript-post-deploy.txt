@@ -1,0 +1,47 @@
+==============================================================================
+Phase 71 HEAT-06 — DC33/DC34 heat-map production probe
+==============================================================================
+timestamp   : 2026-07-31T04:03:28.431Z
+git sha     : d151090e
+target      : https://gpx.defcon.run/use1/studio/app
+heat base   : https://gpx.defcon.run/use1/api/gpx/public/heatmap
+POST-DEPLOY. Released version : run.gpx v0.0.109 (ECS task def run-gpx-use1-dc34:199,
+image dc34-run-gpx-app:v0.0.109, single deployment — rolling replace confirmed settled).
+buildpub run        : github.com/whereiskurt/defcon.run.34/actions/runs/30602642562
+deploy.yml run      : github.com/whereiskurt/defcon.run.34/actions/runs/30602859411
+terragrunt-apply run: github.com/whereiskurt/defcon.run.34/actions/runs/30602871471
+  (scoped modules=heatmap-scheduler; Apply complete: 9 added, 0 changed, 0 destroyed —
+   matches 71-07's recorded plan of 9 to add exactly)
+DC34 seed           : aws lambda invoke heatmap-build-use1 → StatusCode 200, no FunctionError,
+   body {ok:true, year:dc34, runCount:0, scanned:0, skipped:0}. The DC34 artifact EXISTS and
+   is served, but is EMPTY: DEF CON 34 runs 2026-08-05..10 and today is 2026-07-31, so no run
+   carries a con-day yet. Verified independently of the app: a DynamoDB scan of
+   run-gpx-electro finds 0 of 133 items with a conDay attribute.
+------------------------------------------------------------------------------
+PASS  1. GET /api/gpx/public/heatmap/dc34 is 200 JSON with an s-maxage CDN header — status=200 content-type="application/json" cache-control="public, s-maxage=900, stale-while-revalidate=900" bytes=131
+PASS  2. GET /api/gpx/public/heatmap/dc33 is 200 JSON with an s-maxage CDN header — status=200 content-type="application/json" cache-control="public, s-maxage=900, stale-while-revalidate=900" bytes=441779
+PASS  3. GET /api/gpx/public/heatmap/dc32 is 404 (year allowlist holds) — status=404
+PASS  4. ?meta=1 on dc34 returns only the bare meta block, under 500 bytes — status=200 bytes=81 keys=[generatedAt, runCount, totalKm, year]
+      verifier dc33: exit 0 — OK year=dc33 runCount=110 totalKm=658.4
+      verifier dc34: NON-ZERO EXIT —    FAIL  meta.runCount is 0, expected > 0
+FAIL  5. Live bytes are non-attributable for BOTH years (verify-heatmap-artifact.mjs, exit 0) — dc34:    FAIL  meta.runCount is 0, expected > 0
+      71-04-SUMMARY.md HEATMAP_DC33_RUNCOUNT parsed as: 110
+      live dc33 meta: generatedAt=2025-08-15T02:41:54.347Z runCount=110 (HTTP 200)
+PASS  6. Served dc33 meta matches 71-04 (generatedAt exact, runCount from the summary) — generatedAt=2025-08-15T02:41:54.347Z runCount=110 (== summary 110)
+PASS  7. dc34 meta.generatedAt is a valid instant within the last 26h — generatedAt=2026-07-31T04:02:14.036Z age=0.02h runCount=0 totalKm=0
+PASS  8. Unauthenticated POST to /api/gpx/internal/heatmap-build is non-2xx — status=403
+      schedule heatmap-build-use1-hourly: State=ENABLED ScheduleExpression=cron(0 * 5-10 8 ? 2026) ScheduleExpressionTimezone=America/Los_Angeles
+      schedule heatmap-build-use1-daily: State=ENABLED ScheduleExpression=cron(0 4 * * ? *) ScheduleExpressionTimezone=America/Los_Angeles
+PASS  13. Both DC34 schedules exist, are ENABLED, and carry 71-07's exact expression + timezone — both ENABLED in America/Los_Angeles; hourly=cron(0 * 5-10 8 ? 2026), daily=cron(0 4 * * ? *)
+PASS  9. Map Layers has a "Heat Map" section with exactly two rows labelled DC34 and DC33 — section #4 of 4; rows [🔥 DC34 — live | 🔥 DC33 — the classic]
+      stamp="1m ago" hint="Last built 7/31/2026, 12:02:14 AM · 0 runs · 0.0 km"
+PASS  10. Section header carries a relative stamp and hovering DC34 fills the hint bar — stamp="1m ago" hint="Last built 7/31/2026, 12:02:14 AM · 0 runs · 0.0 km"
+      dc33: layer=true source=true features=110 visibility=visible line-color=#ff8c00
+      dc34: layer=false source=false features=null visibility=null line-color=null
+FAIL  11. Both heat layers render simultaneously with their locked colours (D-12) — dc34 layer heatmap-dc34 absent; dc34 source heatmap-dc34 absent; dc34 feature count is null; dc34 visibility=null; dc34 line-color=null, expected #ff0000
+      before toggle: meta requests=2 [dc33?meta=1, dc34?meta=1] bare requests=0
+      before toggle on map: dc33={"layer":false,"source":false} dc34={"layer":false,"source":false}
+      after toggling DC34 on: dc34 bare fetches=1, dc33 bare fetches=0
+PASS  12. Heat layers are off by default and fetch no geometry until toggled (SC-4) — meta=2, bare-before=0, dc34 bare fetches=1, dc33 bare fetches=0
+------------------------------------------------------------------------------
+RESULT: 11/13 assertions passed
