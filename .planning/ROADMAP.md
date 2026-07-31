@@ -778,7 +778,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 71-06-PLAN.md — `HeatMap.svelte` HEAT MAP section in the Phase 70 dialog (stamp via `count`, not the non-existent `trailing` prop), two flame rows with hint-bar detail, `SECTION.heatmap`, order-safe mount in `LayerControl` (HEAT-05) [wave 3]
+- [x] 71-06-PLAN.md — `HeatMap.svelte` HEAT MAP section in the Phase 70 dialog (stamp via `count`, not the non-existent `trailing` prop), two flame rows with hint-bar detail, `SECTION.heatmap`, order-safe mount in `LayerControl` (HEAT-05) [wave 3]
 - [ ] 71-07-PLAN.md — `heatmap-scheduler` Terraform module (copy of strava-sync-scheduler v1.1.0; thin invoker, no data-plane IAM) + us-east-1 live unit (hourly across 5-10 Aug 2026 + daily baseline, PT, `lambda_timeout` 300) + scoped CI plan (HEAT-02) [wave 3]
 
 **Wave 4** *(blocked on Wave 3 completion)*
