@@ -16,8 +16,10 @@
  * shadows them (a code is the first segment UPPERCASED, and `_`-prefixed segments
  * are intercepted first). That interception order is load-bearing for `award`:
  * `/a/` must be un-shadowable by any `Qr` row, because every mesh bot award link
- * points there. Note the reservation is on the VERBATIM lowercase first segment,
- * so `/A/...` is still an ordinary redirect for code `A`.
+ * points there. The award LETTER alone is matched case-insensitively — `/a/` and
+ * `/A/` both reserve — so a client that upcases the whole link still reaches the
+ * claim page, which lowercases the nonce for lookup. Both `A` and `a` were free
+ * as short codes, so reserving the pair shadows nothing live.
  *
  * The parse is purely lexical — no I/O, no validation of whether a code exists.
  * It never throws; malformed input degrades to `empty`.
@@ -91,13 +93,19 @@ export function parsePath(rawPathAndQuery) {
     return { kind: "ctf", challenge, value, query };
   }
 
-  // Reserved: single-use bot-award claim. nonce = 2nd segment, verbatim
-  // (case kept, unlike a redirect code). A bare `/a` has nothing to claim, so it
-  // degrades to `empty` — same short-path rule as `ctf`. The nonce is NOT
-  // trimmed, cased or validated here: this parser stays purely lexical, and
-  // shape validation belongs to run.human's pending-row lookup, which simply
-  // misses on garbage.
-  if (first === "a") {
+  // Reserved: single-use bot-award claim.
+  //
+  // The LETTER is matched case-insensitively so a client that upcases the whole
+  // link (`/A/K7M3…`) still reaches the claim page, which lowercases the nonce
+  // for lookup — without this, that downstream tolerance would be dead code and
+  // an uppercased award link would 404 here as short code `A`. Both `A` and `a`
+  // were free as codes, so reserving the pair shadows nothing live.
+  //
+  // The NONCE stays verbatim (case kept, unlike a redirect code) — not trimmed,
+  // cased or validated here. This parser stays purely lexical; shape validation
+  // belongs to run.human's pending-row lookup, which simply misses on garbage.
+  // A bare `/a` has nothing to claim → `empty`, the same short-path rule as `ctf`.
+  if (first.toLowerCase() === "a") {
     if (segments.length < 2) {
       return { kind: "empty", query };
     }
