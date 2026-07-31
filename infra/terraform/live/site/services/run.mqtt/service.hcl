@@ -335,8 +335,20 @@ locals {
             value = "http://127.0.0.1:8000"
           },
           {
+            # FAIL-CLOSED (72-04). meshtk's guard treats any transport error,
+            # non-200 status or decode failure from the sidecar as a BLOCK, not an
+            # allow. At a hacker con a jailbreak/toxicity/PII check that silently
+            # passes every prompt through to Bedrock whenever the checker is down
+            # is worse than having no checker at all.
+            #
+            # Cost of the flip: while the sidecar is unreachable — including its
+            # ~90s model-load window on boot (see its health_check start_period
+            # below) — guarded chat REFUSES. meshtk answers those refusals with an
+            # in-persona degradation line rather than dropping them silently, and a
+            # sustained outage raises the dcr-mqtt-guardrail-outage CloudWatch
+            # alarm on the admin-reports tripwire topic.
             name  = "MESHTK_GUARDRAIL_FAILMODE"
-            value = "open"
+            value = "closed"
           },
           {
             # run.human base URL for the single-use flag-claim mint endpoint
@@ -370,6 +382,21 @@ locals {
           {
             name      = "MESHTK_FLAG_CHALLENGES"
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/mqtt/flag-challenges"
+          },
+          {
+            # Mint-failure fallback ONLY: the static claim URL ricky sends when the
+            # run.human mint call fails, so a player is never left empty-handed.
+            # It embeds a live flag code — never published on any page, never
+            # logged. An empty value is tolerated: meshtk then sends the award line
+            # without a link. The real value lives only in encrypted SOPS -> SSM;
+            # valueFrom keeps it out of terraform plan output entirely.
+            #
+            # ORDERING: ECS refuses to start a task whose valueFrom parameter does
+            # not exist. This param is created by the `secrets` apply in 72-08
+            # (after the rotation script generates the URL); do NOT apply this file
+            # via ecs-task (72-09) before that has landed.
+            name      = "MESHTK_RICKY_FALLBACK_URL"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/mqtt/ricky-fallback-url"
           }
           # MESHTK_ANTHROPIC_KEY (Anthropic-API backup) is intentionally NOT wired:
           # meshtk defaults to Bedrock when it's unset. Add the `anthropic-key`
@@ -386,10 +413,27 @@ locals {
             condition      = "START"
           },
           {
-            # START, not HEALTHY: the guardrail sidecar is best-effort (meshtk
-            # fail-opens if it's unreachable), so a slow/crash-looping sidecar must
-            # never block the ghosts from starting. Brief un-guarded window while
-            # its models load on boot is the accepted trade for availability.
+            # START, not HEALTHY — deliberate, and RE-AFFIRMED under fail-closed
+            # (72-04). The old rationale here ("meshtk fail-opens, so the brief
+            # un-guarded boot window is the accepted trade") no longer holds: with
+            # the ghosts fail-closed that window is a fully BLOCKED window, not an
+            # un-guarded one. The condition still stays START, for a different
+            # reason:
+            #
+            #   HEALTHY would let a permanently sick sidecar stop the ghosts
+            #   container from starting AT ALL. That kills nodeinfo beacons and
+            #   position updates too, so the ghosts vanish from the map entirely —
+            #   a total outage in exchange for a partial one. With START, only
+            #   guarded chat degrades; beaconing, position and the map keep working
+            #   while the sidecar boots or recovers.
+            #
+            # The window is bounded and visible: the sidecar's own health check
+            # declares start_period = 90, so guarded chat refuses for ~90s on boot
+            # (meshtk answers in-persona, never silently), and a sustained outage
+            # raises the dcr-mqtt-guardrail-outage CloudWatch alarm.
+            #
+            # NOTE: the bot-hardening design spec's claim that this already read
+            # HEALTHY was inaccurate — it has always been START.
             container_name = "run-mqtt-guardrails"
             condition      = "START"
           }
@@ -398,8 +442,14 @@ locals {
 
       # Container 5: run-mqtt-guardrails (OSS Guardrails-AI sidecar, NOT essential)
       # Two-sided input/output moderation for the ghost chatbots. CPU-only; the
-      # ghosts call it on 127.0.0.1:8000. Task continues if it fails; meshtk's
-      # MESHTK_GUARDRAIL_FAILMODE=open degrades to un-guarded rather than blocking.
+      # ghosts call it on 127.0.0.1:8000.
+      #
+      # Still NOT essential: a crash-looping model load must not take the whole
+      # task down with it (mosquitto, the meshtk proxy and nginx all live here).
+      # But since 72-04 the ghosts run FAIL-CLOSED (container 4), so this sidecar
+      # being unavailable no longer degrades to un-checked chat — guarded chat
+      # REFUSES instead, and meshtk answers with an in-persona degradation line so
+      # a player sees the ghost say it is off-air rather than getting silence.
       {
         name               = "run-mqtt-guardrails"
         image              = "run-mqtt-guardrails:${local.versions.guardrails}"
