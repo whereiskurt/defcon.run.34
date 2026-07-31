@@ -36,8 +36,16 @@
         return Number.isFinite(t) ? new Date(t).toLocaleString() : 'unknown';
     }
 
+    // A year can be available and still hold nothing to draw — DC34 is exactly that until
+    // the first con-day run lands. The row stays visible and stays toggleable (its layer is
+    // real, just empty), so the hint has to say WHY the map does not change when it is
+    // checked; otherwise a working feature reads as a broken checkbox (WR-07). The
+    // "Last built … · N runs · N.N km" prefix is a contract — the ship probe asserts on it.
     function detail(s: HeatYearState): string {
-        return `Last built ${exact(s.generatedAt)} · ${s.runCount} runs · ${s.totalKm.toFixed(1)} km`;
+        const built = `Last built ${exact(s.generatedAt)} · ${s.runCount} runs · ${s.totalKm.toFixed(1)} km`;
+        return s.runCount === 0
+            ? `${built} · no runs yet — this layer fills in during the con`
+            : built;
     }
 
     // Only years with an artifact get a row; LayerControl mounts the whole section

@@ -60,6 +60,39 @@ Konami flair, per-day filtering, and heatmap-kernel rendering are out of scope.
 - Exact opacity/width tuning, artifact meta placement (embedded vs sidecar), dedup rule
   when a run has both GPX track and Strava polyline (prefer GPX track), con-window
   schedule expression, whether DC33 backfill runs locally-once vs as a Lambda.
+
+## Gap-Closure Decisions (user-locked 2026-07-31, after 71-VERIFICATION.md `gaps_found`)
+
+### D-13 — Heat-line opacity becomes 0.70; colors unchanged
+- `HEAT_STROKE` `line-opacity` moves `0.25 → 0.70`. `line-width` stays 3. DC34 `#ff0000`
+  and DC33 `#ff8c00` are UNCHANGED — the year identity stays exactly as locked above.
+- Rationale: at 0.25 the DC33 stack is not faint, it is INVISIBLE. Proven by two controlled
+  captures (identical camera, identical data, all non-heat layers hidden, at a measured
+  40-run hotspot): `71-08-probes/shot-dc33-SHIPPED-0.25-invisible.png` is indistinguishable
+  from a bare basemap; `shot-dc33-DIAG-0.70-legible.png` shows a dense stack with a real
+  density gradient. Data and render path were both ruled out (`queryRenderedFeatures` finds
+  36 overlapping features under one screen pixel; a forced opacity-1 magenta render draws a
+  correct network).
+- NOTE: this is NOT a reversal of a locked value. "Exact opacity/width tuning" was already
+  Claude's Discretion above, with `~0.25` only a suggested starting point. Kurt confirmed
+  0.70 on 2026-07-31 after seeing the measured 0.25 / 0.45 / 0.70 sweep.
+- Accepted trade-off: at 0.70 a single line is fairly opaque, so overlap saturates sooner
+  and the gradient is coarser than a true low-alpha stack. Legibility beat fidelity.
+- Known contributing factor, NOT being fixed now: `#ff8c00` sits on top of the Mapbox
+  basemap's own orange road casings, so DC33 contrast is imperfect at any opacity.
+
+### D-14 — CR-02 geometry re-identification: ACCEPTED RISK, no code change
+- `normalizeTrack` keeps preserving each run's exact first and last coordinate at
+  `COORD_PRECISION = 5` (~1.1 m). No endpoint trimming, no precision reduction.
+- Kurt's explicit call 2026-07-31, made with the exposure stated plainly: because D-03
+  dropped the owner opt-in gate, every con-day run's exact start point — often a hotel
+  room door — is published unauthenticated at a stable URL for runners who never consented.
+- D-03 remains locked and is NOT re-litigated. `assertNonAttributable` remains the sole
+  compensating control; it proves the artifact carries no identifier *fields*, which is a
+  different property from not being re-identifiable from geometry. That distinction is now
+  on the record rather than implied away.
+- Gap plans MUST NOT implement endpoint trimming or precision changes. Record the decision
+  in the code near `normalizeTrack` so a future reader does not "fix" it as an oversight.
 </decisions>
 
 <canonical_refs>

@@ -13,12 +13,25 @@ data "aws_kms_alias" "ssm" {
 }
 
 # --- Lambda execution role ---
+# CONFUSED DEPUTY: the source-account condition below pins the trust to THIS
+# account, so an AWS service principal acting on behalf of some other account
+# cannot be talked into assuming this role. Applied here for symmetry with the
+# scheduler trust below (which AWS explicitly documents as needing it). The
+# blast radius of a successful confusion is small — this module is a thin
+# invoker whose only power is invoking one function and reading one parameter —
+# but the mitigation is free. data.aws_caller_identity.current is declared in
+# main.tf; do NOT add a second declaration here (duplicate = plan error).
 data "aws_iam_policy_document" "sync_assume" {
   statement {
     actions = ["sts:AssumeRole"]
     principals {
       type        = "Service"
       identifiers = ["lambda.amazonaws.com"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [data.aws_caller_identity.current.account_id]
     }
   }
 }
@@ -67,19 +80,46 @@ resource "aws_iam_role_policy" "sync" {
 
 # ENI create/describe/delete + basic Lambda logging permissions needed
 # whenever the Lambda attaches to a VPC (var.vpc_subnet_ids non-empty).
-# Harmless to attach even when the Lambda runs with no VPC config.
+#
+# NOT harmless — this is the WIDEST grant in the module. The AWS-managed policy
+# grants ec2:CreateNetworkInterface / DeleteNetworkInterface /
+# DescribeNetworkInterfaces AND logs:CreateLogGroup / logs:PutLogEvents on
+# Resource: "*" — i.e. logs actions on every log group in the account, strictly
+# broader than the hand-written, log-group-scoped statement above. It is
+# accepted only because the Lambda genuinely needs the ENI permissions to reach
+# run-gpx over the VPC-private Cloud Map name.
+#
+# DEFERRED, deliberately: gating this behind
+# `count = length(var.vpc_subnet_ids) > 0 ? 1 : 0` is the right long-term fix,
+# but adding a count meta-argument changes the resource ADDRESS from unindexed
+# to indexed, which Terraform executes as destroy-then-create — a momentary IAM
+# policy detach on a live Lambda during con week, for zero behavioural change
+# (this deployment always supplies subnets, so the count evaluates to 1
+# regardless). Filed for post-con.
 resource "aws_iam_role_policy_attachment" "sync_vpc" {
   role       = aws_iam_role.sync.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
 
 # --- EventBridge Scheduler role (assumed by the scheduler to invoke the Lambda) ---
+# CONFUSED DEPUTY: this is the trust AWS explicitly documents as needing the
+# source-account condition below. WITHOUT it, an EventBridge Scheduler in ANY AWS
+# account that learns this role ARN can attempt to assume it. The blast radius
+# is small — the role's only grant is lambda:InvokeFunction on this one thin
+# invoker, so the worst outcome is an unscheduled heat-map rebuild — but the
+# mitigation costs nothing. Account id comes from the caller-identity data
+# source declared in main.tf; do NOT redeclare it here.
 data "aws_iam_policy_document" "scheduler_assume" {
   statement {
     actions = ["sts:AssumeRole"]
     principals {
       type        = "Service"
       identifiers = ["scheduler.amazonaws.com"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [data.aws_caller_identity.current.account_id]
     }
   }
 }

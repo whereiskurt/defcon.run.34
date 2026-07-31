@@ -25,6 +25,7 @@ import {
   assembleHeatmapArtifact,
   assertNonAttributable,
   heatmapArtifactKey,
+  MAX_RUNS,
 } from "@/lib/heatmap-artifact";
 
 /**
@@ -61,8 +62,43 @@ export type HeatmapBuildResult = {
   skipped: number;
 };
 
-/** How many S3 GetObjects are in flight at once. */
-const CHUNK_SIZE = 20;
+/**
+ * How many S3 GetObjects are in flight at once.
+ *
+ * Exported for the tests only — the cap assertion needs the loop's overshoot
+ * allowance without hard-coding a literal that would silently go stale.
+ */
+export const CHUNK_SIZE = 20;
+
+/**
+ * THE BUILD'S REAL WALL-CLOCK BOUND — 240 s.
+ *
+ * The route used to carry `export const maxDuration = 300`, but `next.config.ts`
+ * sets `output: "standalone"` and this app runs on ECS Fargate, so that export
+ * is a serverless deployment hint the standalone Node server never enforces. The
+ * build had NO upper bound at all, and the Terraform variable that claimed a
+ * "CONTRACT" with it was written against a number nothing produced. This
+ * constant, enforced in the chunk loop below, is the replacement — the only
+ * bound that actually exists.
+ *
+ * IT IS THE INNERMOST LINK OF A STRICTLY INCREASING CHAIN:
+ *
+ *   builder aborts at 240 s
+ *     < invoker Lambda's own fetch AbortSignal at 300 s
+ *       < the Lambda's Terraform `lambda_timeout` at 420 s
+ *
+ * Strictly increasing, never equal. If the invoker's budget equals the build's,
+ * the Lambda is killed mid-flight before the response arrives, its retry policy
+ * fires up to two more invocations, and each starts a fresh full rebuild while
+ * the first is still scanning — three concurrent unbounded scans plus three S3
+ * fan-outs on a single ECS task, at exactly the moment the build is already
+ * slow. With the chain intact the inner bound always fires first and the invoker
+ * reports a real failure instead of a timeout.
+ *
+ * Plan 71-14 codes the outer two numbers against this one. CHANGING THIS VALUE
+ * REQUIRES CHANGING THEM.
+ */
+const BUILD_BUDGET_MS = 240_000;
 
 const CON_DAY_DATES = new Set(CON_DAYS.map((d) => d.date));
 
@@ -128,6 +164,21 @@ function isSelected(r: HeatmapRunRow): boolean {
 }
 
 /**
+ * Ordering for the deduplicated rows: oldest first, ties broken on `fileId`.
+ *
+ * `localeCompare` rather than `a.fileId < b.fileId ? -1 : 1` because the latter
+ * returned 1 for EQUAL elements (IN-01). An inconsistent comparator is one
+ * refactor away from implementation-defined ordering, which would break the
+ * deterministic-output property `dedupe` exists to provide. Exported so that
+ * property can be asserted directly — the `Map` keyed on `fileId` means equal
+ * elements are unreachable through the public path today, which is exactly why
+ * the bug survived.
+ */
+export function compareRunRows(a: HeatmapRunRow, b: HeatmapRunRow): number {
+  return a.createdAt - b.createdAt || a.fileId.localeCompare(b.fileId);
+}
+
+/**
  * Collapse rows sharing a non-empty `stravaActivityId` (the same activity
  * re-imported), keeping the smallest `createdAt`; ties break on `fileId` string
  * order so the result is deterministic. Then de-duplicate on `fileId`.
@@ -157,9 +208,7 @@ function dedupe(rows: HeatmapRunRow[]): HeatmapRunRow[] {
   }
 
   // Stable output order regardless of scan order.
-  return [...byFileId.values()].sort(
-    (a, b) => a.createdAt - b.createdAt || (a.fileId < b.fileId ? -1 : 1)
-  );
+  return [...byFileId.values()].sort(compareRunRows);
 }
 
 export async function buildDc34Heatmap(
@@ -176,11 +225,36 @@ export async function buildDc34Heatmap(
 
   const tracks: [number, number][][] = [];
   let skipped = 0;
+  const startedAt = now().getTime();
+  let chunksCompleted = 0;
 
   // BOUNDED concurrency. The aggregate route can afford one unbounded
   // Promise.all only because it caps at 500 routes; a precomputed builder
   // deliberately has no such cap, so it walks the rows in chunks instead.
   for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+    // WALL-CLOCK BOUND (WR-03). Checked at the TOP of every chunk, because the
+    // only place this loop can be interrupted safely is between chunks.
+    //
+    // ABORT, DO NOT SHRINK. Publishing whatever was collected so far would
+    // overwrite a complete artifact with a truncated one and report the
+    // truncated count as healthy — during the con that is strictly worse than
+    // an artifact one schedule-interval stale, and the schedule retries within
+    // the hour. Throwing also surfaces in the invoker's log and the scheduler's
+    // failure record, where a silent shrink would not.
+    const elapsed = now().getTime() - startedAt;
+    if (elapsed >= BUILD_BUDGET_MS) {
+      throw new Error(
+        `[heatmap] dc34 build exceeded its ${BUILD_BUDGET_MS} ms wall-clock budget after ${chunksCompleted} chunk(s) — aborting without publishing`
+      );
+    }
+
+    // TOTAL-WORK BOUND (WR-05). `assembleHeatmapArtifact` caps the feature list
+    // at MAX_RUNS, so every row loaded past that point buys an S3 GetObject for
+    // geometry that is then discarded — a 6000-row table paid 6000 reads to
+    // publish 5000 features. Stop at the cap instead. This bounds the TOTAL
+    // work; the chunk width above still bounds the CONCURRENT work.
+    if (tracks.length >= MAX_RUNS) break;
+
     const chunk = rows.slice(i, i + CHUNK_SIZE);
     const results = await Promise.all(
       chunk.map(async (r) => {
@@ -200,10 +274,21 @@ export async function buildDc34Heatmap(
       if (coords) tracks.push(coords);
       else skipped++;
     }
+    chunksCompleted++;
   }
 
   const generatedAt = now().toISOString();
   const artifact = assembleHeatmapArtifact("dc34", generatedAt, tracks);
+
+  // LOUD TRUNCATION (WR-05). At the cap the build reports exactly MAX_RUNS,
+  // which reads as a healthy number; `scanned`/`kept`/`skipped` do not reveal
+  // that runs were dropped. Match the sibling aggregate route, which annotates
+  // its own cap the same way. Counts only — no userId, no fileId, no S3 key.
+  if (artifact.meta.runCount >= MAX_RUNS) {
+    console.warn(
+      `[heatmap] dc34 at the MAX_RUNS=${MAX_RUNS} cap: selected=${rows.length} collected=${tracks.length} published=${artifact.meta.runCount} — runs beyond the cap were dropped`
+    );
+  }
 
   // THE CHOKEPOINT. Must stay immediately before the write and must NOT be
   // wrapped in a try/catch that continues: a throw means "do not publish".

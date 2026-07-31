@@ -11,7 +11,7 @@ requires:
 provides:
   - "apps/run.gpx/webapp/scripts/backfill-dc33-heatmap.ts — one-off DC33 artifact builder, --apply gated"
   - "apps/run.gpx/webapp/scripts/verify-heatmap-artifact.mjs — reusable structural + byte-level artifact verifier (file or URL), with --selftest"
-  - "S3 object uploads/HEATMAP/dc33.json in uploads-dc34-run-gpx-use1-80a6b349 (110 runs, 658.4 km)"
+  - "S3 object uploads/HEATMAP/dc33.json in uploads-dc34-run-gpx-use1-80a6b349 (90 runs, 658.4 km — republished 2026-07-31 by plan 71-15; built here as 110 runs, see the correction note below)"
   - "DC33_AWS_PROFILE env var (optional, defaults to dc34-application)"
   - "HEATMAP_DC33_RUNCOUNT / HEATMAP_DC33_TOTALKM / HEATMAP_DC33_GENERATEDAT contract lines"
 affects:
@@ -56,14 +56,30 @@ proven non-attributable on the emitted bytes, and published to
 
 ## Machine-readable contract (parsed by 71-08)
 
+> **Correction, 2026-07-31 (plan 71-15).** The run count below was changed in place from
+> 110 to 90 when the artifact was republished. Plan 71-10 added a degeneracy filter at
+> `assembleHeatmapArtifact`, and re-running this same backfill through it dropped 20
+> features that were entirely zero-length lines at null island — decode artefacts from
+> short or degenerate DC33 summary polylines, not runs. They drew nothing on the map and
+> contributed nothing to the distance total. **Both other values are unchanged and that is
+> the point:** the total kilometres stayed at 658.4 with zero movement, which is the
+> evidence the filter removed junk rather than real runs (a zero-length line adds zero
+> kilometres, so dropping real runs would have pulled the distance down with the count),
+> and the generated-at instant remains the August 2025 export's own timestamp because the
+> DC33 artifact is a frozen snapshot and must never be restamped. Kurt approved the change
+> at plan 71-15's blocking gate before publication, with the before/after numbers in front
+> of him. The run evidence further down this file is left exactly as written — it is the
+> true record of the original build, which did produce 110.
+
 ```
-HEATMAP_DC33_RUNCOUNT=110
+HEATMAP_DC33_RUNCOUNT=90
 HEATMAP_DC33_TOTALKM=658.4
 HEATMAP_DC33_GENERATEDAT=2025-08-15T02:41:54.347Z
 ```
 
 These three lines are the literal last three lines of the backfill's own stdout, both in
-the dry run and in the `--apply` run. They were not hand-typed from prose.
+the dry run and in the `--apply` run. They were not hand-typed from prose. (The run-count
+value was re-taken from the 2026-07-31 republish's stdout, likewise not hand-typed.)
 
 ## What was built
 

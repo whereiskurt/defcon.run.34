@@ -75,15 +75,38 @@ type HeatStroke = {
 };
 
 /**
- * Width and opacity are year-independent and Kurt-locked (D-02).
+ * Width and opacity are year-independent. Width 3 is Kurt-locked (D-02). The
+ * opacity is 0.70 — confirmed by Kurt on 2026-07-31 as D-13, after a measured
+ * 0.25 / 0.45 / 0.70 sweep shot at a 40-run hotspot with every non-heat layer
+ * hidden. The literal below is written 0.7; that is the same number.
  *
- * DC33's own renderer used opacity 0.7 / weight 4, but that was Leaflet drawing
- * one polyline per activity; Mapbox composites a single multi-feature source far
- * more aggressively, and the shipped in-repo precedent for this exact effect is
- * `public-overlays.ts` `addAggregate()` at opacity 0.15 / width 2. 0.25 at width
- * 3 sits deliberately between the two.
+ * WHY IT IS NOT LOWER. This layer originally shipped at 0.25, and at that value
+ * the DC33 stack was not faint — it was perceptually absent. Two controlled
+ * captures settled it: identical camera, identical data, all non-heat layers off.
+ * The 0.25 frame is indistinguishable from a bare basemap; the same frame at
+ * 0.70 shows a dense stack with a real density gradient. Data and render path
+ * were both ruled out first (36 overlapping features under one screen pixel, and
+ * a forced opaque render drew a correct network), so the number was the fault.
+ *
+ * ACCEPTED TRADE-OFF. At 0.70 a single line is already fairly opaque, so overlap
+ * saturates sooner and the gradient is coarser than a true low-alpha stack would
+ * give. Legibility beat fidelity: a coarse gradient a runner can see is worth
+ * more than a beautiful one they cannot.
+ *
+ * KNOWN AND DELIBERATELY NOT FIXED. DC33's ember orange sits on top of the
+ * Mapbox basemap's own orange road casings, so DC33 contrast stays imperfect at
+ * any opacity. A colour change, a dark casing / under-stroke layer beneath the
+ * heat line, and a runtime-tunable paint knob were each offered to Kurt and each
+ * declined. Do not add them.
+ *
+ * THIS IS A TUNING, NOT A REVERSAL. "Exact opacity/width tuning" was always
+ * Claude's Discretion in 71-CONTEXT.md, with the original figure only a suggested
+ * starting point. The colours ARE locked (D-02, reaffirmed by D-13) and did not
+ * move. Do not lower this value back toward the old one on the strength of
+ * `public-overlays.ts` `addAggregate()` running thinner — that comparison is what
+ * produced the invisible render in the first place.
  */
-const HEAT_STROKE = { 'line-width': 3, 'line-opacity': 0.25 } as const;
+const HEAT_STROKE = { 'line-width': 3, 'line-opacity': 0.7 } as const;
 
 /**
  * DC34 flame red, DC33 ember orange (D-02, Kurt-locked).
@@ -175,15 +198,47 @@ function parseMeta(v: unknown): HeatMeta | null {
 }
 
 /**
- * Structural gate on untrusted geometry (T-71-21): only a FeatureCollection with
- * a non-empty feature array is ever handed to `addSource`. Anything else is not
- * a heat map and is dropped without touching the map.
+ * Structural gate on untrusted geometry (T-71-21): only a FeatureCollection
+ * carrying a feature array is ever handed to `addSource`. Anything else is not a
+ * heat map and is dropped without touching the map.
+ *
+ * AN EMPTY FEATURE ARRAY IS VALID. A year whose artifact exists but currently
+ * holds no runs — DC34 at any point before the con opens — is a real artifact
+ * awaiting data, not a malformed one. Rejecting it here used to make
+ * `ensureGeometry` bail before it could latch `built`, so the row's checkbox
+ * turned on, painted nothing, said nothing, and re-downloaded the whole artifact
+ * on every subsequent toggle (WR-07).
+ *
+ * THIS RELAXES A LIVENESS CHECK, NOT A STRUCTURAL ONE. The type literal and the
+ * array check below ARE the untrusted-input gate (T-71-21) — they are what keeps
+ * an arbitrary JSON body out of `addSource` — and must not be loosened further.
+ * "Has this year got data yet" is a different question from "is this JSON a
+ * FeatureCollection", and only the second one belongs in this function.
  */
 function isFeatureCollection(v: unknown): v is GeoJSON.FeatureCollection {
     if (!v || typeof v !== 'object' || Array.isArray(v)) return false;
     const o = v as { type?: unknown; features?: unknown };
-    return o.type === 'FeatureCollection' && Array.isArray(o.features) && o.features.length > 0;
+    return o.type === 'FeatureCollection' && Array.isArray(o.features);
 }
+
+/**
+ * How long `whenStyleReady` waits on the map's `idle` event before proceeding
+ * anyway.
+ *
+ * RESOLVING ON TIMEOUT IS DELIBERATE — it must never reject. A map that never
+ * reaches idle (a style load that failed, a tab backgrounded before the first
+ * idle) used to leave that promise unsettled forever, so the `await` inside
+ * `ensureGeometry` never returned and that year's toggle never persisted, with
+ * no timeout and no rejection to notice it by (IN-05). Rejecting instead would
+ * only move the problem: `ensureGeometry`'s catch would swallow it and the layer
+ * would be lost just as silently.
+ *
+ * Proceeding early is safe because readiness is a HINT here, not a precondition:
+ * the `getSource` / `getLayer` guards downstream already tolerate a style that is
+ * not quite ready, so the worst case of going early is a no-op that the next
+ * toggle repeats, while the worst case of waiting forever is a wedged control.
+ */
+const STYLE_READY_TIMEOUT_MS = 10_000;
 
 export class HeatmapLayer {
     map: mapboxgl.Map;
@@ -196,7 +251,13 @@ export class HeatmapLayer {
 
     private whenStyleReady(): Promise<void> {
         if (this.map.isStyleLoaded()) return Promise.resolve();
-        return new Promise((resolve) => this.map.once('idle', () => resolve()));
+        // Raced, and the loser is harmless: whichever fires first settles, and a second
+        // resolve on an already-settled promise is a no-op.
+        return new Promise((resolve) => {
+            const settle = () => resolve();
+            setTimeout(settle, STYLE_READY_TIMEOUT_MS);
+            this.map.once('idle', settle);
+        });
     }
 
     /**
@@ -329,5 +390,9 @@ export class HeatmapLayer {
             this.built[year] = false;
             this.visible[year] = false;
         }
+        // The store is documented as the HEAT MAP section's source of truth, so a teardown
+        // that leaves it populated makes that documentation false — the section would go on
+        // rendering rows for layers that no longer exist until the next loadMeta() lands.
+        heatmapState.set(blankState());
     }
 }

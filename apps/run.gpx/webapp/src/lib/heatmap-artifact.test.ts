@@ -225,6 +225,61 @@ describe("assembleHeatmapArtifact", () => {
       expect(f.geometry.type).toBe("LineString");
     }
   });
+
+  // WR-06 — 20 of the 110 live DC33 features are entirely [[0,0],[0,0]].
+  it("drops a null-island track that never moves", () => {
+    const art = assembleHeatmapArtifact("dc34", GENERATED_AT, [
+      [
+        [0, 0],
+        [0, 0],
+      ],
+    ]);
+    expect(art.features).toEqual([]);
+    expect(art.meta.runCount).toBe(0);
+  });
+
+  it("drops a never-moving track that is NOT at null island", () => {
+    const art = assembleHeatmapArtifact("dc34", GENERATED_AT, [
+      [
+        [-115.1398, 36.1699],
+        [-115.1398, 36.1699],
+        [-115.1398, 36.1699],
+      ],
+    ]);
+    expect(art.features).toEqual([]);
+    expect(art.meta.runCount).toBe(0);
+  });
+
+  it("keeps a genuine two-point track that actually moves", () => {
+    const art = assembleHeatmapArtifact("dc34", GENERATED_AT, [
+      [
+        [-115.1398, 36.1699],
+        [-115.1428, 36.1729],
+      ],
+    ]);
+    expect(art.features).toHaveLength(1);
+    expect(art.meta.runCount).toBe(1);
+    expect(art.features[0].geometry.coordinates).toHaveLength(2);
+  });
+
+  it("drops only the degenerate track when mixed with real ones", () => {
+    const art = assembleHeatmapArtifact("dc33", GENERATED_AT, [
+      [
+        [-115.1398, 36.1699],
+        [-115.1428, 36.1729],
+      ],
+      [
+        [0, 0],
+        [0, 0],
+      ],
+      [
+        [-115.15, 36.18],
+        [-115.16, 36.19],
+      ],
+    ]);
+    expect(art.features).toHaveLength(2);
+    expect(art.meta.runCount).toBe(2);
+  });
 });
 
 describe("assertNonAttributable", () => {
@@ -287,5 +342,79 @@ describe("assertNonAttributable", () => {
     };
     badKey.features[0].geometry.stravaActivityId = "999";
     expect(() => assertNonAttributable(badKey)).toThrow(/stravaActivityId/);
+  });
+
+  // ── WR-01: the three blind spots the guard's docstring implied it covered ──
+
+  it("throws when the root type is not FeatureCollection", () => {
+    const bad = clone(fresh()) as unknown as Record<string, unknown>;
+    bad.type = "Feature";
+    expect(() => assertNonAttributable(bad)).toThrow(/FeatureCollection/);
+  });
+
+  it("throws when meta carries an unexpected key, naming it", () => {
+    const bad = clone(fresh()) as unknown as {
+      meta: Record<string, unknown>;
+    };
+    bad.meta.generatedBy = "builder";
+    expect(() => assertNonAttributable(bad)).toThrow(/generatedBy/);
+  });
+
+  it("throws when meta is absent or is not a plain object", () => {
+    const missing = clone(fresh()) as unknown as Record<string, unknown>;
+    delete missing.meta;
+    expect(() => assertNonAttributable(missing)).toThrow(/meta/);
+
+    const arrayMeta = clone(fresh()) as unknown as Record<string, unknown>;
+    arrayMeta.meta = [];
+    expect(() => assertNonAttributable(arrayMeta)).toThrow(/meta/);
+
+    const scalarMeta = clone(fresh()) as unknown as Record<string, unknown>;
+    scalarMeta.meta = "dc34";
+    expect(() => assertNonAttributable(scalarMeta)).toThrow(/meta/);
+  });
+
+  it("throws when geometry.coordinates is not an array", () => {
+    const bad = clone(fresh()) as unknown as {
+      features: { geometry: Record<string, unknown> }[];
+    };
+    bad.features[0].geometry.coordinates = "-115.1,36.1";
+    expect(() => assertNonAttributable(bad)).toThrow(/coordinates/);
+  });
+
+  it("throws on a malformed coordinate, naming the feature index", () => {
+    const stringCoord = clone(fresh()) as unknown as {
+      features: { geometry: { coordinates: unknown[] } }[];
+    };
+    stringCoord.features[0].geometry.coordinates[1] = "0,1";
+    expect(() => assertNonAttributable(stringCoord)).toThrow(/features\[0\]/);
+
+    const tripleCoord = clone(fresh()) as unknown as {
+      features: { geometry: { coordinates: unknown[] } }[];
+    };
+    tripleCoord.features[0].geometry.coordinates[1] = [0, 1, 600];
+    expect(() => assertNonAttributable(tripleCoord)).toThrow(/features\[0\]/);
+
+    const nonNumeric = clone(fresh()) as unknown as {
+      features: { geometry: { coordinates: unknown[] } }[];
+    };
+    nonNumeric.features[0].geometry.coordinates[1] = ["0", "1"];
+    expect(() => assertNonAttributable(nonNumeric)).toThrow(/features\[0\]/);
+  });
+
+  it("still accepts a real multi-run artifact after the widening", () => {
+    const long = Array.from(
+      { length: 900 },
+      (_, i) => [-115.1 + i * 0.0002, 36.1 + i * 0.0001] as [number, number]
+    );
+    const art = assembleHeatmapArtifact("dc33", "2026-07-30T12:00:00.000Z", [
+      long,
+      [
+        [-115.2, 36.2],
+        [-115.21, 36.21],
+      ],
+    ]);
+    expect(art.features).toHaveLength(2);
+    expect(() => assertNonAttributable(art)).not.toThrow();
   });
 });
