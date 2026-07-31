@@ -70,7 +70,7 @@ variable "lambda_runtime" {
 }
 
 variable "lambda_timeout" {
-  description = "Lambda timeout in seconds. MUST be >= the internal build route's maxDuration (300). A shorter timeout kills the invoker mid-flight, the scheduler retries, and the retry overlaps a build that is still running."
+  description = "Lambda timeout in seconds — the OUTERMOST of three strictly increasing bounds. It MUST be strictly greater than the invoker's own fetch abort (lambda/index.mjs), which MUST in turn be strictly greater than the builder's internal wall-clock deadline (BUILD_BUDGET_MS in apps/run.gpx/webapp/src/lib/heatmap-build.ts) — the builder's deadline is the only bound the build itself enforces. Equal is NOT enough: this budget must also absorb the SSM GetParameter round trip, cold start, DNS and connection setup on top of the fetch bound. If it does not, the invoker is killed mid-flight, it throws, and the schedule's retry_policy fires further invocations that each start a fresh full rebuild while the first is still scanning. An earlier description stated a contract against a Next.js route-level duration export; that export was inert under output: \"standalone\" on ECS Fargate and has since been removed, so it is not the bound to code against."
   type        = number
   default     = 300
 }
