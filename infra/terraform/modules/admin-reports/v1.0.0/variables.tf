@@ -100,6 +100,36 @@ variable "threshold_alb_5xx_per_5min" {
   default     = 10
 }
 
+# --- Guardrail-outage alarm inputs (72-04) ------------------------------------
+
+variable "guardrail_log_group_name" {
+  description = <<-EOT
+    Exact CloudWatch Logs group for the run-mqtt ghosts container (the meshtk fleet
+    process that calls the guardrail sidecar), e.g.
+    `/ecs/run-mqtt-ghosts-run-mqtt-use1-dc34`. Empty (the default) provisions
+    neither the metric filter nor the alarm.
+
+    DELIBERATELY separate from `log_group_names`: that map is for_each'd by
+    retention.tf into log groups ADOPTED via import{} with `prevent_destroy` and a
+    90-day retention override. Adding the ghosts group there would silently adopt
+    it and rewrite its retention — an unrelated and riskier change than this alarm
+    needs. This variable only attaches a metric filter.
+  EOT
+  type        = string
+  default     = ""
+}
+
+variable "threshold_guardrail_outages_per_5min" {
+  description = <<-EOT
+    Guardrail-outage log lines over 5 minutes that fire the outage alarm. Default 3
+    tolerates a transient blip — a single failed probe, or the sidecar's ~90s
+    model-load window on task boot — while still catching a sustained outage. Since
+    the ghosts run fail-CLOSED, a sustained outage means guarded chat is refusing.
+  EOT
+  type        = number
+  default     = 3
+}
+
 variable "alb_anomaly_alarm_enabled" {
   description = <<-EOT
     Whether to create the ALB RequestCount anomaly-detection alarm. Default false:

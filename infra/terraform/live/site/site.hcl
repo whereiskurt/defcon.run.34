@@ -365,7 +365,7 @@ locals {
       }
       mqtt = {
         description = "MQTT broker and meshtk secrets"
-        # The ricky fallback key (72-04) is read by the run-mqtt-ghosts container as
+        # The ricky fallback key (72-04) is read by the mqtt ghosts container as
         # MESHTK_RICKY_FALLBACK_URL: the static claim URL ricky sends when the
         # run.human mint call fails, so a player is never left empty-handed. It
         # embeds a live flag code — the real value is operator-placed in the
@@ -458,11 +458,25 @@ locals {
     # signups_per_hour: spike-only (>=10/hr). A normal trickle of real signups is
     # expected pre-con and shouldn't email; only a bulk-registration / recon flood
     # (10+ in one hour) is worth a page. (Was 1 = one email per signup — too noisy.)
+    # guardrail_outages_per_5min (72-04): the run-mqtt ghosts run FAIL-CLOSED, so
+    # an unreachable guardrail sidecar means guarded chat is REFUSING, not quietly
+    # degrading. 3-in-5min tolerates a transient blip (a single failed probe, or
+    # the sidecar's ~90s model-load window on task boot) while catching a sustained
+    # outage.
     thresholds = {
-      signups_per_hour     = 10
-      gpx_uploads_per_hour = 5
-      alb_5xx_per_5min     = 10
+      signups_per_hour           = 10
+      gpx_uploads_per_hour       = 5
+      alb_5xx_per_5min           = 10
+      guardrail_outages_per_5min = 3
     }
+
+    # ECS log group for the run-mqtt ghosts container, which the guardrail-outage
+    # metric filter attaches to. Verified live 2026-07-31 via
+    # `aws logs describe-log-groups --log-group-name-prefix /ecs/run-mqtt`.
+    # Deliberately NOT in log_group_names above: that map is adopted by the
+    # module's retention.tf via import{} with prevent_destroy + a 90-day retention
+    # override, and pulling this group in would silently rewrite its retention.
+    guardrail_log_group_name = "/ecs/run-mqtt-ghosts-run-mqtt-use1-dc34"
 
     # ALB RequestCount anomaly-detection alarm — OFF pre-con. On a ~0 baseline the
     # self-trained band is razor-tight (upper ~3-6 req) so any normal traffic flaps
