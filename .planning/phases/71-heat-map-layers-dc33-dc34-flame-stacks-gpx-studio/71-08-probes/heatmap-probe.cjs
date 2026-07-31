@@ -615,10 +615,184 @@ async function main() {
         }
     }
 
+    // ---- 14. the CDN cache key separates the bare artifact from ?meta=1 ----
+    // The HIT requirement is load-bearing and must never be dropped. Without it the
+    // predicate ("both 200, one small, the bodies differ") is satisfied TODAY, with CDN
+    // caching entirely absent — it would read identically whether the cache policy is
+    // correct, wrong, or not there at all. Only by comparing two responses that were BOTH
+    // served FROM the edge does this assertion actually test that the query-string
+    // whitelist separates the two entries rather than collapsing them into one. A policy
+    // that ignored query strings would serve one body for the other URL — a silent
+    // correctness bug that no header check can see.
+    {
+        const L = 'The CDN cache key separates dc33 bare from dc33?meta=1 (both served from the edge, bodies differ)';
+        try {
+            const bareSeq = await httpGetSequence(`${HEAT_BASE}/dc33`);
+            const metaSeq = await httpGetSequence(`${HEAT_BASE}/dc33?meta=1`);
+            info(`dc33 bare    x-cache: ${xCacheTrail(bareSeq)}`);
+            info(`dc33 ?meta=1 x-cache: ${xCacheTrail(metaSeq)}`);
+            const bareHit = bareSeq.slice(1).find(isCdnHit) || null;
+            const metaHit = metaSeq.slice(1).find(isCdnHit) || null;
+            const problems = [];
+            if (!bareHit) problems.push('the bare URL never reported a cloudfront hit after its first request');
+            if (!metaHit) problems.push('the ?meta=1 URL never reported a cloudfront hit after its first request');
+            if (bareSeq[0].status !== 200) problems.push(`bare status ${bareSeq[0].status}`);
+            if (metaSeq[0].status !== 200) problems.push(`?meta=1 status ${metaSeq[0].status}`);
+            if (metaSeq[0].body.length >= META_MAX_BYTES) {
+                problems.push(`?meta=1 is ${metaSeq[0].body.length} bytes, expected < ${META_MAX_BYTES}`);
+            }
+            if (bareSeq[0].body.length <= BARE_MIN_BYTES) {
+                problems.push(`bare is ${bareSeq[0].body.length} bytes, expected > ${BARE_MIN_BYTES}`);
+            }
+            if (bareHit && metaHit) {
+                if (bareHit.body === metaHit.body) {
+                    problems.push('the two EDGE-SERVED bodies are byte-identical — the cache key collapses the two URLs into one entry');
+                } else {
+                    info(`edge-served bodies differ: bare=${bareHit.body.length} bytes, ?meta=1=${metaHit.body.length} bytes`);
+                }
+            } else {
+                problems.push('cannot compare edge-served bodies — at least one URL was never served from the edge');
+            }
+            const note = `bare ${bareSeq[0].body.length}b hit=${!!bareHit}, ?meta=1 ${metaSeq[0].body.length}b hit=${!!metaHit}`;
+            if (problems.length) bad(14, L, `${problems.join('; ')} — ${note}`);
+            else pass(14, L, note);
+        } catch (e) {
+            bad(14, L, oneLine(e));
+        }
+    }
+
+    // ---- 15. the WHOLE gpx internal family is blocked at the edge ----------
+    // Assertion 8 covers heatmap-build in its region-prefixed form only. The block must
+    // cover all three routes and the no-region spelling too: the ALB rule carries no path
+    // patterns and the default behaviour forwards, so an unprefixed request reaches the
+    // application unless the edge stops it.
+    {
+        const L = 'Every gpx internal route is blocked at the EDGE, in both the region-prefixed and no-region form';
+        try {
+            const problems = [];
+            let probed = 0;
+            for (const route of GPX_INTERNAL_ROUTES) {
+                for (const { form, url } of gpxInternalUrls(route)) {
+                    probed++;
+                    let res = null;
+                    try {
+                        res = await httpPost(url);
+                    } catch (e) {
+                        info(`${route} (${form}): request failed — ${oneLine(e)}`);
+                        problems.push(`${route}/${form}: ${oneLine(e)}`);
+                        continue;
+                    }
+                    const marker = markerOf(res);
+                    info(
+                        `${route} (${form}): status=${res.status} ${EDGE_MARKER_HEADER}=${marker === null ? '(absent)' : `"${marker}"`}`
+                    );
+                    if (res.status >= 200 && res.status < 300) problems.push(`${route}/${form}: 2xx (${res.status})`);
+                    if (marker !== EDGE_MARKER_VALUE) problems.push(`${route}/${form}: no edge marker`);
+                }
+            }
+            const note = `${probed} path(s) probed`;
+            if (problems.length) bad(15, L, `${problems.join('; ')} — ${note}`);
+            else pass(15, L, `${note}, all non-2xx and all carrying ${EDGE_MARKER_HEADER}=${EDGE_MARKER_VALUE}`);
+        } catch (e) {
+            bad(15, L, oneLine(e));
+        }
+    }
+
+    // ---- 16. BLAST RADIUS: the block did NOT catch what must keep working --
+    // This assertion exists because the naive shape of the 71-13 fix — block every
+    // internal path family across every distribution — would have broken con-critical
+    // flows that are guarded by a shared secret rather than by unreachability. meshtk
+    // reaches run.human's single-use flag-claim mint over PUBLIC HTTPS; the comment on
+    // MESHTK_RUN_INTERNAL_URL in run.mqtt's service.hcl says so in as many words, and
+    // blocking it silently kills the CTF claim flow during the con. run.auth's internal
+    // quota family is in the same position. The block is deliberately scoped to the gpx
+    // distribution and the gpx internal prefix, and THIS is where that scoping is proven
+    // rather than asserted.
+    //
+    // The predicate is a NEGATION: the edge marker must be ABSENT. The status is
+    // irrelevant — these routes are secret-gated and some export POST only, so 403, 404
+    // and 405 are all acceptable. GET is used deliberately: a mint endpoint must not be
+    // poked by a probe.
+    {
+        const L = 'REGRESSION GATE — the edge block does NOT reach run.human or run.auth internal paths';
+        try {
+            const problems = [];
+            for (const target of MUST_NOT_BE_BLOCKED) {
+                let res = null;
+                try {
+                    res = await httpGet(target.url);
+                } catch (e) {
+                    info(`${target.url}: request failed — ${oneLine(e)}`);
+                    problems.push(`${target.url}: ${oneLine(e)}`);
+                    continue;
+                }
+                const marker = markerOf(res);
+                info(
+                    `${target.what}: status=${res.status} ${EDGE_MARKER_HEADER}=${marker === null ? '(absent)' : `"${marker}"`}`
+                );
+                if (marker !== null) {
+                    problems.push(
+                        `${target.url} carries ${EDGE_MARKER_HEADER}="${marker}" — the edge block is TOO WIDE and must be narrowed immediately`
+                    );
+                }
+            }
+            if (problems.length) bad(16, L, problems.join('; '));
+            else pass(16, L, `${MUST_NOT_BE_BLOCKED.length} public-HTTPS internal path(s), none carrying ${EDGE_MARKER_HEADER}`);
+        } catch (e) {
+            bad(16, L, oneLine(e));
+        }
+    }
+
+    // ---- 17. no degenerate geometry in the LIVE dc33 artifact --------------
+    // WR-06: 20 of 110 live features are zero-length lines at null island, so the
+    // publicly served runCount overstates real runs by 22%. Goes green only when plan
+    // 71-15 republishes the rebuilt artifact.
+    {
+        const L = 'No feature in the LIVE dc33 artifact is degenerate (all coordinates identical)';
+        try {
+            let res = artifact.dc33;
+            if (!res || res.status !== 200) res = await httpGet(`${HEAT_BASE}/dc33`);
+            if (!res || res.status !== 200) {
+                bad(17, L, `the bare dc33 artifact returned ${res ? res.status : 'n/a'}`);
+            } else {
+                const doc = JSON.parse(res.body);
+                const features = doc && Array.isArray(doc.features) ? doc.features : null;
+                if (!features) {
+                    bad(17, L, 'the served artifact has no features array');
+                } else {
+                    const degenerate = [];
+                    features.forEach((f, i) => {
+                        const c = f && f.geometry && f.geometry.coordinates;
+                        if (!Array.isArray(c) || c.length < 2 || !Array.isArray(c[0])) {
+                            degenerate.push(i);
+                            return;
+                        }
+                        const [lon0, lat0] = c[0];
+                        if (c.every((p) => Array.isArray(p) && p[0] === lon0 && p[1] === lat0)) degenerate.push(i);
+                    });
+                    const first = degenerate.length
+                        ? ` first offending index ${degenerate[0]} coords=${JSON.stringify(features[degenerate[0]].geometry.coordinates)}`
+                        : '';
+                    info(
+                        `dc33 features=${features.length} meta.runCount=${doc.meta ? doc.meta.runCount : 'n/a'} degenerate=${degenerate.length}${first}`
+                    );
+                    const note = `${degenerate.length} of ${features.length} features degenerate`;
+                    if (degenerate.length) bad(17, L, `${note};${first}`);
+                    else pass(17, L, note);
+                }
+            }
+        } catch (e) {
+            bad(17, L, oneLine(e));
+        }
+    }
+
     // ---- 13. the DC34 schedules are real, enabled, and say what 71-07 planned
     // Fail closed: a non-zero CLI exit, a ResourceNotFoundException, an expired SSO
     // session or any mismatched field scores FAIL. A probe that cannot see the
     // schedule has not proven the schedule.
+    // Assertion 18 reads the LIVE expressions back out of these same documents. A name
+    // that assertion 13 could not read stays absent here, so 18 fails closed too.
+    const scheduleDocs = {};
     {
         const L = 'Both DC34 schedules exist, are ENABLED, and carry 71-07\'s exact expression + timezone';
         const problems = [];
@@ -637,6 +811,7 @@ async function main() {
                 problems.push(`${s.name}: ${detail}`);
                 continue;
             }
+            scheduleDocs[s.name] = doc;
             info(`schedule ${s.name}: State=${doc.State} ScheduleExpression=${doc.ScheduleExpression} ScheduleExpressionTimezone=${doc.ScheduleExpressionTimezone}`);
             if (doc.State !== 'ENABLED') problems.push(`${s.name}: State=${doc.State}`);
             if (doc.ScheduleExpression !== s.expr) {
@@ -648,6 +823,52 @@ async function main() {
         }
         if (problems.length) bad(13, L, problems.join('; '));
         else pass(13, L, `both ENABLED in ${SCHED_TZ}; hourly=${SCHEDULES[0].expr}, daily=${SCHEDULES[1].expr}`);
+    }
+
+    // ---- 18. the two DC34 schedules can never fire in the same minute ------
+    // Assertion 13 pins the exact EXPRESSIONS; this pins the INVARIANT, so a future
+    // expression change cannot silently reintroduce the collision. They are not redundant
+    // and both are kept. The hourly con-window schedule fires at minute 0 of every hour,
+    // so a daily schedule whose minute field is also 0 coincides with it once per con day
+    // — EventBridge invokes the Lambda twice, and there is no reserved concurrency, no
+    // idempotency key and no lock in the builder, so two full DynamoDB scans and two S3
+    // fan-outs race to PutObject the same key (WR-04). Reads the LIVE expressions rather
+    // than the pinned constants: the deployed state is what can collide.
+    {
+        const L = 'The hourly and daily DC34 schedules cannot fire in the same minute (live minute fields differ)';
+        try {
+            const minuteOf = (expr) => {
+                const m = /^cron\(\s*(\S+)\s+/.exec(String(expr || ''));
+                return m ? m[1] : null;
+            };
+            const problems = [];
+            const parsed = {};
+            for (const s of SCHEDULES) {
+                const doc = scheduleDocs[s.name];
+                if (!doc) {
+                    info(`${s.name}: no schedule document — see assertion 13`);
+                    problems.push(`${s.name}: unreadable`);
+                    continue;
+                }
+                const min = minuteOf(doc.ScheduleExpression);
+                parsed[s.name] = min;
+                info(
+                    `${s.name}: live expression="${doc.ScheduleExpression}" parsed minute field=${min === null ? 'UNPARSEABLE' : `"${min}"`}`
+                );
+                if (min === null) problems.push(`${s.name}: minute field unparseable from "${doc.ScheduleExpression}"`);
+            }
+            const mins = SCHEDULES.map((s) => parsed[s.name]);
+            if (problems.length === 0 && mins[0] === mins[1]) {
+                problems.push(
+                    `both minute fields are "${mins[0]}" — the schedules coincide once per con day and invoke the builder twice with no concurrency control`
+                );
+            }
+            const note = `hourly minute="${mins[0]}", daily minute="${mins[1]}"`;
+            if (problems.length) bad(18, L, `${problems.join('; ')} — ${note}`);
+            else pass(18, L, note);
+        } catch (e) {
+            bad(18, L, oneLine(e));
+        }
     }
 
     // ================= browser assertions ===================================
@@ -807,6 +1028,60 @@ async function main() {
                 }
             } catch (e) {
                 bad(11, L, oneLine(e));
+            }
+        }
+
+        // ---- 19. the live DC33 layer paints at the D-13 opacity -------------
+        // Deliberately NOT folded into assertion 11. Assertion 11 is calendar-bound red
+        // until the con gives dc34 features, so a paint check hidden inside it would be
+        // masked by that redness and could never report on its own. Fails closed: an
+        // unresolvable map, an absent layer or a non-numeric paint value all score FAIL.
+        {
+            const L = `The live DC33 heat layer paints at the D-13 line-opacity of ${HEAT_OPACITY}`;
+            try {
+                const readOpacity = () =>
+                    page.evaluate((id) => {
+                        const m = window._map;
+                        if (!m) return { map: false };
+                        if (!m.getLayer(id)) return { map: true, layer: false };
+                        return { map: true, layer: true, opacity: m.getPaintProperty(id, 'line-opacity') };
+                    }, HEAT_LAYER.dc33);
+
+                if (!page) {
+                    bad(19, L, 'the studio page never opened');
+                } else {
+                    let seen = await readOpacity();
+                    if (seen.map && !seen.layer) {
+                        // One attempt to bring DC33 up on its own, so this assertion does
+                        // not inherit whatever toggle state assertion 11 left behind.
+                        try {
+                            await openLayersDialog(page);
+                            const cb = page
+                                .locator('[data-dc34-dialog="layers"] [data-layer-row]', { hasText: 'DC33' })
+                                .first()
+                                .locator('input[type="checkbox"]');
+                            if ((await cb.count()) > 0 && !(await cb.isChecked())) await cb.click();
+                            await page
+                                .waitForFunction((id) => !!window._map.getLayer(id), HEAT_LAYER.dc33, { timeout: 60_000 })
+                                .catch(() => {});
+                            seen = await readOpacity();
+                        } catch (e) {
+                            info(`dc33 toggle retry failed: ${oneLine(e)}`);
+                        }
+                    }
+                    info(
+                        `dc33 line-opacity read off the live map: ${seen.map ? (seen.layer ? seen.opacity : 'LAYER ABSENT') : 'MAP UNRESOLVABLE'}`
+                    );
+                    if (!seen.map) bad(19, L, 'window._map is not resolvable');
+                    else if (!seen.layer) bad(19, L, `layer ${HEAT_LAYER.dc33} is absent`);
+                    else if (typeof seen.opacity !== 'number') {
+                        bad(19, L, `line-opacity is ${JSON.stringify(seen.opacity)}, not a number`);
+                    } else if (Math.abs(seen.opacity - HEAT_OPACITY) > 1e-6) {
+                        bad(19, L, `line-opacity=${seen.opacity}, expected ${HEAT_OPACITY}`);
+                    } else pass(19, L, `line-opacity=${seen.opacity}`);
+                }
+            } catch (e) {
+                bad(19, L, oneLine(e));
             }
         }
         if (ctx) await ctx.close().catch(() => {});
