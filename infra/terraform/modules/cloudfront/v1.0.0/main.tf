@@ -185,6 +185,64 @@ resource "aws_cloudfront_response_headers_policy" "cms_media_cors" {
   provider = aws.global-application
 }
 
+# Cache policy for the public heat-map artifact (CR-03, plan 71-13).
+# The gpx heat-map route at /{region}/api/gpx/public/heatmap/{year} sets
+# `Cache-Control: public, s-maxage=900`, but every app path on this distribution is
+# served by the catch-all /{region}/* behavior, which uses Managed-CachingDisabled —
+# so that s-maxage was ignored and three back-to-back identical requests all reported
+# a cloudfront MISS. Each miss is one S3 GetObject plus a ~441 KB body off a SINGLE
+# run.gpx ECS task; the route's own response-size bounds were reasoned about on the
+# premise that the CDN absorbed repeat load. This policy is that premise.
+#
+# Managed-CachingOptimized (658327ea-...) is deliberately NOT used here. That policy
+# ignores query strings entirely, so the bare artifact and the `?meta=1` projection
+# would collide into ONE cache entry and serve each other's bodies. The whitelist
+# below is exactly one key — `meta` — which is the route's entire query contract.
+#
+# header_behavior = none + cookie_behavior = none means EVERY viewer shares one cache
+# entry. That is correct ONLY because this route performs no session lookup and reads
+# no cookie — that absence is the whole of what makes the route public (verified in
+# 71-VERIFICATION.md truth #4). The Managed-AllViewer origin request policy still
+# forwards the viewer Host so ALB host-header routing is unchanged; forwarding is not
+# the same as keying. IF A SESSION READ IS EVER ADDED TO THAT ROUTE, revisit this
+# policy FIRST — otherwise one user's response is served to every anonymous client.
+#
+# zonename contains dots; CloudFront policy names allow only alphanumerics, dashes
+# and underscores, so sanitize dots -> dashes exactly as the CORS policy above does.
+resource "aws_cloudfront_cache_policy" "heatmap_artifact" {
+  name    = "heatmap-artifact-${replace(var.dns.zonename, ".", "-")}"
+  comment = "Edge cache for the public gpx heat-map artifact; key whitelists only the meta query string"
+
+  # default_ttl agrees with CACHE_SECONDS (900) in the route itself.
+  min_ttl     = 0
+  default_ttl = 900
+  max_ttl     = 3600
+
+  parameters_in_cache_key_and_forwarded_to_origin {
+    # The artifact is JSON and compresses heavily — keep encodings in the key so a
+    # brotli client is not served a gzip body and vice versa.
+    enable_accept_encoding_gzip   = true
+    enable_accept_encoding_brotli = true
+
+    cookies_config {
+      cookie_behavior = "none"
+    }
+
+    headers_config {
+      header_behavior = "none"
+    }
+
+    query_strings_config {
+      query_string_behavior = "whitelist"
+      query_strings {
+        items = ["meta"]
+      }
+    }
+  }
+
+  provider = aws.global-application
+}
+
 # CloudFront Function to handle root and region path redirects
 # Redirects "/" to "/use1/" and "/use1" to "/use1/", etc.
 resource "aws_cloudfront_function" "root_redirect" {
@@ -199,6 +257,44 @@ resource "aws_cloudfront_function" "root_redirect" {
       // No rewrite needed - bare region paths like /use1 go directly to ALB
       // Next.js handles routing via basePath configuration
       return request;
+    }
+  EOF
+
+  provider = aws.global-application
+}
+
+# CloudFront Function that refuses a request at the EDGE with a marked 404 (CR-01,
+# network half, plan 71-13). Associated on viewer-request by the gpx-only internal
+# behaviors below; nothing it refuses ever reaches CloudFront's origin, the ALB, or
+# Next.js.
+#
+# THE RESPONSE HEADER IS LOAD-BEARING, not decoration. Before this existed, a raw
+# POST from the open internet to the internal build route returned the application
+# handler's OWN body — which is exactly why the production probe's predicate could
+# not tell "the edge refused this" apart from "the app refused this", and that
+# ambiguity is what let CR-01 ship unnoticed. The marker is the only signal that
+# distinguishes an edge refusal from an application rejection. Probe assertions 8
+# and 15 assert on it; delete or misspell it and those assertions go silently blind
+# rather than red.
+#
+# 404 (not 403) is deliberate: it matches the non-disclosure posture the rest of the
+# estate uses for authenticated-only surfaces — an unauthenticated prober learns
+# nothing about whether the path exists.
+resource "aws_cloudfront_function" "internal_block" {
+  name    = "${var.site.label}-gpx-internal-block"
+  runtime = "cloudfront-js-2.0"
+  comment = "Edge-refuses the gpx internal API family with a marked 404"
+  publish = true
+
+  code = <<-EOF
+    function handler(event) {
+      return {
+        statusCode: 404,
+        statusDescription: 'Not Found',
+        headers: {
+          'x-dc34-edge-block': { value: '1' }
+        }
+      };
     }
   EOF
 
@@ -488,6 +584,122 @@ resource "aws_cloudfront_distribution" "main" {
 
       cache_policy_id          = local.cache_policy_disabled
       origin_request_policy_id = local.orp_all_viewer_cf_headers
+    }
+  }
+
+  # ------------------------------------------------------------------------
+  # gpx internal API edge block (CR-01 network half, plan 71-13).
+  #
+  # ORDERING IS LOAD-BEARING: both behaviors below MUST be authored BEFORE the
+  # /{region}/* ALB wildcard that follows. CloudFront selects the FIRST matching
+  # behavior in list order and Terraform emits ordered_cache_behavior blocks in
+  # source order; authored below the wildcard these are dead code and the fix is
+  # silently absent while the file still reads as if it were present.
+  #
+  # SCOPE IS DELIBERATELY NARROW — the gpx distribution only, and only the
+  # /api/gpx/internal/ prefix. This must NOT be widened to /{region}/api/*/internal/*
+  # across all distributions: run.mqtt/meshtk mints ghost claim links by calling
+  # run.human's POST /api/internal/ctf/mint over PUBLIC HTTPS (MESHTK_RUN_INTERNAL_URL
+  # = https://run.<domain>/<region>, see services/run.mqtt/service.hcl). A blanket
+  # block would silently kill a con-critical CTF flow. run.human's and run.auth's
+  # internal families are on different distributions AND a different path prefix, and
+  # are untouched here; probe assertion 16 gates that permanently.
+  #
+  # Nothing legitimate is lost. All three routes under
+  # apps/run.gpx/webapp/src/app/api/gpx/internal/ (heatmap-build, strava-sync,
+  # reconcile) are reached in production ONLY at run.gpx's Cloud Map private name:
+  # the two invoker Lambdas' sync_url
+  # (http://run-gpx.app-{region}-{site}.local:3000/{region}/api/gpx/internal/...) and
+  # run.human's admin recalculate action via RUN_GPX_INTERNAL_URL (same private
+  # name). None of them traverse CloudFront, so none can be broken by this block.
+  # This closes the inherited strava-sync exposure at the same time as heatmap-build.
+  #
+  # The FULL method set is allowed on purpose. An allowed-methods rejection would
+  # produce an unmarked 403 from CloudFront instead of the marked 404 the function
+  # emits, which is precisely the ambiguity the marker exists to remove.
+  dynamic "ordered_cache_behavior" {
+    for_each = each.key == "gpx" ? {
+      for region_key, region_value in var.regional_origins_by_domain[each.key] :
+      region_key => region_value
+      if region_value.alb_dns_name != ""
+    } : {}
+    content {
+      path_pattern           = "/${ordered_cache_behavior.key}/api/gpx/internal/*"
+      target_origin_id       = contains(local.impart_on_domains, each.key) ? "impart" : "alb-${ordered_cache_behavior.key}"
+      viewer_protocol_policy = "redirect-to-https"
+      allowed_methods        = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+      cached_methods         = ["GET", "HEAD"]
+      compress               = true
+
+      cache_policy_id          = local.cache_policy_disabled
+      origin_request_policy_id = contains(local.impart_on_domains, each.key) ? local.orp_all_viewer_cf_headers : local.orp_all_viewer
+
+      # The function returns before the origin is consulted; target_origin_id is a
+      # required argument, not a route that is ever taken.
+      function_association {
+        event_type   = "viewer-request"
+        function_arn = aws_cloudfront_function.internal_block.arn
+      }
+    }
+  }
+
+  # No-region form of the same block. The run.gpx ALB listener rule carries NO
+  # path_patterns (services/run.gpx/service.hcl: "No path_patterns - route all
+  # gpx.<domain> requests to run-gpx") and the default_cache_behavior forwards
+  # everything, so a naked https://gpx.<domain>/api/gpx/internal/... reaches Next.js
+  # just as the region-prefixed form does. Covering only the prefixed form would
+  # leave the hole open one URL to the left.
+  dynamic "ordered_cache_behavior" {
+    for_each = each.key == "gpx" ? toset(["internal"]) : toset([])
+    content {
+      path_pattern           = "/api/gpx/internal/*"
+      target_origin_id       = local.default_origin_effective[each.key]
+      viewer_protocol_policy = "redirect-to-https"
+      allowed_methods        = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+      cached_methods         = ["GET", "HEAD"]
+      compress               = true
+
+      cache_policy_id          = local.cache_policy_disabled
+      origin_request_policy_id = local.default_origin_effective[each.key] == "impart" ? local.orp_all_viewer_cf_headers : local.orp_all_viewer
+
+      function_association {
+        event_type   = "viewer-request"
+        function_arn = aws_cloudfront_function.internal_block.arn
+      }
+    }
+  }
+
+  # Public heat-map artifact cache behavior (CR-03, plan 71-13), gpx only.
+  #
+  # ORDERING IS LOAD-BEARING for the same reason as the block above: the /{region}/*
+  # wildcard that follows uses Managed-CachingDisabled, which is exactly why the
+  # route's `s-maxage=900` was ignored and three consecutive identical requests all
+  # returned a cloudfront MISS. Authored below the wildcard this behavior never
+  # matches and the misses continue.
+  #
+  # The public heat-map route's response-size bounds are sized on the premise that
+  # this behavior exists and absorbs repeat fetches at the edge; without it every
+  # anonymous hit is one S3 GetObject plus a full body off a single ECS task.
+  #
+  # Same conditional target and origin request policy as the wildcard: the ALB routes
+  # services by Host header, so the viewer Host must keep being forwarded even though
+  # the cache key ignores headers entirely.
+  dynamic "ordered_cache_behavior" {
+    for_each = each.key == "gpx" ? {
+      for region_key, region_value in var.regional_origins_by_domain[each.key] :
+      region_key => region_value
+      if region_value.alb_dns_name != ""
+    } : {}
+    content {
+      path_pattern           = "/${ordered_cache_behavior.key}/api/gpx/public/heatmap/*"
+      target_origin_id       = contains(local.impart_on_domains, each.key) ? "impart" : "alb-${ordered_cache_behavior.key}"
+      viewer_protocol_policy = "redirect-to-https"
+      allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+      cached_methods         = ["GET", "HEAD"]
+      compress               = true
+
+      cache_policy_id          = aws_cloudfront_cache_policy.heatmap_artifact.id
+      origin_request_policy_id = contains(local.impart_on_domains, each.key) ? local.orp_all_viewer_cf_headers : local.orp_all_viewer
     }
   }
 
