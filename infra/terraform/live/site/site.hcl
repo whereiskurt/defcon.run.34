@@ -463,11 +463,25 @@ locals {
     # degrading. 3-in-5min tolerates a transient blip (a single failed probe, or
     # the sidecar's ~90s model-load window on task boot) while catching a sustained
     # outage.
+    # llm_rate_limits_per_5min (73-02): counts per-sender LLM rate-limit
+    # REFUSALS from the ghosts. A trip is the ceiling doing its job — one radio
+    # emptied its bucket and got refused in words with no Bedrock call, while
+    # every other radio kept being served. 20-in-5min is ~4/minute sustained,
+    # which is machine-driven traffic; a single enthusiastic human on a radio
+    # keeps producing refusals once they trip, so a threshold of 2-3 would page
+    # on one keen player. The alarm NOTIFIES ONLY and can never silence the
+    # fleet (locked 2026-08-01: dead ghosts mid-con beat a visible overage).
+    # ⚠️ This counts REFUSALS, not SPEND. Aggregate Bedrock cost across many
+    # distinct radios each sitting just under their own bucket is deliberately
+    # unbounded — an AWS Budgets / InvocationCount backstop was offered and
+    # declined on 2026-08-01. A quiet alarm here is NOT proof that spend is
+    # under control.
     thresholds = {
       signups_per_hour           = 10
       gpx_uploads_per_hour       = 5
       alb_5xx_per_5min           = 10
       guardrail_outages_per_5min = 3
+      llm_rate_limits_per_5min   = 20
     }
 
     # ECS log group for the run-mqtt ghosts container, which the guardrail-outage
