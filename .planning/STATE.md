@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
-status: In progress — Phase 73 SHIPPED LIVE (task def 127 / meshtk v0.0.85); only human UAT remains
-stopped_at: "Phase 73 WAVE 1 COMPLETE, NOTHING RELEASED. 73-01 (Go per-sender token bucket) and 73-02 (CloudWatch metric filter + alarm + operator knob) both executed and independently verified: go build/vet PASS, 20 limiter tests PASS in ~/working/meshtk-p73, overlay<->upstream byte parity was verified at build time, but the overlay copies were then REMOVED at merge: main #1156 made apps/run.mqtt/meshtk config-only (Go 101->1). The limiter lives ONLY upstream in meshtk main (f8ac7b3, PR #36); CI's fresh clone carries it. Alarm is NOTIFY-ONLY (alarm_actions=tripwire SNS only, no ok_actions/lambda/autoscaling/ssm); metric filter pattern is plain-text MESHTK_LLM_RATE_LIMIT, not a JSON selector. Default ceiling 60 calls/radio/hour; explicit 0 = operator kill switch, blank/garbage/negative/fractional -> 60. 73-03 PARTIALLY DONE: BOTH merge gates are now CLEARED — meshtk #36 MERGED 2026-08-01T06:44Z as f8ac7b3 (this had to precede any release build, since build.sh resolve_meshtk clones the default branch fresh in CI), and monorepo #1158 MERGED as 5ac49845 carrying the 6 Terraform files; its .planning/ half had landed separately in 2cc8c574. The old VERSION-parity warning (worktree v0.0.82 vs main v0.0.84) is OBSOLETE — the overlay carries no Go, so main's v0.0.84 is the only version in play and the next bump is a clean v0.0.85. SHIPPED AND VERIFIED LIVE 2026-08-01: buildpub 12:29Z (fresh meshtk clone at 12:30:10Z, after #36) -> #1159 bumped meshtk v0.0.84->v0.0.85 -> deploy.yml PR:skip 17:15Z -> SCOPED terragrunt-apply modules=admin-reports 17:24Z. Read-only AWS probe: task def 127 RUNNING+HEALTHY on dc34-run-mqtt-meshtk:v0.0.85, MESHTK_LLM_CALLS_PER_HOUR=60, MESHTK_GUARDRAIL_FAILMODE=closed intact, alarm dcr-mqtt-llm-rate-limit OK @20 -> tripwire SNS, metric filter dcr-mqtt-llm-rate-limits present. WARN: deploy.yml does NOT apply admin-reports, so the limiter ran unalarmed for ~9 min (17:15Z-17:24Z) — a scoped apply must always follow. REMAINING (human-only): Kurt confirms the 60 default; hardware UAT. 73-03 left at [~] deliberately — flipping it to [x] and closing the phase is a human call."
-last_updated: "2026-08-01T06:55:00.000Z"
+status: Phase 73 CLOSED — 3/3 plans, shipped and verified live. No successor phase is planned; new work needs /gsd-phase or a new milestone.
+stopped_at: "Phase 73 COMPLETE 2026-08-01 — 3/3 plans, CLOSED on proven-live evidence (the Phase 72 precedent), with hardware UAT deferred to a filed todo. Shipped: meshtk #36 f8ac7b3 06:44Z -> monorepo #1158 5ac49845 -> buildpub 12:29Z (fresh meshtk clone 12:30:10Z, after the merge) -> #1159 bumped meshtk v0.0.84->v0.0.85 -> deploy.yml PR:skip 17:15Z -> SCOPED terragrunt-apply modules=admin-reports 17:24Z. Read-only AWS probe: task def 127 RUNNING+HEALTHY on dc34-run-mqtt-meshtk:v0.0.85, MESHTK_LLM_CALLS_PER_HOUR=60, MESHTK_GUARDRAIL_FAILMODE=closed intact, alarm dcr-mqtt-llm-rate-limit OK @20 -> tripwire SNS, metric filter dcr-mqtt-llm-rate-limits present. The limiter lives ONLY upstream in meshtk main; apps/run.mqtt/meshtk is config-only (Go 101->1) and must stay that way. WARN: deploy.yml does NOT apply admin-reports — the limiter ran unalarmed for ~9 min (17:15Z-17:24Z); a scoped apply must follow any release that adds observability. REMAINING (human-only, tracked as a todo): Kurt confirms the 60/hr default and runs hardware UAT. ACCEPTED RESIDUAL: aggregate spend across many distinct radios is still unbounded."
+last_updated: "2026-08-01T19:42:26.000Z"
 last_activity: 2026-08-01
 progress:
   total_phases: 32
-  completed_phases: 22
+  completed_phases: 23
   total_plans: 117
-  completed_plans: 115
-  percent: 69
+  completed_plans: 116
+  percent: 72
 current_phase: 73
 current_phase_name: meshtk-llm-per-sender-rate-limiting-non-blocking-token-bucke
 ---
@@ -243,8 +243,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-31T21:32:05.202Z
-Stopped at: Phase 72 plan 04 COMPLETE (AUTHORING ONLY, NOTHING APPLIED) — ghosts container flipped to MESHTK_GUARDRAIL_FAILMODE=closed with the depends_on START rationale rewritten (HEALTHY would kill beacons/position and drop the ghosts off the map); MESHTK_RICKY_FALLBACK_URL + ricky-fallback-url secret key declared with a CHANGEME placeholder only; guardrail-outage metric filter (plain-text MESHTK_GUARDRAIL_OUTAGE, NOT a JSON selector) + >=3/5min alarm on the existing dcr-admin-reports-tripwire topic, count-gated, ghosts log group kept OUT of the retention adoption set. Applies sequenced: secrets 72-08 BEFORE ecs-task 72-09. (Prior session on main: 2026-07-31T18:41:01.587Z — completed 71-14-PLAN.md, scheduler hardening applied and live-verified.)
+Last session: 2026-08-01T19:42:26.000Z
+Stopped at: Phase 73 CLOSED — 3/3 plans, shipped and verified live (task def 127 / meshtk v0.0.85 / MESHTK_LLM_CALLS_PER_HOUR=60, alarm + metric filter present). Hardware UAT and Kurt's confirmation of the 60/hr default are filed as a pending todo. No successor phase planned.
 Resume file: None
 
 ## Operator Next Steps
