@@ -1079,3 +1079,52 @@ export async function copyRouteToMyMaps(routeId: string): Promise<string> {
   if (!response.ok) await routeApiError(response, 'Failed to copy route');
   return (await response.json()).fileId as string;
 }
+
+/**
+ * The one share vocabulary (2026-08-01 unified-routes spec). Mirrors
+ * webapp/src/lib/share-state.ts — keep the two in step.
+ */
+export type ShareState = 'private' | 'link' | 'public';
+
+/** Move a route between Private / Anyone-with-link / Public in one call. */
+export async function setShareState(
+  fileId: string,
+  state: ShareState
+): Promise<{ state: ShareState; routeId?: string; shareUrl?: string }> {
+  const response = await fetch(
+    `${getApiBase()}/files/${encodeURIComponent(fileId)}/visibility`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ state }),
+    }
+  );
+  if (!response.ok) await routeApiError(response, 'Could not update sharing');
+  return await response.json();
+}
+
+/**
+ * Mirror the latest content into a route's public copy. Fire-and-forget: the
+ * user's own save already succeeded, so a mirror failure must never surface as
+ * a save error. This deliberately swallows everything.
+ */
+export async function resyncPublishedRoute(fileId: string): Promise<void> {
+  try {
+    await fetch(
+      `${getApiBase()}/files/${encodeURIComponent(fileId)}/resync-route`,
+      { method: 'POST', credentials: 'include' }
+    );
+  } catch {
+    // Intentionally silent — see above.
+  }
+}
+
+/**
+ * Routes with no backing GpxFile: the leftovers from the retired "Create a
+ * route" card form. My Routes adopts them so there is one list, not two.
+ */
+export async function listOrphanRoutes(): Promise<RouteSummary[]> {
+  const routes = await listMyRoutes();
+  return routes.filter((r) => !r.sourceGpxFileId);
+}
