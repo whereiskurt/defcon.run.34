@@ -159,3 +159,39 @@ resource "aws_cloudwatch_log_metric_filter" "guardrail_outages" {
     unit          = "Count"
   }
 }
+
+# Per-sender LLM rate-limit refusal counter (73-02). meshtk holds a per-(fleet,
+# sender) token bucket in front of the Bedrock call; when a radio empties its
+# bucket the request is refused in words BEFORE any model call, and the refusal
+# branch logs a stable marker token (73-01).
+#
+# Same lesson as the filter above, restated because it is the one that bites:
+# this pattern is PLAIN TEXT, not a `$.evt` JSON selector. meshtk logs
+# unstructured logrus lines, so a JSON selector matches nothing and the metric
+# publishes a convincing, permanent zero — a monitoring gap that reads as
+# perfect health. 72-04 learned that the hard way; do not "improve" this into a
+# selector.
+#
+# ⚠️ What this counts is REFUSALS, not dollars. It goes up when the ceiling
+# WORKS. It says nothing about aggregate Bedrock spend: many distinct radios
+# each sitting just under their own bucket cost real money and raise nothing
+# here. That gap is a recorded acceptance (Kurt, 2026-08-01 — an AWS Budgets /
+# InvocationCount backstop was offered and declined), not an oversight. Never
+# read a quiet LLMRateLimits metric as proof that spend is under control.
+#
+# A flat zero before 73-01 ships is real and correct — the token does not exist
+# yet. Same count gate as above: no log-group name provisions nothing.
+resource "aws_cloudwatch_log_metric_filter" "llm_rate_limits" {
+  count          = var.guardrail_log_group_name == "" ? 0 : 1
+  name           = "dcr-mqtt-llm-rate-limits"
+  log_group_name = var.guardrail_log_group_name
+  pattern        = "MESHTK_LLM_RATE_LIMIT"
+
+  metric_transformation {
+    name          = "LLMRateLimits"
+    namespace     = var.metric_namespace
+    value         = "1"
+    default_value = "0"
+    unit          = "Count"
+  }
+}
