@@ -941,7 +941,7 @@ Plans:
 - [x] 72-07-PLAN.md — meshtk backpressure + guardrail degradation: `MESHTK_LYRICS_MAX_CONCURRENT` semaphore (default 12, ~3.3 msg/s bound), stage-is-full reply that does not burn the cooldown, outage-vs-policy refusal split, outage marker token for the alarm (BOT-02, BOT-03)
 - [x] 72-08-PLAN.md — ⚠️ PROD DATA: rotate ricky's `answerHash` via conditional UpdateItem (preserves `solveCount`/`createdAt`/`enabled`), DRY-RUN gated behind a blocking checkpoint; seed the fallback URL into SOPS and apply the secrets unit (BOT-01)
 - [x] 72-09-PLAN.md — Release run.human + run.mqtt via `buildpub.yml`, deploy via `deploy.yml`, apply the alarm, and PROVE it live (version read, deployed task-def env, resolver regression re-diff) (BOT-01, BOT-02, BOT-03)
-- [ ] 72-10-PLAN.md — ⚠️ IRREVERSIBLE: delete the `Qr` row + the static S3 interstitial + CloudFront invalidation, hardware UAT, and file the three deferred todos (BOT-01)
+- [x] 72-10-PLAN.md — ⚠️ IRREVERSIBLE: delete the `Qr` row + the static S3 interstitial + CloudFront invalidation, hardware UAT, and file the three deferred todos (BOT-01)
 
 ---
 
