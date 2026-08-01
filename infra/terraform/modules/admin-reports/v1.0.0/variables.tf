@@ -130,6 +130,30 @@ variable "threshold_guardrail_outages_per_5min" {
   default     = 3
 }
 
+# --- Per-sender LLM rate-limit alarm input (73-02) ----------------------------
+# Reuses guardrail_log_group_name above — same ghosts container, same log group.
+# A second log-group input would be a second thing to keep in sync.
+
+variable "threshold_llm_rate_limits_per_5min" {
+  description = <<-EOT
+    Per-sender LLM rate-limit REFUSAL log lines over 5 minutes that fire the
+    llm-rate-limit alarm. Default 20.
+
+    The number is deliberately not low. A radio that trips its ceiling keeps
+    generating a refusal for every message it sends afterwards, so one
+    enthusiastic player can produce a steady trickle on their own; a threshold of
+    2 or 3 would page on that. 20 in 5 minutes is ~4/minute sustained, which is
+    machine-driven traffic, not a human thumbing a radio keyboard.
+
+    Counts refusals, NOT spend. The refusal happens before the Bedrock call, so a
+    trip costs nothing — and aggregate cost across many radios that each stay
+    just under their own bucket is deliberately unbounded (accepted 2026-08-01).
+    A quiet alarm is not evidence that spend is under control.
+  EOT
+  type        = number
+  default     = 20
+}
+
 variable "alb_anomaly_alarm_enabled" {
   description = <<-EOT
     Whether to create the ALB RequestCount anomaly-detection alarm. Default false:

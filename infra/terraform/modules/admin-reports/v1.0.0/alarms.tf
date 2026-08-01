@@ -137,3 +137,35 @@ resource "aws_cloudwatch_metric_alarm" "guardrail_outages" {
   ok_actions = [aws_sns_topic.tripwire.arn]
   tags       = var.tags
 }
+
+# (f) Per-sender LLM rate-limit refusals (73-02). meshtk refuses a radio that has
+# emptied its per-(fleet, sender) token bucket, before any Bedrock call. Sustained
+# refusals mean one or more radios are hammering a ghost — this alarm is the only
+# way an operator finds that out without tailing logs.
+#
+# ⚠️ NOTIFY-ONLY, and that is a LOCKED decision (Kurt, 2026-08-01). alarm_actions
+# is the SNS tripwire and nothing else: no Lambda, no autoscaling action, no SSM
+# document, nothing that could disable model calls or take the fleet off the air.
+# Dead ghosts mid-con are a worse failure than a visible overage.
+#
+# NO ok_actions, deliberately unlike the guardrail alarm above. "The sidecar came
+# back" is news; "an abusive radio got bored" is not, and OK/ALARM flapping on a
+# bursty counter is pure email noise.
+#
+# Same count gate as its metric filter: no log-group name means no filter, and an
+# alarm on a metric nothing publishes sits in INSUFFICIENT_DATA forever.
+resource "aws_cloudwatch_metric_alarm" "llm_rate_limits" {
+  count               = var.guardrail_log_group_name == "" ? 0 : 1
+  alarm_name          = "dcr-mqtt-llm-rate-limit"
+  alarm_description   = "One or more mesh radios hit the per-sender LLM ceiling and were REFUSED (>= ${var.threshold_llm_rate_limits_per_5min} refusals in 5min). This is the limiter working: the offending radio got an in-persona refusal with no model call, and every other radio kept being served normally. NOTIFY-ONLY — this alarm never disables, throttles or silences the ghosts. Operator levers: the MESHTK_LLM_CALLS_PER_HOUR env knob on the ghosts container (raise it, or set it to exactly 0 as an emergency kill switch that refuses all model calls while the ghosts keep answering in words). NOTE: this counts refusals, not spend — aggregate cost across many distinct radios is deliberately unbounded (accepted 2026-08-01), so a quiet alarm is NOT proof that spend is controlled."
+  namespace           = var.metric_namespace
+  metric_name         = "LLMRateLimits"
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = var.threshold_llm_rate_limits_per_5min
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.tripwire.arn]
+  tags                = var.tags
+}

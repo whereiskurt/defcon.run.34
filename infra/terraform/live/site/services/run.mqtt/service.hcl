@@ -357,6 +357,30 @@ locals {
             # the static-code reveal (meshtk fail-safe).
             name  = "MESHTK_RUN_INTERNAL_URL"
             value = "https://run.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
+          },
+          {
+            # Per-sender LLM ceiling (73-02). Bounds Bedrock `Converse` calls
+            # per hour from ONE radio to one ghost. The check runs BEFORE the
+            # model call, so a refused request costs nothing — the sender gets
+            # an in-persona refusal and every other radio keeps being served.
+            #
+            # 60 is the meshtk code default, so this line is a TUNING HANDLE,
+            # not a behaviour change: raise it for con-week without a rebuild.
+            # Keep the two in step — if the code default moves, move this too,
+            # or a future reader will trust the wrong number.
+            #
+            # ⚠️ ZERO IS NOT "unset" HERE. Unlike MESHTK_LYRICS_MAX_CONCURRENT,
+            # which coerces 0 to its default, exactly "0" on this var is a
+            # deliberate operator KILL SWITCH: every model call is refused. The
+            # ghosts stay on the air and keep answering in words; they just stop
+            # costing money. A blank or non-numeric value (and a negative one)
+            # falls back to 60 instead. Read that twice before editing.
+            #
+            # Sustained refusals raise the dcr-mqtt-llm-rate-limit alarm on the
+            # admin-reports tripwire topic. That alarm NOTIFIES ONLY — nothing
+            # in it disables the ghosts. It also counts refusals, not spend.
+            name  = "MESHTK_LLM_CALLS_PER_HOUR"
+            value = "60"
           }
         ]
 

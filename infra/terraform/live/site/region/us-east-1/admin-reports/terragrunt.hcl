@@ -102,6 +102,13 @@ inputs = {
   guardrail_log_group_name             = try(local.site_vars.locals.admin_reports.guardrail_log_group_name, "")
   threshold_guardrail_outages_per_5min = try(local.site_vars.locals.admin_reports.thresholds.guardrail_outages_per_5min, 3)
 
+  # --- Per-sender LLM rate-limit alarm (73-02) ---
+  # No log-group input of its own: this alarm reads the SAME ghosts container
+  # log group, so it reuses guardrail_log_group_name mapped two lines above —
+  # one name to keep in sync instead of two. try(..., 20) so an absent key
+  # degrades to the module default rather than erroring the whole unit.
+  threshold_llm_rate_limits_per_5min = try(local.site_vars.locals.admin_reports.thresholds.llm_rate_limits_per_5min, 20)
+
   tags = {
     Site      = local.site_vars.locals.site.label
     Component = "admin-reports"
