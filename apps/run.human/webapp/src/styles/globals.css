@@ -218,9 +218,11 @@ html.dark .leaflet-popup-close-button:hover {
    Reduce Motion on (the documented prod cash-rain regression). The burst +
    fall stay on for everyone. */
 
-/* whoami CTA button bar — one segmented pill: Add Run (gpx green), the
-   Strava pair (orange), Signal (blue). The bar pulses a soft neutral glow
-   (per-segment colored glows bleed into their neighbours when joined). */
+/* whoami "Add Run" pill — the ONE loud primary in the profile action bar
+   (gpx green). Its neighbours (Scan, Leaderboard) are brand-teal HeroUI
+   outline buttons, so the only bespoke colour left here is this green.
+   The soft neutral pulse rides the button itself now that the bar is no
+   longer a joined segmented pill. */
 .cta-bar {
   animation: cta-bar-pulse 2.6s ease-in-out infinite;
 }
@@ -245,18 +247,4 @@ html.dark .leaflet-popup-close-button:hover {
 }
 .seg-addrun:hover {
   background: #16a34a;
-}
-.seg-strava {
-  background: #fc4c02;
-  color: #fff;
-}
-.seg-strava:hover {
-  background: #e04502;
-}
-.seg-signal {
-  background: #3a76f0;
-  color: #fff;
-}
-.seg-signal:hover {
-  background: #2f63d4;
 }

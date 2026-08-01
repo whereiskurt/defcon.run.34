@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { useLogout } from '@/hooks/useLogout';
 import { Card, CardBody, Divider, Button, Chip, Avatar, Skeleton, Input } from '@heroui/react';
-import { LogOut, ChevronRight, ChevronDown, RefreshCw, Pencil, Check, X, Download, Camera, ExternalLink, Footprints } from 'lucide-react';
-import { SiStrava, SiDiscord, SiGithub, SiSignal } from 'react-icons/si';
+import { LogOut, ChevronRight, ChevronDown, RefreshCw, Pencil, Check, X, Download, Camera, Footprints, Trophy } from 'lucide-react';
+import { SiStrava, SiDiscord, SiGithub } from 'react-icons/si';
 import MeshtasticRadios from '@/components/profile/MeshtasticRadios';
 import CheckInHistory from '@/components/profile/CheckInHistory';
 import CheckInPinCard from '@/components/profile/CheckInPinCard';
@@ -14,10 +14,11 @@ import StyledRunnerQr from '@/components/qr/StyledRunnerQr';
 import SocialQrFlair, { type SocialInfo } from '@/components/qr/SocialQrFlair';
 import QrCardModal from '@/components/qr/QrCardModal';
 import QrScannerModal from '@/components/qr/QrScannerModal';
+import YourStandingModal from '@/components/leaderboard/YourStandingModal';
 import { useCopy } from '@/components/CopyProvider';
 import { usePersistedDisclosure } from '@/hooks/usePersistedDisclosure';
 import { apiUrl } from '@/lib/api';
-import { DEFAULT_STRAVA_GROUP_URL, DEFAULT_SIGNAL_GROUP_URL } from '@/lib/social-groups';
+import { LEADERBOARD_SELF_ENABLED } from '@/lib/leaderboard-launch';
 
 const homeUrl = '/';
 const isDev = process.env.NODE_ENV !== 'production';
@@ -114,6 +115,7 @@ export default function WhoAmIPage() {
   const [isQROpen, setIsQROpen] = usePersistedDisclosure('social-qr');
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [isStandingOpen, setIsStandingOpen] = useState(false);
   const [isQuotasOpen, setIsQuotasOpen] = usePersistedDisclosure('quotas');
   const [isDebugOpen, setIsDebugOpen] = usePersistedDisclosure('debug');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -129,16 +131,7 @@ export default function WhoAmIPage() {
   const { logout } = useLogout();
   const { t } = useCopy();
 
-  // Social group URLs come from CMS copy; `t` echoes the raw key when unset, so
-  // only accept a real http(s) URL — anything else hides that tile.
-  const asUrl = (key: string) => {
-    const v = t(key);
-    return v.startsWith('http') ? v : '';
-  };
-  const stravaGroupUrl = asUrl('socials.strava_group_url') || DEFAULT_STRAVA_GROUP_URL;
-  const signalGroupUrl = asUrl('socials.signal_group_url') || DEFAULT_SIGNAL_GROUP_URL;
-
-  // Same default-floor idiom as asUrl above: t() echoes the raw key when unset.
+  // t() echoes the raw key when unset, so floor every lookup on a real default.
   const copyOr = (key: string, fallback: string) => {
     const v = t(key);
     return !v || v === key ? fallback : v;
@@ -285,6 +278,10 @@ export default function WhoAmIPage() {
   const displayName = userData?.displayname || userData?.displayName || user?.displayName || user?.name || 'Runner';
   const nameChangesLeft = userData?.quotas?.displayname_change?.remaining ?? 0;
   const services: string[] = user.services || [];
+  // Convenience gate on the cached session claims — same idiom as the header's
+  // admin link. It only decides whether a BUTTON renders; /api/leaderboard/me
+  // re-checks and live-revalidates, so a stale claim grants no real access.
+  const isAdmin = services.includes('admin') || services.includes('runadmin');
   const authBase = isDev
     ? `http://localhost:${LOCAL_AUTH_PORT}`
     : `https://auth.${siteDomain}/${REGION_SHORT}`;
@@ -372,50 +369,62 @@ export default function WhoAmIPage() {
               )}
             </div>
             </div>
-            {/* CTA button bar — one segmented pill under the runner name:
-                Add Run (green, deep-links gpx's QuickStart via ?addrun) ·
-                Link + Strava (orange pair) · Signal (blue). QR tiles live on
-                the landing page. */}
-            <div className="cta-bar inline-flex self-start rounded-full overflow-hidden divide-x divide-black/25">
+            {/* Action bar — ONE loud primary (Add Run, gpx green) beside two
+                brand-teal outline actions. The old four-hue segmented pill
+                (green/orange/orange/blue) was retired: the Strava-group and
+                Signal popouts live on the landing page, and account linking
+                demoted to the text link below — it is a link, not a CTA. */}
+            <div className="flex flex-wrap items-center gap-2 self-start">
               <a
                 href={gpxAddRunUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="seg-addrun flex items-center gap-1 sm:gap-2 font-semibold text-[11px] sm:text-sm px-2 sm:px-4 py-1.5 sm:py-2.5 whitespace-nowrap"
+                className="cta-bar seg-addrun flex items-center gap-2 rounded-full font-semibold text-xs sm:text-sm px-3 sm:px-4 py-2 sm:py-2.5 whitespace-nowrap"
               >
-                <Footprints className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
+                <Footprints className="w-4 h-4 sm:w-5 sm:h-5" />
                 Add Run
               </a>
-              {!user.hasStrava && (
-                <a
-                  href={stravaLinkUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="seg-strava flex items-center gap-1 sm:gap-2 font-semibold text-[11px] sm:text-sm px-2 sm:px-4 py-1.5 sm:py-2.5 whitespace-nowrap"
+              {/* The camera, promoted out of the collapsed QR panel — scanning
+                  another runner is the headline social act, not a sub-feature
+                  of your own QR. */}
+              <Button
+                color="primary"
+                variant="bordered"
+                radius="full"
+                className="font-semibold"
+                startContent={<Camera className="w-4 h-4 sm:w-5 sm:h-5" />}
+                onPress={() => setIsScannerOpen(true)}
+              >
+                {copyOr('socialqr.scan.button', 'Scan a runner')}
+              </Button>
+              {/* Pre-launch this is admin-only; flipping LEADERBOARD_SELF_ENABLED
+                  shows it to every runner. Cosmetic gate only — the API behind it
+                  enforces the same rule server-side. */}
+              {(LEADERBOARD_SELF_ENABLED || isAdmin) && (
+                <Button
+                  color="primary"
+                  variant="bordered"
+                  radius="full"
+                  className="font-semibold"
+                  startContent={<Trophy className="w-4 h-4 sm:w-5 sm:h-5" />}
+                  onPress={() => setIsStandingOpen(true)}
                 >
-                  <SiStrava className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
-                  Link
-                </a>
+                  {copyOr('leaderboard.self.button', 'Leaderboard')}
+                </Button>
               )}
-              <a
-                href={stravaGroupUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="seg-strava flex items-center gap-1 sm:gap-2 font-semibold text-[11px] sm:text-sm px-2 sm:px-4 py-1.5 sm:py-2.5 whitespace-nowrap"
-              >
-                <ExternalLink className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
-                Strava
-              </a>
-              <a
-                href={signalGroupUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="seg-signal flex items-center gap-1 sm:gap-2 font-semibold text-[11px] sm:text-sm px-2 sm:px-4 py-1.5 sm:py-2.5 whitespace-nowrap"
-              >
-                <SiSignal className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
-                Signal
-              </a>
             </div>
+            {!user.hasStrava && (
+              <a
+                href={stravaLinkUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 self-start text-xs sm:text-sm text-secondary hover:text-secondary-600 transition-colors"
+              >
+                <SiStrava className="w-3.5 h-3.5" />
+                Link your Strava account
+                <span aria-hidden="true">→</span>
+              </a>
+            )}
             {session.expires && (
               <p className="font-mono text-xs text-default-400">
                 Session: {relativeExpiry(session.expires)} remaining
@@ -446,13 +455,8 @@ export default function WhoAmIPage() {
             </button>
             {isQROpen && (
               <div className="flex flex-col items-center mt-3 space-y-3">
-                <Button
-                  color="secondary" variant="flat" fullWidth
-                  startContent={<Camera className="w-4 h-4" />}
-                  onPress={() => setIsScannerOpen(true)}
-                >
-                  {copyOr('socialqr.scan.button', 'Scan a runner')}
-                </Button>
+                {/* The "Scan a runner" button that used to sit here moved up to
+                    the action bar — the camera is no longer behind this panel. */}
                 {userData.social ? (
                   <SocialQrFlair
                     hash={userData.hash}
@@ -485,12 +489,6 @@ export default function WhoAmIPage() {
                     {copyOr('qrcard.button', 'Save QR card')}
                   </Button>
                 )}
-                <QrScannerModal
-                  isOpen={isScannerOpen}
-                  onClose={() => setIsScannerOpen(false)}
-                  copy={scanCopy}
-                  attendanceAvailable={!!userData.social?.attendance}
-                />
                 {userData.hash && (
                   <QrCardModal
                     isOpen={isCardModalOpen}
@@ -682,6 +680,22 @@ export default function WhoAmIPage() {
       >
         Sign Out
       </Button>
+
+      {/* Action-bar modals live at page level, NOT inside the (collapsible)
+          Social QR card — their triggers are always visible now. */}
+      <QrScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        copy={scanCopy}
+        attendanceAvailable={!!userData?.social?.attendance}
+      />
+      {(LEADERBOARD_SELF_ENABLED || isAdmin) && (
+        <YourStandingModal
+          isOpen={isStandingOpen}
+          onClose={() => setIsStandingOpen(false)}
+          displayName={displayName}
+        />
+      )}
     </div>
   );
 }
