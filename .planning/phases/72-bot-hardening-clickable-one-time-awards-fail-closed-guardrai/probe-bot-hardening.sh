@@ -168,6 +168,20 @@ NEWEST=$(aws_q logs describe-log-streams --log-group-name "$GHOSTS_LOG_GROUP" \
   --query 'logStreams[0].[logStreamName,lastEventTimestamp]' --output text 2>/dev/null | head -1)
 STREAM=$(printf '%s' "$NEWEST" | awk '{print $1}')
 LAST_TS=$(printf '%s' "$NEWEST" | awk '{print $2}' | tr -cd '0-9')
+
+# `lastEventTimestamp` from describe-log-streams is EVENTUALLY CONSISTENT — AWS
+# documents that it "updates on an eventual consistency basis; it typically updates
+# in less than an hour". In 72-10 it read 00:03:11Z while the stream's newest event
+# was 00:35:31Z (22s old): ~32 minutes stale, which tripped this assertion and
+# reported a healthy, RUNNING/HEALTHY ghosts container as "may not be running".
+# Ground truth is the events themselves, so prefer the newest actual event and fall
+# back to the eventually-consistent field only if the fetch yields nothing.
+if [ -n "$STREAM" ]; then
+  EVENT_TS=$(aws_q logs get-log-events --log-group-name "$GHOSTS_LOG_GROUP" \
+    --log-stream-name "$STREAM" --limit 1 \
+    --query 'events[-1].timestamp' --output text 2>/dev/null | tr -cd '0-9')
+  [ -n "$EVENT_TS" ] && LAST_TS="$EVENT_TS"
+fi
 NOW_MS=$(( $(date +%s) * 1000 ))
 AGE_S=$(( (NOW_MS - ${LAST_TS:-0}) / 1000 ))
 printf '  newest ghosts stream: %s (last event %ss ago)\n' "${STREAM:-<none>}" "$AGE_S"
@@ -190,9 +204,24 @@ else
   bad "$RECENT_STREAMS new ghosts streams in 15 min — looks like a restart loop"
 fi
 
-GUARD_TS=$(aws_q logs describe-log-streams --log-group-name "$GUARDRAILS_LOG_GROUP" \
+# Same eventual-consistency trap as the ghosts freshness check above: read the
+# newest event itself, not the stream's lastEventTimestamp. The 30-minute threshold
+# here is wider than the ghosts one, but AWS only promises the field settles within
+# an HOUR, so this can false-alarm too.
+GUARD_STREAM=$(aws_q logs describe-log-streams --log-group-name "$GUARDRAILS_LOG_GROUP" \
   --order-by LastEventTime --descending --limit 1 \
-  --query 'logStreams[0].lastEventTimestamp' --output text 2>/dev/null | head -1 | tr -cd '0-9')
+  --query 'logStreams[0].logStreamName' --output text 2>/dev/null | head -1)
+GUARD_TS=""
+if [ -n "$GUARD_STREAM" ] && [ "$GUARD_STREAM" != "None" ]; then
+  GUARD_TS=$(aws_q logs get-log-events --log-group-name "$GUARDRAILS_LOG_GROUP" \
+    --log-stream-name "$GUARD_STREAM" --limit 1 \
+    --query 'events[-1].timestamp' --output text 2>/dev/null | tr -cd '0-9')
+fi
+if [ -z "$GUARD_TS" ]; then
+  GUARD_TS=$(aws_q logs describe-log-streams --log-group-name "$GUARDRAILS_LOG_GROUP" \
+    --order-by LastEventTime --descending --limit 1 \
+    --query 'logStreams[0].lastEventTimestamp' --output text 2>/dev/null | head -1 | tr -cd '0-9')
+fi
 if [ -z "$GUARD_TS" ]; then
   printf '  guardrails sidecar last event: <none>\n'
   bad "guardrails sidecar log group has no events"
