@@ -104,17 +104,24 @@ export interface CloudFile {
   version?: number;
   versionCount?: number;
   // Con-day tag (Phase 60): ISO date "YYYY-MM-DD", one of CON_DAYS. Used to group
-  // "My runs" by con-day in the My Maps dialog.
+  // "My runs" by con-day in the My Routes dialog.
   conDay?: string;
   // Provenance ("upload" | "draw" | "strava" | "converted") — the backend entity
   // already carries this (entities/gpx-file.ts); surfaced here so the editable
   // file-track click popup (gpx-layer.ts, UAT round 2 fix B) can recognize a
   // Strava-sourced-but-untagged file from an already-warm cloudFiles cache.
   source?: string;
-  // Submission flag (Phase 64, verb ②): true once the runner has submitted this
-  // route to the DEF CON run admin review queue via POST /files/{id}/request-share.
-  // Data only — it is NOT a shareable link. Returned by the files list GET.
+  // Legacy admin-review flag. NO LONGER SURFACED in the UI (2026-08-01 unified
+  // routes spec): self-serve "Public on the map" replaced the curation queue.
+  // Kept on the type because the files list GET still returns it.
   shareRequested?: boolean;
+  // Set when this route is published to the community map (2026-08-01 unified
+  // routes spec). Its presence is the client-side "this row is Public" signal
+  // and gates the auto-save resync, so unpublished routes pay nothing.
+  publishedRouteId?: string;
+  // Opt-in to the anonymous aggregate overlay. Orthogonal to share state: this
+  // is anonymity, not sharing.
+  includeInAggregate?: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -932,6 +939,10 @@ export interface RouteSummary {
   copyCount?: number;
   publishedAt?: number;
   downloadUrl?: string;
+  // Present when this Route was minted from a GpxFile. Its ABSENCE marks an
+  // orphan — a Route from the retired "Create a route" card form — which My
+  // Routes adopts into the single list.
+  sourceGpxFileId?: string;
 }
 
 export interface RouteCardInput {
@@ -1059,7 +1070,7 @@ export async function listCommunityRoutes(): Promise<RouteSummary[]> {
   return (await response.json()).routes as RouteSummary[];
 }
 
-/** Copy a community route into My Maps as a private, dateless file. */
+/** Copy a community route into My Routes as a private, dateless file. */
 export async function copyRouteToMyMaps(routeId: string): Promise<string> {
   const response = await fetch(
     `${getApiBase()}/routes/${encodeURIComponent(routeId)}/copy`,
@@ -1067,4 +1078,53 @@ export async function copyRouteToMyMaps(routeId: string): Promise<string> {
   );
   if (!response.ok) await routeApiError(response, 'Failed to copy route');
   return (await response.json()).fileId as string;
+}
+
+/**
+ * The one share vocabulary (2026-08-01 unified-routes spec). Mirrors
+ * webapp/src/lib/share-state.ts — keep the two in step.
+ */
+export type ShareState = 'private' | 'link' | 'public';
+
+/** Move a route between Private / Anyone-with-link / Public in one call. */
+export async function setShareState(
+  fileId: string,
+  state: ShareState
+): Promise<{ state: ShareState; routeId?: string; shareUrl?: string }> {
+  const response = await fetch(
+    `${getApiBase()}/files/${encodeURIComponent(fileId)}/visibility`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ state }),
+    }
+  );
+  if (!response.ok) await routeApiError(response, 'Could not update sharing');
+  return await response.json();
+}
+
+/**
+ * Mirror the latest content into a route's public copy. Fire-and-forget: the
+ * user's own save already succeeded, so a mirror failure must never surface as
+ * a save error. This deliberately swallows everything.
+ */
+export async function resyncPublishedRoute(fileId: string): Promise<void> {
+  try {
+    await fetch(
+      `${getApiBase()}/files/${encodeURIComponent(fileId)}/resync-route`,
+      { method: 'POST', credentials: 'include' }
+    );
+  } catch {
+    // Intentionally silent — see above.
+  }
+}
+
+/**
+ * Routes with no backing GpxFile: the leftovers from the retired "Create a
+ * route" card form. My Routes adopts them so there is one list, not two.
+ */
+export async function listOrphanRoutes(): Promise<RouteSummary[]> {
+  const routes = await listMyRoutes();
+  return routes.filter((r) => !r.sourceGpxFileId);
 }

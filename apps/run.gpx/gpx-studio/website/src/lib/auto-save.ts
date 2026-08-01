@@ -8,7 +8,7 @@
 
 import { writable, get, derived } from 'svelte/store';
 import { buildGPX } from 'gpx';
-import { saveOrUpdateToCloud, listCloudFiles, updateCloudFileContent, updateCloudFile, saveToCloud } from '$lib/cloud-sync';
+import { saveOrUpdateToCloud, listCloudFiles, updateCloudFileContent, updateCloudFile, saveToCloud, cloudFiles, resyncPublishedRoute } from '$lib/cloud-sync';
 import { fileStateCollection } from '$lib/logic/file-state';
 import { isAuthenticated, hasGpxStudioAccess } from '$lib/stores/auth';
 import { settings } from '$lib/logic/settings';
@@ -330,6 +330,17 @@ class AutoSaveManager {
           trackCount: file.trk?.length || 0,
           waypointCount: file.wpt?.length || 0,
         });
+
+        // If this route is Public, mirror the new content into its public copy
+        // so the community map shows the edit within one auto-save cycle. The
+        // copy is server-side (S3 → S3); the browser still uploads exactly once.
+        // Gated on the cached publishedRouteId so unpublished routes — the vast
+        // majority — pay nothing. resyncPublishedRoute swallows its own errors,
+        // so this await cannot turn a successful save into a failed one.
+        const cached = get(cloudFiles).find((f) => f.fileId === info.cloudFileId);
+        if (cached?.publishedRouteId) {
+          await resyncPublishedRoute(info.cloudFileId);
+        }
 
         // Update tracking info
         const newHash = hashString(content);

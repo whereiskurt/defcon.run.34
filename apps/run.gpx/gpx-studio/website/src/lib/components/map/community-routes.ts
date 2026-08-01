@@ -21,7 +21,7 @@ import {
  *
  * Security: every card value (name/description/attribution) is user-controlled
  * text from OTHER users and is escapeHtml'd before entering popup innerHTML.
- * The "Add to My Maps" button copies the route server-side (fresh dateless
+ * The "Add to My Routes" button copies the route server-side (fresh dateless
  * GpxFile — never scores).
  */
 
@@ -77,11 +77,11 @@ export function communityPopupHtml(r: RouteSummary, color: string): string {
                     style="display:block;width:100%;margin-top:10px;padding:5px 8px;border-radius:8px;
                            font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;
                            background:rgba(0,212,170,.12);color:#00d4aa;border:1px solid rgba(0,212,170,.55)">
-                ➕ Add to My Maps</button>
+                ➕ Add to My Routes</button>
         </div>`;
 }
 
-/** Wire the popup's "Add to My Maps" button. Idempotent per popup open. */
+/** Wire the popup's "Add to My Routes" button. Idempotent per popup open. */
 export function wireCommunityPopupCopy(
     container: HTMLElement | undefined,
     onCopied?: () => void
@@ -95,7 +95,7 @@ export function wireCommunityPopupCopy(
         btn.textContent = 'Copying…';
         copyRouteToMyMaps(routeId)
             .then(() => {
-                btn.textContent = '✓ Copied to My Maps';
+                btn.textContent = '✓ Copied to My Routes';
                 onCopied?.();
             })
             .catch(() => {

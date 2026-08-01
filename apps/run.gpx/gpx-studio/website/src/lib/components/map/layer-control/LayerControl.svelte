@@ -380,7 +380,7 @@
             const fileId = (e as CustomEvent<{ fileId: string }>).detail?.fileId;
             if (!fileId) return;
             // Reuse whatever's already cached in the `cloudFiles` store (warm
-            // from an earlier My Maps open) for a richer dialog (createdAt for
+            // from an earlier My Routes open) for a richer dialog (createdAt for
             // guessConDay); fall back to a minimal stub for the con-day-cap
             // check + save, same as CloudStorage.svelte's conDayDialogFile.
             assignDialogFile = get(cloudFiles).find((f) => f.fileId === fileId) ?? {
