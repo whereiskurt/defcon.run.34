@@ -969,7 +969,7 @@ Plans:
 
 - [x] 73-01-PLAN.md — Wave 1: upstream meshtk per-`(fleet, sender)` token bucket (`llm_ratelimit.go`), `MESHTK_LLM_CALLS_PER_HOUR` default 60 with an explicit `0` as operator kill switch, nil-degrades-to-unlimited, prune-on-access, in-character refusal + marker-token log at `handleLLMChat`, then overlay mirror at byte parity
 - [x] 73-02-PLAN.md — Wave 1 (parallel): plain-text `dcr-mqtt-llm-rate-limits` metric filter + notify-only `dcr-mqtt-llm-rate-limit` alarm on the existing tripwire topic, threshold knob in site.hcl, and the operator ceiling env var on the ghosts container
-- [~] 73-03-PLAN.md — Wave 2 (PARTIAL — both PRs OPEN: monorepo #1158, meshtk #36; STOPPED at the blocking human approval gate): then upstream merge → buildpub release (all four run.mqtt components) → `deploy.yml` → read-only live probe
+- [~] 73-03-PLAN.md — Wave 2 (PARTIAL — ✅ the upstream pre-gate is now CLEARED: meshtk **#36 MERGED** 2026-08-01T06:44Z as `f8ac7b3`, so `resolve_meshtk`'s fresh clone of meshtk `main` already carries the limiter. Monorepo **#1158 still OPEN and now CONFLICTING** — its `.planning/` half landed on main in `2cc8c574`, leaving only the 6 Terraform files (metric filter, alarm, site.hcl threshold, `MESHTK_LLM_CALLS_PER_HOUR` on the ghosts container). STOPPED at the blocking human approval gate): land #1158's infra → buildpub release (all four run.mqtt components) → `deploy.yml` → read-only live probe
 
 ---
 
