@@ -5,6 +5,7 @@ import { GpxFile } from "@/entities/gpx-file";
 import { nanoid } from "nanoid";
 import { consumeQuota, restoreQuota } from "@/lib/quota-client";
 import { assertNotLockedLive } from "@/lib/live-lockout";
+import { buildShareUrl } from "@/lib/share-url";
 
 /**
  * POST /api/gpx/shares - Create a new share link for a GPX file
@@ -135,24 +136,7 @@ export async function POST(request: Request) {
       throw createError;
     }
 
-    // Construct the share URL
-    // Local: http://localhost:3003/studio/share/{token}
-    // Prod: https://gpx.defcon.run/{region}/studio/share/{token}
-    const webappOrigin = process.env.WEBAPP_ORIGIN; // Set in production: "gpx.defcon.run"
-    const regionShort = process.env.REGION_SHORT;   // Set in production: "use1" or "cac1"
-    const isProduction = webappOrigin?.includes("defcon.run") || process.env.NODE_ENV === "production";
-
-    let shareUrl: string;
-    if (isProduction && webappOrigin && regionShort) {
-      // Production: use domain with region prefix
-      shareUrl = `https://${webappOrigin}/${regionShort}/studio/share/${shareId}`;
-    } else {
-      // Local development: no region prefix
-      const baseUrl = `http://localhost:${process.env.PORT || "3003"}`;
-      shareUrl = `${baseUrl}/studio/share/${shareId}`;
-    }
-
-    return NextResponse.json({ shareId, shareUrl });
+    return NextResponse.json({ shareId, shareUrl: buildShareUrl(shareId) });
   } catch (error) {
     console.error("Error creating share:", error);
     return NextResponse.json(
@@ -206,20 +190,10 @@ export async function GET(request: Request) {
     }
 
     // Construct share URLs for each share
-    const webappOrigin = process.env.WEBAPP_ORIGIN;
-    const regionShort = process.env.REGION_SHORT;
-    const isProduction = webappOrigin?.includes("defcon.run") || process.env.NODE_ENV === "production";
-
-    const shares = result.data.map((share) => {
-      let shareUrl: string;
-      if (isProduction && webappOrigin && regionShort) {
-        shareUrl = `https://${webappOrigin}/${regionShort}/studio/share/${share.shareId}`;
-      } else {
-        const baseUrl = `http://localhost:${process.env.PORT || "3003"}`;
-        shareUrl = `${baseUrl}/studio/share/${share.shareId}`;
-      }
-      return { ...share, shareUrl };
-    });
+    const shares = result.data.map((share) => ({
+      ...share,
+      shareUrl: buildShareUrl(share.shareId),
+    }));
 
     return NextResponse.json({ shares });
   } catch (error) {
