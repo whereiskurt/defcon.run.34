@@ -943,6 +943,34 @@ Plans:
 - [x] 72-09-PLAN.md — Release run.human + run.mqtt via `buildpub.yml`, deploy via `deploy.yml`, apply the alarm, and PROVE it live (version read, deployed task-def env, resolver regression re-diff) (BOT-01, BOT-02, BOT-03)
 - [x] 72-10-PLAN.md — ⚠️ IRREVERSIBLE: delete the `Qr` row + the static S3 interstitial + CloudFront invalidation, hardware UAT, and file the three deferred todos (BOT-01)
 
+### Phase 73: meshtk LLM per-sender rate limiting: non-blocking token bucket at the handleLLMChat Bedrock choke point
+
+**Goal:** Bound Bedrock abuse from a single radio at the one choke point that exists — `handleLLMChat` (`cmd.go:1328`) → `generateReply` (`llm.go:63`) — with a **non-blocking per-`(fleet, sender)` token bucket**. Today every unlocked DM to a ghost becomes a paid `Converse` call against `us.anthropic.claude-haiku-4-5-20251001-v1:0` with **no limiter of any kind**: no per-radio budget, no token ceiling, no concurrency cap, no circuit breaker. The only throttle anywhere in the path is `requestDedupWindow` (30s, `cmd.go:758-781`), which collapses **byte-identical** repeats via `isRetransmit` keyed on fleet+sender+message — it exists to swallow Meshtastic's ~3x retransmits, not to bound spend, and varying a single character defeats it entirely. The Phase 72 lyric semaphore (`defaultLyricsMaxConcurrent = 12`, `MESHTK_LYRICS_MAX_CONCURRENT`) caps LYRIC fan-out to protect aggregate RF airtime, sits on a different path, and must **not** be read as a rate limit. Because `handleLLMChat` executes inline on paho's ordered dispatch goroutine (`SetOrderMatters` defaults true, and a handler must not block), the bucket must be non-blocking `select`/`default` in the shape of `acquireLyricSlot` — a bare blocking acquire would stall ACK dispatch and can outlast the fixed 30s dedup window. An exhausted sender is **REFUSED in words, never silence and never queued**, following the `stageFullReply` precedent ("a blackholed request is indistinguishable from a dead bot"; a backlog would outlive the requester's interest and then burst at a radio that stopped listening).
+
+**Kurt's scope decisions (2026-08-01), locked:**
+- **Per-sender bucket ONLY.** No global fleet-wide call cap, no daily token/spend ceiling with kill switch, and no AWS Budgets / CloudWatch `InvocationCount` backstop in this phase. All three were offered and consciously declined.
+- **The fleet is NEVER globally silenced.** A trip refuses the one abusive sender; every other radio keeps being served. Dead ghosts mid-con are a worse failure than a visible overage.
+- ⚠️ **Accepted residual risk:** aggregate spend across MANY distinct radios each sitting just under the per-sender bucket remains **unbounded**, and nothing in this phase alarms on cost. The `dcr-mqtt-guardrail-outage` alarm watches guardrail failures, not spend or call volume. This is a recorded acceptance, not an oversight — the same posture that filed the parent todo.
+
+⚠️ **Vendor-sync landmine:** all Go changes go to `~/working/meshtk` **upstream FIRST**, then vendor-sync into `apps/run.mqtt/meshtk` (a tracked overlay `build.sh` applies over a fresh clone). `apps/run.mqtt/meshtk/*` is gitignored except the overlay set. Per [[project_meshtk_head_development_path]] the Go divergence overlay↔upstream is currently ZERO — do not reintroduce drift.
+
+**Requirements**: RATE-01, RATE-02, RATE-03, RATE-04
+**Depends on:** Phase 72 (established the `stageFullReply` refusal precedent, the non-blocking `acquireLyricSlot` shape, and the metric-filter → SNS `dcr-admin-reports-tripwire` alarm plumbing this phase reuses)
+**Plans:** 3 plans
+
+Requirements:
+
+- **RATE-01** — Non-blocking per-`(fleet, sender)` token bucket guarding `generateReply`, keyed with the existing `isRetransmit` fleet+sender pattern and pruning expired entries on access so the map cannot grow unbounded over a multi-day fleet lifetime.
+- **RATE-02** — Over-cap requests refused with an in-character message, single-shot, never queued and never silent; the refusal itself must not burn a token or recurse into the limiter.
+- **RATE-03** — Operator-tunable env knob (`MESHTK_LLM_*`) with explicit degradation semantics for missing / blank / non-numeric / zero. ⚠️ Decide zero deliberately: `lyricsMaxConcurrent` treats 0 as "use default" precisely because a zero cap would silence ricky entirely — a rate limiter may or may not want the same, and a nil bucket must degrade to unlimited so existing bare-`FleetCmd` tests do not panic.
+- **RATE-04** — Observability: a log line on refusal plus a metric filter and CloudWatch alarm on sustained refusal volume, on the existing tripwire SNS topic (alarm only — never auto-disables the fleet, per the locked decision above).
+
+Plans:
+
+- [ ] 73-01-PLAN.md — Wave 1: upstream meshtk per-`(fleet, sender)` token bucket (`llm_ratelimit.go`), `MESHTK_LLM_CALLS_PER_HOUR` default 60 with an explicit `0` as operator kill switch, nil-degrades-to-unlimited, prune-on-access, in-character refusal + marker-token log at `handleLLMChat`, then overlay mirror at byte parity
+- [ ] 73-02-PLAN.md — Wave 1 (parallel): plain-text `dcr-mqtt-llm-rate-limits` metric filter + notify-only `dcr-mqtt-llm-rate-limit` alarm on the existing tripwire topic, threshold knob in site.hcl, and the operator ceiling env var on the ghosts container
+- [ ] 73-03-PLAN.md — Wave 2: open both PRs, blocking human approval gate, then upstream merge → buildpub release (all four run.mqtt components) → `deploy.yml` → read-only live probe
+
 ---
 
 <details>
