@@ -57,3 +57,30 @@ was deferred rather than blocking the release.
 
 Splitting the parameter also decouples the bots from `AUTH_INTERNAL_SECRET`, which is worth
 doing on its own.
+
+## ⭐ VERIFIED SCOPE CORRECTION (2026-08-01) — it is shared across SEVEN services
+
+This todo originally described the secret as shared between run.mqtt and run.human. Grepping
+every live service definition shows `/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/jwt/internal_secret`
+is consumed by **all seven**:
+
+| service | service.hcl line |
+|---|---|
+| run.auth | 267 |
+| run.bib | 173 |
+| run.gpx | 193 |
+| run.flash | 163 |
+| run.human | 178 (as `AUTH_INTERNAL_SECRET`) |
+| run.cms | 249 |
+| run.mqtt | 372 (as `MESHTK_INTERNAL_SECRET`) |
+
+So the credential that authorises `POST /api/internal/ctf/mint` — which can mint a claim link
+for **any** challenge, since the `ghost`/`challenge` field is caller-supplied and unconstrained
+by the credential — is the same value held by seven separate containers. A foothold in ANY of
+them (cms, bib, gpx, flash, auth …) is sufficient to mint arbitrary CTF flag claims, not just a
+foothold in the bot fleet.
+
+That widens the blast radius argument but does NOT change the deferral decision: still a
+SecureString, still not internet-reachable, still needs a prior foothold. It does raise the
+priority from `medium` toward the top of that band, and it means the fix is really two changes:
+(a) scope the mint credential per bot, and (b) stop seven services sharing one internal secret.
