@@ -969,7 +969,7 @@ Plans:
 
 - [x] 73-01-PLAN.md — Wave 1: upstream meshtk per-`(fleet, sender)` token bucket (`llm_ratelimit.go`), `MESHTK_LLM_CALLS_PER_HOUR` default 60 with an explicit `0` as operator kill switch, nil-degrades-to-unlimited, prune-on-access, in-character refusal + marker-token log at `handleLLMChat`. ⚠️The overlay mirror step was DROPPED at merge time: main #1156 made `apps/run.mqtt/meshtk` config-only (Go source 101→1), so the limiter lives ONLY upstream in meshtk (merged as `f8ac7b3`, PR #36) and CI's fresh clone carries it. Re-adding overlay .go copies would revert #1156 and reintroduce the stale-overlay clobber hazard
 - [x] 73-02-PLAN.md — Wave 1 (parallel): plain-text `dcr-mqtt-llm-rate-limits` metric filter + notify-only `dcr-mqtt-llm-rate-limit` alarm on the existing tripwire topic, threshold knob in site.hcl, and the operator ceiling env var on the ghosts container
-- [~] 73-03-PLAN.md — Wave 2 (PARTIAL — both PRs OPEN: monorepo #1158, meshtk #36; STOPPED at the blocking human approval gate): then upstream merge → buildpub release (all four run.mqtt components) → `deploy.yml` → read-only live probe
+- [x] 73-03-PLAN.md — Wave 2: SHIPPED LIVE 2026-08-01. meshtk #36 merged FIRST (`f8ac7b3`), monorepo #1158 (`5ac49845`), buildpub run 30699793447 (all four components in ECR), `deploy.yml` run 30709948458, `terragrunt-apply` modules=admin-reports run 30710238095. PROVEN on the SERVING revision (PRIMARY ARN, not the family alias): task-def **126 → 127**, meshtk **v0.0.85**, `MESHTK_LLM_CALLS_PER_HOUR=60` on run-mqtt-ghosts, `dcr-mqtt-llm-rate-limit` alarm live and NOTIFY-ONLY (ok/insufficient actions empty), plain-text `MESHTK_LLM_RATE_LIMIT` filter on the ghosts log group, Phase 72 guardrail alarm still OK
 
 ---
 
