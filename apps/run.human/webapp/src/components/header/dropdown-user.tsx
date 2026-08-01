@@ -28,6 +28,9 @@ import { useCopy } from '../CopyProvider';
 import { LogoutIcon } from './icon/logout';
 import { QRIcon } from './icon/qr';
 import StyledRunnerQr from '@/components/qr/StyledRunnerQr';
+import SocialQrFlair from '@/components/qr/SocialQrFlair';
+import QrScannerModal, { type ScannerCopy } from '@/components/qr/QrScannerModal';
+import { Camera } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { apiUrl } from '@/lib/api';
 
@@ -136,10 +139,35 @@ const UserDropDown = (params: any) => {
   // group cms.defcon.run itself requires for admin access.
   const hasCms = !!session.user.services?.includes('cms');
 
+  // Same CMS-copy keys (and same English defaults) the profile scanner uses —
+  // one scanner, one voice, wherever it is opened from.
+  const copyOr = (key: string, fallback: string) => {
+    const v = t(key);
+    return !v || v === key ? fallback : v;
+  };
+  const scanCopy: ScannerCopy = {
+    title: copyOr('socialqr.scan.title', 'Scan a runner'),
+    hint: copyOr('socialqr.scan.hint', "Point your camera at another runner's QR"),
+    miss: copyOr('socialqr.scan.miss', 'Not a runner QR - keep it in frame'),
+    found: copyOr('socialqr.scan.found', '🐰 Runner found!'),
+    claim: copyOr('socialqr.scan.claim', 'Claim connection'),
+    again: copyOr('socialqr.scan.again', 'Scan another'),
+    unavailable: copyOr(
+      'socialqr.scan.unavailable',
+      "Camera unavailable - use your phone's camera app on the QR instead.",
+    ),
+    cancel: copyOr('socialqr.scan.cancel', 'Done'),
+  };
+
   return (
     <>
       {LogoutModal(isLogoutOpen, closeLogout)}
-      {QRModal(isQROpen, closeQR, userDetail)}
+      <QRModal
+        isOpen={isQROpen}
+        onClose={closeQR}
+        userDetail={userDetail}
+        scanCopy={scanCopy}
+      />
       <CheckInModal
         isOpen={isCheckInOpen}
         onClose={closeCheckIn}
@@ -313,56 +341,107 @@ function LogoutModal(isOpen: boolean, onClose: () => void) {
   );
 }
 
-function QRModal(isOpen: boolean, onClose: () => void, userDetail: any) {
-  const closeWindow = () => {
-    onClose();
-  };
-
+/**
+ * The header menu's QR modal — now rendering the SAME `SocialQrFlair` the
+ * /whoami panel does (reactor ring, rank band, LEADER state, DC-jack egg)
+ * rather than a bare QR, so a runner's identity looks identical wherever they
+ * flash it. Falls back to the plain `StyledRunnerQr` when `social` has not
+ * loaded yet (the flair needs a rank band; the QR itself does not).
+ *
+ * It also carries the camera, so a runner can scan someone straight from the
+ * menu without first navigating to their profile.
+ */
+function QRModal({
+  isOpen,
+  onClose,
+  userDetail,
+  scanCopy,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  userDetail: any;
+  scanCopy: ScannerCopy;
+}) {
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
   const hasQR = userDetail?.hash || userDetail?.eqr;
 
   return (
-    <Modal
-      size={'sm'}
-      placement="center"
-      isOpen={isOpen}
-      backdrop="blur"
-      onClose={closeWindow}
-    >
-      <ModalContent>
-        {() => (
-          <>
-            <ModalHeader className="flex flex-col gap-1 text-center pb-2">
-              <div className="text-2xl font-bold text-primary drop-shadow-lg">
-                Your Social QR
-              </div>
-              <div className="text-sm text-default-500">Share to connect with other rabbits!</div>
-            </ModalHeader>
-            <ModalBody className="p-0 pt-0">
-              {hasQR ? (
-                <div className="p-0 overflow-hidden">
-                  <StyledRunnerQr hash={userDetail.hash} eqrFallback={userDetail.eqr} className="w-full scale-110 -m-[0px]" />
+    <>
+      <Modal
+        size={'sm'}
+        placement="center"
+        scrollBehavior="inside"
+        isOpen={isOpen}
+        backdrop="blur"
+        onClose={onClose}
+      >
+        <ModalContent>
+          {() => (
+            <>
+              <ModalHeader className="flex flex-col gap-1 text-center pb-2">
+                <div className="text-2xl font-bold text-primary drop-shadow-lg">
+                  Your Social QR
                 </div>
-              ) : (
-                <div className="flex items-center justify-center h-[300px]">
-                  <span className="text-default-500">Loading QR Code...</span>
-                </div>
-              )}
-            </ModalBody>
-            <ModalFooter className="flex justify-center -mt-[10px]">
-              <Button
-                size="lg"
-                color="success"
-                variant="solid"
-                radius="full"
-                onPress={closeWindow}
-                className="px-8 py-3 text-lg font-semibold min-w-[150px]"
-              >
-                Done
-              </Button>
-            </ModalFooter>
-          </>
-        )}
-      </ModalContent>
-    </Modal>
+                <div className="text-sm text-default-500">Share to connect with other rabbits!</div>
+              </ModalHeader>
+              <ModalBody className="p-0 pt-0">
+                {hasQR ? (
+                  <div className="flex flex-col items-center gap-3 px-3 pb-1">
+                    {userDetail.social ? (
+                      <SocialQrFlair
+                        hash={userDetail.hash}
+                        eqrFallback={userDetail.eqr}
+                        social={userDetail.social}
+                        alt="Your QR Code"
+                      />
+                    ) : (
+                      <div className="bg-white p-3 rounded-lg">
+                        <StyledRunnerQr
+                          hash={userDetail.hash}
+                          eqrFallback={userDetail.eqr}
+                          alt="Your QR Code"
+                          className="max-w-[220px]"
+                        />
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-[300px]">
+                    <span className="text-default-500">Loading QR Code...</span>
+                  </div>
+                )}
+              </ModalBody>
+              <ModalFooter className="flex justify-center gap-2 pt-2">
+                <Button
+                  color="primary"
+                  variant="bordered"
+                  radius="full"
+                  startContent={<Camera className="w-4 h-4" />}
+                  onPress={() => setIsScannerOpen(true)}
+                  className="font-semibold"
+                >
+                  {scanCopy.title}
+                </Button>
+                <Button
+                  color="success"
+                  variant="solid"
+                  radius="full"
+                  onPress={onClose}
+                  className="px-6 font-semibold"
+                >
+                  Done
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+      <QrScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        copy={scanCopy}
+        attendanceAvailable={!!userDetail?.social?.attendance}
+      />
+    </>
   );
 }
