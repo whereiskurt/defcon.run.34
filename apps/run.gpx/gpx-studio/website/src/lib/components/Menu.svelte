@@ -136,10 +136,13 @@
                     </Menubar.Item>
                     <Menubar.Item onclick={openMyMaps}>
                         <Cloud size="16" />
-                        My Maps...
+                        My Routes...
                         <Shortcut key="O" ctrl={true} />
                     </Menubar.Item>
-                    <Menubar.Item onclick={() => quickStartOpen.set(true)}>
+                    <Menubar.Item
+                        class="add-run-glow !text-white focus:!text-white"
+                        onclick={() => quickStartOpen.set(true)}
+                    >
                         <Footprints size="16" />
                         Add run...
                     </Menubar.Item>
@@ -601,7 +604,7 @@
             createFile();
             e.preventDefault();
         } else if (e.key === 'o' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
-            // Ctrl/Cmd+O: open My Maps (the unified cloud folder view)
+            // Ctrl/Cmd+O: open My Routes (the unified cloud folder view)
             openMyMaps();
             e.preventDefault();
         } else if (e.key === 'd' && (e.metaKey || e.ctrlKey)) {
