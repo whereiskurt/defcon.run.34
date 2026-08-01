@@ -1,22 +1,65 @@
-# Ignore meshtk Go source (copied at build time from ~/working/meshtk)
+# meshtk is a VANILLA upstream checkout. This repo tracks con-specific CONFIG
+# ONLY — never Go source.
+#
+# How the image gets built (apps/build.sh:148-169, resolve_meshtk):
+#   CI    clone github.com/whereiskurt/meshtk, then overlay every file
+#         `git ls-files` reports under this directory on top of it.
+#   local use apps/run.mqtt/meshtk/ directly as the Docker context.
+#
+# Tracked-ness is therefore LOAD-BEARING in CI: a file present on disk but
+# untracked is silently discarded by the fresh-clone step and never ships.
+# Adding a con-specific file means allowlisting it here, not just creating it.
+#
+# The inverse is equally true and is why this list is short: anything tracked
+# here SHADOWS upstream forever. It must be hand-mirrored on every change and
+# can silently drift. Go source was tracked here until 2026-08-01 — 105 files,
+# every one byte-identical to upstream, i.e. pure redundancy carrying pure
+# drift risk. Do not put Go source back.
+#
+# Gitignore mechanics: un-ignoring a directory does NOT un-ignore its contents,
+# so each level below is re-ignored with `dir/*` before the next `!` allows a
+# specific child through. Skipping a re-ignore line silently exposes an entire
+# subtree as untracked-but-present, which reads as clean locally and then
+# vanishes in CI.
 meshtk/*
+
+# --- Con config: images, versions, fleet definition -------------------------
 !meshtk/Dockerfile.meshtk
 !meshtk/VERSION
 !meshtk/meshtk.dc34.yaml
 !meshtk/meshtk.localdev.yaml
+
+# --- Fleet node seeds (pinned ghost/rabbit identities, PKI, positions) ------
 !meshtk/nodes.ghost.*.json
 !meshtk/nodes.rabbit.*.json
-# Con embedded GPX (overlaid onto a fresh generic meshtk clone at build time)
+
+# --- Descend toward the two things below that are genuinely ours ------------
 !meshtk/internal/
-!meshtk/internal/app/
-!meshtk/internal/app/server/*.go
+meshtk/internal/*
+
+# --- Con GPX routes ---------------------------------------------------------
+# NOTE: embedded.go is deliberately NOT tracked. It used to be, carrying a
+# local //go:embed patch that vendor-sync clobbered twice and silently stranded
+# all 24 GPX sim nodes at 0,0 (#1009, fixed by #1028/#1029). Upstream now uses
+# `//go:embed */*.gpx`, correct in both trees because go:embed only errors on a
+# pattern matching NOTHING — so these routes are picked up with no patched Go
+# file to maintain. See whereiskurt/meshtk#35.
 !meshtk/internal/embedded/
+meshtk/internal/embedded/*
 !meshtk/internal/embedded/gpx/
-!meshtk/internal/embedded/gpx/embedded.go
+meshtk/internal/embedded/gpx/*
 !meshtk/internal/embedded/gpx/*/
+meshtk/internal/embedded/gpx/*/*
 !meshtk/internal/embedded/gpx/*/*.gpx
-# Con-specific fleet tests. Must be TRACKED, not just present: build.sh's CI
-# overlay is built from `git ls-files`, so an untracked test would be discarded
-# by the fresh-clone step and never run.
+
+# --- Con-specific test, the one deliberate exception to "no Go source" ------
+# Guards the embed above: it asserts every GPXFile: in meshtk.dc34.yaml
+# resolves, and runs with cwd set to its package dir so the .gpx files are NOT
+# on the filesystem — exercising the go:embed fallback specifically. It has no
+# upstream counterpart, so it MUST stay tracked or the CI overlay drops it and
+# the regression it guards ships green.
+!meshtk/internal/app/
+meshtk/internal/app/*
 !meshtk/internal/app/fleet/
+meshtk/internal/app/fleet/*
 !meshtk/internal/app/fleet/gpx_routes_test.go
