@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
-status: Ready to execute
-stopped_at: "Phase 72 plan 04 COMPLETE (AUTHORING ONLY, NOTHING APPLIED) — ghosts container flipped to MESHTK_GUARDRAIL_FAILMODE=closed with the depends_on START rationale rewritten (HEALTHY would kill beacons/position and drop the ghosts off the map); MESHTK_RICKY_FALLBACK_URL + ricky-fallback-url secret key declared with a CHANGEME placeholder only; guardrail-outage metric filter (plain-text MESHTK_GUARDRAIL_OUTAGE, NOT a JSON selector) + >=3/5min alarm on the existing dcr-admin-reports-tripwire topic, count-gated, ghosts log group kept OUT of the retention adoption set. Applies sequenced: secrets 72-08 BEFORE ecs-task 72-09."
-last_updated: "2026-08-01T00:18:24.371Z"
-last_activity: 2026-07-31
+status: In progress — Phase 73 wave 1 complete, wave 2 (73-03 ship) gated on human approval
+stopped_at: "Phase 73 WAVE 1 COMPLETE, NOTHING SHIPPED. 73-01 (Go per-sender token bucket) and 73-02 (CloudWatch metric filter + alarm + operator knob) both executed and independently verified: go build/vet PASS, 20 limiter tests PASS in ~/working/meshtk-p73, overlay<->upstream byte parity IDENTICAL on all 3 files and all 3 TRACKED (build.sh CI overlay is built from git ls-files, so untracked files would be destroyed at build time). Alarm is NOTIFY-ONLY (alarm_actions=tripwire SNS only, no ok_actions/lambda/autoscaling/ssm); metric filter pattern is plain-text MESHTK_LLM_RATE_LIMIT, not a JSON selector. Default ceiling 60 calls/radio/hour; explicit 0 = operator kill switch, blank/garbage/negative/fractional -> 60. 73-03 PARTIALLY DONE: its PRE-GATE step is complete — upstream meshtk branch feat/phase-73-llm-rate-limit PUSHED and PR whereiskurt/meshtk#36 OPEN, monorepo PR #1158 OPEN, both labelled DO NOT MERGE. STOPPED AT the blocking human approval gate. REMAINING (needs Kurt): merge origin/main for VERSION parity (worktree v0.0.82 vs main v0.0.84 - releasing without this collides with an immutable ECR tag), upstream meshtk PR MUST merge to meshtk main BEFORE the release build (build.sh resolve_meshtk clones the default branch fresh in CI), then release + deploy.yml + live probe. Kurt to confirm the 60 default. Hardware UAT is human-only."
+last_updated: "2026-08-01T06:55:00.000Z"
+last_activity: 2026-08-01
 progress:
   total_phases: 32
-  completed_phases: 21
-  total_plans: 114
-  completed_plans: 110
-  percent: 66
-current_phase: 72
-current_phase_name: bot-hardening-clickable-one-time-awards-fail-closed-guardrai
+  completed_phases: 22
+  total_plans: 117
+  completed_plans: 115
+  percent: 69
+current_phase: 73
+current_phase_name: meshtk-llm-per-sender-rate-limiting-non-blocking-token-bucke
 ---
 
 # Project State
@@ -74,6 +74,7 @@ Deferred to v2: MIGR-04 (flash/human/auth/gpx migration), I18N-01 (locale popula
 - Phase 56 added: CTF Flag Types — Slice 3 Wordlist One-Time Codes (CtfCode Entity + Atomic Single-Use Claim)
 - v2.3 milestone now fully sliced into phases 53 (done) → 54 → 55 → 56; autonomous execution of 54–56 authorized 2026-07-15
 - Phase 72 added: Bot Hardening — Clickable One-Time Awards, Fail-Closed Guardrails, Lyric Delivery. Spec `docs/superpowers/specs/2026-07-31-bot-hardening-design.md` (`e0ff5643`). Independent of Phase 71. Fully autonomous execution through PR → merge → buildpub deploy authorized by Kurt 2026-07-31.
+- Phase 73 added: meshtk LLM per-sender rate limiting — non-blocking token bucket at the `handleLLMChat` → `generateReply` Bedrock choke point. Promotes the deliberately-deferred Phase 72 todo `.planning/todos/pending/2026-07-31-llm-rate-limiting-bedrock-ceiling.md`. Scope narrowed by Kurt 2026-08-01: per-sender bucket ONLY (global cap, daily spend ceiling, and AWS Budgets/CloudWatch backstop all offered and declined), and the fleet is never globally silenced — a trip refuses the one abusive sender and alarms. ⚠️ Accepted residual: aggregate spend across many distinct radios stays unbounded.
 
 ### Decisions
 
