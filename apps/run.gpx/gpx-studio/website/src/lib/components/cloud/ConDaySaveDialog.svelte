@@ -1,6 +1,6 @@
 <script lang="ts">
     // Task 10 — "Save as defcon.run Activity" con-day dialog. Lets a runner
-    // assign / move / clear which DEF CON day a My Maps file counts toward.
+    // assign / move / clear which DEF CON day a My Routes file counts toward.
     // Chips are NOT gated on `selectable` — the server accepts any of the six
     // con days at any time for non-admins; only fullness (remaining<=0) disables
     // a chip, and re-saving the file's own current day is always allowed even

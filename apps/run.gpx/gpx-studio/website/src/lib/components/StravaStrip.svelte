@@ -197,7 +197,7 @@
         return !!a.imported && (a.conDay === null || a.conDay === undefined);
     }
 
-    // Tagged imports are inert — reassignment stays in the My Maps "Save as
+    // Tagged imports are inert — reassignment stays in the My Routes "Save as
     // defcon.run Activity" dialog. Untagged imports reopen this SAME popover in
     // 'assign' mode; fresh (unimported) activities open it in 'import' mode.
     function openPopover(a: StripActivity) {
@@ -329,7 +329,7 @@
 
     // "Remove this import" inside the assign popover — the only way an
     // UNTAGGED import (not in the My DEF CON Runs layer, so no map popup) can
-    // be removed without a trip to My Maps. Same two-step confirm as the map
+    // be removed without a trip to My Routes. Same two-step confirm as the map
     // popup's Remove run button.
     let removing = $state(false);
     let removeArmed = $state(false);

@@ -6,7 +6,7 @@
  * con day. Since UAT round 3 fix B, the client no longer lands it as a second,
  * editable gpx-studio file — the strip presents the import via the My DEF CON
  * Runs layer instead (`revealConRun`/`myConRunsReveal`). landCloudFileOnMap()
- * below is kept exported (no current callers) for any future My Maps
+ * below is kept exported (no current callers) for any future My Routes
  * open-file flow that needs the same landing chain the Upload door used.
  * The old all-at-once logRunFromStrava() is retired — the QuickStart hub
  * button now just opens the strip.

@@ -504,7 +504,7 @@ export class GPXLayer {
      * track when it's cloud-linked to a run the server knows about — either the
      * con-day-tagged manifest (already warm from MyConRunsLayer.load(), no extra
      * fetch) or, best-effort, whatever's already cached in the `cloudFiles`
-     * store from an earlier My Maps dialog open (covers a Strava import that
+     * store from an earlier My Routes dialog open (covers a Strava import that
      * hasn't been tagged with a con day yet). A file that's cloud-linked but
      * matches neither — e.g. a hand-drawn/uploaded route — gets no popup. */
     private maybeShowRunPopup(lngLat: mapboxgl.LngLat) {

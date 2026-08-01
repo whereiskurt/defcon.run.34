@@ -104,16 +104,16 @@ export interface CloudFile {
   version?: number;
   versionCount?: number;
   // Con-day tag (Phase 60): ISO date "YYYY-MM-DD", one of CON_DAYS. Used to group
-  // "My runs" by con-day in the My Maps dialog.
+  // "My runs" by con-day in the My Routes dialog.
   conDay?: string;
   // Provenance ("upload" | "draw" | "strava" | "converted") — the backend entity
   // already carries this (entities/gpx-file.ts); surfaced here so the editable
   // file-track click popup (gpx-layer.ts, UAT round 2 fix B) can recognize a
   // Strava-sourced-but-untagged file from an already-warm cloudFiles cache.
   source?: string;
-  // Submission flag (Phase 64, verb ②): true once the runner has submitted this
-  // route to the DEF CON run admin review queue via POST /files/{id}/request-share.
-  // Data only — it is NOT a shareable link. Returned by the files list GET.
+  // Legacy admin-review flag. NO LONGER SURFACED in the UI (2026-08-01 unified
+  // routes spec): self-serve "Public on the map" replaced the curation queue.
+  // Kept on the type because the files list GET still returns it.
   shareRequested?: boolean;
   // Set when this route is published to the community map (2026-08-01 unified
   // routes spec). Its presence is the client-side "this row is Public" signal
@@ -1070,7 +1070,7 @@ export async function listCommunityRoutes(): Promise<RouteSummary[]> {
   return (await response.json()).routes as RouteSummary[];
 }
 
-/** Copy a community route into My Maps as a private, dateless file. */
+/** Copy a community route into My Routes as a private, dateless file. */
 export async function copyRouteToMyMaps(routeId: string): Promise<string> {
   const response = await fetch(
     `${getApiBase()}/routes/${encodeURIComponent(routeId)}/copy`,
