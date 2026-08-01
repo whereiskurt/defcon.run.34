@@ -93,6 +93,65 @@ describe("ClaimPage ?nonce branches", () => {
   });
 });
 
+describe("ClaimPage ?nonce case tolerance (Phase 72 award links)", () => {
+  it("lowercases an uppercase ?nonce before redeeming it", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "user-1" } });
+    mockClaimPending.mockResolvedValue(AWARD);
+
+    await ClaimPage(params({ nonce: "K7M3Q9X2WR4T" }));
+
+    expect(mockClaimPending).toHaveBeenCalledWith("k7m3q9x2wr4t", "user-1");
+  });
+
+  it("passes an already-lowercase nonce through unchanged", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "user-1" } });
+    mockClaimPending.mockResolvedValue(AWARD);
+
+    await ClaimPage(params({ nonce: "k7m3q9x2wr4t" }));
+
+    expect(mockClaimPending).toHaveBeenCalledWith("k7m3q9x2wr4t", "user-1");
+  });
+
+  it("hands ClaimClient the LOWERCASED nonce on the anonymous park branch", async () => {
+    mockAuth.mockResolvedValue(null);
+
+    const el = await ClaimPage(params({ nonce: "K7M3Q9X2WR4T" }));
+
+    // The cookie ClaimClient parks must match what branch (B) later looks up.
+    expect(el.props).toMatchObject({ mode: "signin", nonce: "k7m3q9x2wr4t" });
+  });
+
+  it("leaves a legacy 36-char UUID nonce intact (already lowercase hex)", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "user-1" } });
+    mockClaimPending.mockResolvedValue(AWARD);
+    const uuid = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+
+    await ClaimPage(params({ nonce: uuid }));
+
+    expect(mockClaimPending).toHaveBeenCalledWith(uuid, "user-1");
+  });
+
+  it("an empty ?nonce still falls through to the c/v param branch", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "user-1" } });
+    mockJudge.mockResolvedValue(AWARD);
+
+    await ClaimPage(params({ nonce: "", c: "goldstein", v: "GUESS" }));
+
+    expect(mockClaimPending).not.toHaveBeenCalled();
+    expect(mockJudge).toHaveBeenCalledTimes(1);
+  });
+
+  it("does NOT touch the parked ctf_pending cookie value (branch B verbatim)", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "user-3" } });
+    mockCookieGet.mockReturnValue({ value: "Parked-NONCE" });
+    mockClaimPending.mockResolvedValue(AWARD);
+
+    await ClaimPage(params({}));
+
+    expect(mockClaimPending).toHaveBeenCalledWith("Parked-NONCE", "user-3");
+  });
+});
+
 describe("ClaimPage rescore wiring on solved results", () => {
   it("(A) signed-in + c/v → judgeSolve solved:true fires rescoreBestEffort(player)", async () => {
     mockAuth.mockResolvedValue({ user: { id: "user-2" } });

@@ -118,6 +118,97 @@ describe("parsePath — ctf (reserved)", () => {
   });
 });
 
+describe("parsePath — award (reserved)", () => {
+  it("classifies /a/<nonce> as award, carrying the nonce verbatim", () => {
+    expect(parsePath("/a/k7m3q9x2wr4t")).toEqual({
+      kind: "award",
+      nonce: "k7m3q9x2wr4t",
+      query: "",
+    });
+  });
+
+  it("does NOT uppercase the nonce (case-kept, unlike a redirect code)", () => {
+    expect(parsePath("/a/AbC").nonce).toBe("AbC");
+  });
+
+  it("degrades to empty when the award letter carries no nonce", () => {
+    expect(parsePath("/a")).toEqual({ kind: "empty", query: "" });
+    expect(parsePath("/a/")).toEqual({ kind: "empty", query: "" });
+  });
+
+  it("preserves query on an award claim", () => {
+    expect(parsePath("/a/xyz?utm=1")).toEqual({
+      kind: "award",
+      nonce: "xyz",
+      query: "utm=1",
+    });
+  });
+
+  it("ignores segments beyond the nonce", () => {
+    expect(parsePath("/a/xyz/extra").nonce).toBe("xyz");
+  });
+
+  it("never returns the award namespace as a redirect code", () => {
+    expect(parsePath("/a/k7m3q9x2wr4t").kind).not.toBe("redirect");
+  });
+
+  it("matches the reserved LETTER case-insensitively — /A/<nonce> is award", () => {
+    expect(parsePath("/A/k7m3q9x2wr4t")).toEqual({
+      kind: "award",
+      nonce: "k7m3q9x2wr4t",
+      query: "",
+    });
+    expect(parsePath("/A/k7m3q9x2wr4t").kind).not.toBe("redirect");
+  });
+
+  it("keeps the NONCE verbatim even when the whole link was uppercased", () => {
+    // A client that upcases the entire URL yields /A/K7M3…. The letter is
+    // matched case-insensitively so this still reaches the claim page; the
+    // nonce itself is passed through untouched, because run.human's claim
+    // page owns the lowercasing for lookup.
+    expect(parsePath("/A/K7M3Q9X2WR4T")).toEqual({
+      kind: "award",
+      nonce: "K7M3Q9X2WR4T",
+      query: "",
+    });
+  });
+
+  it("degrades a bare /A to empty, exactly like /a", () => {
+    expect(parsePath("/A")).toEqual({ kind: "empty", query: "" });
+  });
+});
+
+describe("parsePath — live single-letter short codes (regression guard)", () => {
+  // b c d f g h p r are LIVE codes on q.defcon.run (e.g. /c → didhtp1).
+  // Reserving a new single-letter namespace must never reclassify one of them —
+  // this assertion is exactly what caught the original `/c/` collision.
+  const LIVE_SINGLE_LETTER_CODES = ["b", "c", "d", "f", "g", "h", "p", "r"];
+
+  it.each(LIVE_SINGLE_LETTER_CODES)(
+    "still classifies /%s as a redirect",
+    (letter) => {
+      expect(parsePath(`/${letter}`)).toEqual({
+        kind: "redirect",
+        code: letter.toUpperCase(),
+        param: null,
+        query: "",
+      });
+    }
+  );
+
+  it.each(LIVE_SINGLE_LETTER_CODES)(
+    "still classifies /%s/<param> as a redirect with the param intact",
+    (letter) => {
+      expect(parsePath(`/${letter}/42?v=1`)).toEqual({
+        kind: "redirect",
+        code: letter.toUpperCase(),
+        param: "42",
+        query: "v=1",
+      });
+    }
+  );
+});
+
 describe("parsePath — redirect", () => {
   it("uppercases the first segment as the code", () => {
     expect(parsePath("/bunny")).toEqual({

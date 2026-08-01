@@ -111,3 +111,29 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx" {
   }
   tags = var.tags
 }
+
+# (e) Guardrail-sidecar outage (72-04). The ghosts run FAIL-CLOSED, so an
+# unreachable sidecar is not a silent degradation — it is guarded chat refusing.
+# This alarm is what makes that visible instead of mysterious.
+#
+# count-gated on the same condition as its metric filter: no log-group name means
+# no filter, and an alarm on a metric nothing publishes would sit in
+# INSUFFICIENT_DATA forever — the exact silent failure this exists to prevent.
+resource "aws_cloudwatch_metric_alarm" "guardrail_outages" {
+  count               = var.guardrail_log_group_name == "" ? 0 : 1
+  alarm_name          = "dcr-mqtt-guardrail-outage"
+  alarm_description   = "The run-mqtt guardrail sidecar is unreachable (>= ${var.threshold_guardrail_outages_per_5min} outages in 5min). The ghosts run fail-closed, so guarded chat is REFUSING — players get an in-persona degradation line instead of a ghost reply. Check the run-mqtt-guardrails container."
+  namespace           = var.metric_namespace
+  metric_name         = "GuardrailOutages"
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = var.threshold_guardrail_outages_per_5min
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.tripwire.arn]
+  # ok_actions here, unlike the spike alarms above: "the sidecar came back and the
+  # ghosts are answering again" is genuinely useful news, not noise.
+  ok_actions = [aws_sns_topic.tripwire.arn]
+  tags       = var.tags
+}

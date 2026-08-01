@@ -3,17 +3,17 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
 status: Ready to execute
-stopped_at: "Phase 71 plan 16 COMPLETE (gap wave 4) — THE GAP CLOSURE IS SHIPPED. run.gpx v0.0.110 is LIVE in us-east-1 carrying all seven gap-closure plans. buildpub run 30659716961 (--ref gsd/phase-71-heat-map-layers) -> Release PR #1147 cut AND MERGED BY CI with the admin token (operator ran no merge, same as 71-08); deploy.yml run 30660029251 region=us-east-1 pr_number=skip invalidate_cache=true. NO local terragrunt apply, NO --with-terragrunt, NO --skip-bump. **PROBE 8/19 -> 17/19 from a BYTE-IDENTICAL script** (sha256 0b294c08, git diff 64958740..HEAD empty, re-checked after the run). Every predicted transition landed: 1,2 (edge-hits 3/3), 8 (404 + x-dc34-edge-block + EMPTY body), 13,18 (daily cron(20 4 * * ? *), minutes 0 vs 20), 14 (both HIT), 15 (6/6 marked), 17 (0 of 90 degenerate), 19 (line-opacity 0.7) all red -> green. **ASSERTION 16 STAYED GREEN and is byte-identical to its pre-fix record** — mint 405, quota 401, neither carrying the marker; the edge block did NOT widen onto the con-critical CTF flow. 17/19 IS THE PERFECT PRE-CON SCORE, not a shortfall: assertion 5 dc34 leg (runCount 0) and assertion 11 (dc34 0 features) are CALENDAR-BOUND to DEF CON 34 2026-08-05..10 — no synthetic data injected, nothing softened, DC34 row not hidden. Phase 70 dialog-shell probe 16/16 UNMODIFIED (but 2 of its assertions do not fail closed, so necessary NOT sufficient — do not cite as a clean bill); all 12 Phase 70 screenshots restored byte-identical. **TWO LANDMINES WORTH KEEPING:** (1) the VERSION bump is CI's job — buildpub runs version.sh from the DISPATCHED ref without --skip-bump, so a manual bump DOUBLE-bumps (would have shipped v0.0.111); check ECR for the target tag BEFORE dispatching. (2) `curl https://gpx.defcon.run/use1/ | grep -oE v0.0.N` can NEVER verify run.gpx — /use1/ is a 308 redirect stub and run.gpx exposes NO version over HTTP at all (that command is a run.human idiom). Verified instead by ECS task def run-gpx-use1-dc34:200 -> image v0.0.110 (single PRIMARY, rollout COMPLETED, :199 was v0.0.109) PLUS the behavioural sentinel ?meta=0 flipping from the 86-byte projection to the full 439858-byte artifact, which only the new image can produce (71-15 predicted exactly this). **D-13 IS VISIBLY WORKING:** live map reports heatmap-dc33 opacity=0.7 color=#ff8c00 (dc34 #ff0000). Fresh controlled captures shot-dc33-SHIPPED-0.70-{context,detail}.png show a LEGIBLE flame stack — the Strip is a thick bundle of overlapping strokes, LVCC Loop and Westgate heavy, one-off spurs thin. Hotspot re-derived off the republished artifact (peak cell 1333 pts, 40 of 90 runs; recorded camera 408 m away frames 69 of 90 runs, so left unchanged to keep the 0.25/0.70 pair a controlled comparison). 71-08's three probe screenshots were RESTORED not superseded (parkAndShoot uses the default-zoom + public-layers-on method this plan prohibits). capture-heat-visual.cjs was extended to force-hide layers the INDETERMINATE master checkbox misses plus DOM marker beacons; heatmap-probe.cjs NOT touched. **TASK 5 CLOSED ON EVIDENCE 2026-07-31 — the on-hardware visual check was NOT performed.** Kurt chose "close it out" over holding for the browser check and over logging a pending UAT, and did not report opening the studio. So Task 5 is accepted on the automated evidence (17/19 probe, P70 16/16, ECS/ECR reads, ?meta=0 sentinel) and NOT on a human eye. That distinction is load-bearing: every capture is headless swiftshader, and D-13 (0.25->0.70) is fundamentally a judgement about whether the stack READS AS HEAT to a person — the evidence proves the opacity shipped and the layer renders, not that the aesthetic call was right. THREE RESIDUAL VISUAL ITEMS, worth doing before 2026-08-05: (1) real browser at /use1/studio/app, hide DC34 Routes + Rabbit Routes + Check-ins, enable DC33, zoom the Strip, confirm the orange stack reads; (2) confirm the hint bar shows ~90 runs / ~658.4 km; (3) spot-check a ghost claim link (assertion 16 green pre AND post, but a silent break would only surface during the con). Orchestrator independently re-verified the ship: ECS run-gpx-use1 on cluster app-use1-dc34 -> task def :200, image v0.0.110, rolloutState COMPLETED, deployments 1 (no old task draining); ?meta=0 -> 439858 bytes (86 pre-deploy); assertion 16 mint 405 / quota 401, unmarked. Carried: assertions 5/11 + the never-fired hourly cadence resolve only during 5-10 Aug 2026 (dated todo exists); the 71-11/71-13/71-14 deferrals are post-con; D-71-A/B/D remain repo-wide."
-last_updated: "2026-07-31T20:12:00.000Z"
+stopped_at: "Phase 72 plan 04 COMPLETE (AUTHORING ONLY, NOTHING APPLIED) — ghosts container flipped to MESHTK_GUARDRAIL_FAILMODE=closed with the depends_on START rationale rewritten (HEALTHY would kill beacons/position and drop the ghosts off the map); MESHTK_RICKY_FALLBACK_URL + ricky-fallback-url secret key declared with a CHANGEME placeholder only; guardrail-outage metric filter (plain-text MESHTK_GUARDRAIL_OUTAGE, NOT a JSON selector) + >=3/5min alarm on the existing dcr-admin-reports-tripwire topic, count-gated, ghosts log group kept OUT of the retention adoption set. Applies sequenced: secrets 72-08 BEFORE ecs-task 72-09."
+last_updated: "2026-07-31T22:04:22.974Z"
 last_activity: 2026-07-31
 progress:
-  total_phases: 31
-  completed_phases: 21
-  total_plans: 104
-  completed_plans: 104
-  percent: 68
-current_phase: 71
-current_phase_name: heat-map-layers-dc33-dc34-flame-stacks-gpx-studio
+  total_phases: 32
+  completed_phases: 20
+  total_plans: 106
+  completed_plans: 101
+  percent: 63
+current_phase: 72
+current_phase_name: bot-hardening-clickable-one-time-awards-fail-closed-guardrai
 ---
 
 # Project State
@@ -73,6 +73,7 @@ Deferred to v2: MIGR-04 (flash/human/auth/gpx migration), I18N-01 (locale popula
 - Phase 55 added: CTF Flag Types — Slice 2 Scoring Windows (Day/Time/TZ Gating + DEF CON Run-Hours Quick Set)
 - Phase 56 added: CTF Flag Types — Slice 3 Wordlist One-Time Codes (CtfCode Entity + Atomic Single-Use Claim)
 - v2.3 milestone now fully sliced into phases 53 (done) → 54 → 55 → 56; autonomous execution of 54–56 authorized 2026-07-15
+- Phase 72 added: Bot Hardening — Clickable One-Time Awards, Fail-Closed Guardrails, Lyric Delivery. Spec `docs/superpowers/specs/2026-07-31-bot-hardening-design.md` (`e0ff5643`). Independent of Phase 71. Fully autonomous execution through PR → merge → buildpub deploy authorized by Kurt 2026-07-31.
 
 ### Decisions
 
@@ -178,6 +179,12 @@ Recent decisions affecting current work:
 - [Phase ?]: 71-07: two schedules — hourly cron(0 * 5-10 8 ? 2026) across the DC34 con window (CON_DAYS 5-10 Aug 2026) plus a year-round daily cron(0 4 * * ? *) baseline, both America/Los_Angeles, both in the EventBridge default group (module sets no group_name)
 - [Phase ?]: 71-07: lambda_timeout default raised to 300 at the MODULE level (strava's was 120) so any future unit inherits the floor the build route's maxDuration = 300 requires
 - [Phase ?]: 71-07: us-east-1 only — no ca-central-1 heatmap-scheduler unit; run.gpx is single-live-region and a second scheduler would cron-invoke a nonexistent service forever
+- [Phase ?]: 72-03: ricky's LRC blob trimmed 59 -> 58 timed entries — the /qr/ claim path is no longer broadcast over LoRa; 72-06 fills the trailing slot with reliable award DMs
+- [Phase ?]: Config-blob edits are scripted with abort-before-write assertions on decoded length, encoded length, entry count and tail text — never hand-edited (meshtk base64 LRC precedent)
+- [Phase ?]: 72-02: bot award links park the Ctf row's OWN answerHash via a new createPending flagHash option — no raw flag code is constructed anywhere on the mint-by-challenge path (judgeSolve compares verifyAnswerHash for answerType static)
+- [Phase ?]: 72-02: the persona answerHash-match listCtf fallback in /api/internal/ctf/mint is RETAINED deliberately — persona challenge names do not uniformly derive from fleet ids (grace-hopper <-> ghost.hopper); an optional explicit `challenge` in MESHTK_FLAG_CHALLENGES opts a ghost into the GetItem path
+- [Phase ?]: 72-02: a resolved Ctf row with NO answerHash 422s rather than parking a nonce — otherwise a rotating-OTP row silently parks hashAnswer("") and hands the player a link that can never award
+- [Phase ?]: 72-02: createPending keeps crypto.randomUUID as its DEFAULT generator (30-day anon park stays 122 bits); the 60-bit 12-char Crockford nonce is injected only through the newNonce seam by the mint route, where it lives for one hour
 - [Phase ?]: 71-09: heat-line opacity literal written 0.7, not 0.70 — the repo's Prettier normalises numeric trailing zeros, so 0.70 would be silently rewritten on the next formatter touch. Same number; the comment states 0.70 and prettier --check passes, so the source is now a formatter fixpoint
 - [Phase ?]: 71-09: the falsified addAggregate() 0.15/width-2 rationale was DELETED, not qualified — that comparison is the reasoning that produced the invisible render, and leaving it in the file as a caveat invites the next reader to re-derive the same wrong number
 - [Phase ?]: 71-09: available stays meta !== null and the shown derivation is untouched — content-gating availability on runCount is the fix WR-07 all but suggests, and it would hide the DC34 row, turning probe assertions 9/10/12 red and deleting the feature's pre-con visible promise
@@ -235,8 +242,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-31T18:41:01.587Z
-Stopped at: Completed 71-14-PLAN.md — scheduler hardening applied and live-verified
+Last session: 2026-07-31T21:32:05.202Z
+Stopped at: Phase 72 plan 04 COMPLETE (AUTHORING ONLY, NOTHING APPLIED) — ghosts container flipped to MESHTK_GUARDRAIL_FAILMODE=closed with the depends_on START rationale rewritten (HEALTHY would kill beacons/position and drop the ghosts off the map); MESHTK_RICKY_FALLBACK_URL + ricky-fallback-url secret key declared with a CHANGEME placeholder only; guardrail-outage metric filter (plain-text MESHTK_GUARDRAIL_OUTAGE, NOT a JSON selector) + >=3/5min alarm on the existing dcr-admin-reports-tripwire topic, count-gated, ghosts log group kept OUT of the retention adoption set. Applies sequenced: secrets 72-08 BEFORE ecs-task 72-09. (Prior session on main: 2026-07-31T18:41:01.587Z — completed 71-14-PLAN.md, scheduler hardening applied and live-verified.)
 Resume file: None
 
 ## Operator Next Steps
@@ -325,4 +332,5 @@ Resume file: None
 | Phase 71 P12 | 41m | 3 tasks | 2 files |
 | Phase 71 P14 | ~30 min | 4 tasks | 5 files |
 | Phase 71 P15 | ~30m | 3 tasks | 1 files |
+| Phase 72 P03 | 4min | 2 tasks | 2 files |
 | Phase 71 P16 | ~55m | 5 tasks | 8 files |

@@ -35,6 +35,11 @@ output "sns_tripwire_topic_arn" {
   value       = aws_sns_topic.tripwire.arn
 }
 
+output "guardrail_outage_alarm_name" {
+  description = "Name of the guardrail-sidecar outage alarm, or null when guardrail_log_group_name is unset (alarm + filter not provisioned)."
+  value       = one(aws_cloudwatch_metric_alarm.guardrail_outages[*].alarm_name)
+}
+
 output "query_definition_names" {
   description = "The saved admin/* Logs Insights query definition names."
   value = [
