@@ -196,6 +196,16 @@ export const GpxFile = new Entity(
         type: "string",
         required: false,
       },
+      // Links this route to its published public face (entities/route.ts), set
+      // when the owner picks "Public on the map" and cleared when they take it
+      // back to Private. Schema-on-write: absent on every pre-existing row, so
+      // there is no migration. Route.sourceGpxFileId points the other way, and
+      // a Route WITHOUT that back-pointer is an "orphan" — a leftover from the
+      // retired card form, which My Routes adopts into the one list.
+      publishedRouteId: {
+        type: "string",
+        required: false,
+      },
     },
     indexes: {
       primary: {

@@ -115,6 +115,13 @@ export interface CloudFile {
   // route to the DEF CON run admin review queue via POST /files/{id}/request-share.
   // Data only — it is NOT a shareable link. Returned by the files list GET.
   shareRequested?: boolean;
+  // Set when this route is published to the community map (2026-08-01 unified
+  // routes spec). Its presence is the client-side "this row is Public" signal
+  // and gates the auto-save resync, so unpublished routes pay nothing.
+  publishedRouteId?: string;
+  // Opt-in to the anonymous aggregate overlay. Orthogonal to share state: this
+  // is anonymity, not sharing.
+  includeInAggregate?: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -932,6 +939,10 @@ export interface RouteSummary {
   copyCount?: number;
   publishedAt?: number;
   downloadUrl?: string;
+  // Present when this Route was minted from a GpxFile. Its ABSENCE marks an
+  // orphan — a Route from the retired "Create a route" card form — which My
+  // Routes adopts into the single list.
+  sourceGpxFileId?: string;
 }
 
 export interface RouteCardInput {
