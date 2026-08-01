@@ -31,11 +31,12 @@ The refusal is sent on the plain `sendPKIReply` path over the mesh. Its delivery
 depends on the iOS proxy → BLE hop that Phase 72 root-caused as the source of observed
 drops — a seam only reproducible with a physical radio.
 
-## Also needs a human decision
+## Default ceiling — SETTLED
 
-⚠️ **Confirm the default ceiling of 60 calls/radio/hour.** That number was the
-planner's pick, not Kurt's. Raise/lower live with `MESHTK_LLM_CALLS_PER_HOUR` on the
-ghosts container — no code change, no redeploy of the image.
+✅ **60 calls/radio/hour CONFIRMED by Kurt, 2026-08-01.** Not an open question.
+Still tunable live via `MESHTK_LLM_CALLS_PER_HOUR` on the ghosts container if the
+con changes the picture — no code change, no image rebuild. Exactly `0` is the
+emergency kill switch (refuses all model calls; ghosts keep answering in words).
 
 ## Accepted residual (not a bug — a recorded decision)
 
