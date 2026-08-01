@@ -803,7 +803,7 @@ Plans:
 
 **Gap-Closure Wave 4** *(blocked on gap wave 3)*
 
-- [ ] 71-16-PLAN.md — Ship: gates → VERSION bump → buildpub → deploy.yml with invalidation → byte-identical 19-assertion probe post-deploy vs the pre transcript → Phase 70 dialog-shell regression re-run → controlled visual re-capture (all non-heat layers hidden, camera on the measured hotspot) → blocking human check of the flame stack on real hardware (HEAT-01..06) [gap wave 4]
+- [x] 71-16-PLAN.md — Ship: gates → VERSION bump → buildpub → deploy.yml with invalidation → byte-identical 19-assertion probe post-deploy vs the pre transcript → Phase 70 dialog-shell regression re-run → controlled visual re-capture (all non-heat layers hidden, camera on the measured hotspot) → blocking human check of the flame stack on real hardware (HEAT-01..06) [gap wave 4]
 
 ---
 

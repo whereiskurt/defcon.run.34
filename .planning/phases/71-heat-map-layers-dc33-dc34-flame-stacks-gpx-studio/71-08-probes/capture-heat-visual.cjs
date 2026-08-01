@@ -162,6 +162,42 @@ async function main() {
         await page.keyboard.press('Escape');
         await page.waitForTimeout(600);
 
+        // 2b. Force-hide whatever the master checkboxes did not catch.
+        //
+        // Added for the 71-16 post-deploy re-capture. The master-checkbox pass above only
+        // clicks a master that reports `checked`; a section whose master sits in the
+        // INDETERMINATE state (some children on, some off) reports false and is skipped.
+        // On the current five-section tree that left `overpass` and the three
+        // `dc34-rabbits-*` layers drawing over the heat stack, which the plan's framing
+        // requirement ("every non-heat layer hidden") forbids in the visual record.
+        // This drives the map API directly so the outcome does not depend on the tri-state
+        // of a checkbox. It changes only what is DRAWN in the capture; this file asserts
+        // nothing and gates nothing, and heatmap-probe.cjs was not touched.
+        const forcedOff = await page.evaluate(() => {
+            const m = window._map;
+            const off = [];
+            for (const l of m.getStyle().layers) {
+                if (!l.source || l.source === 'composite' || /^mapbox/.test(l.source)) continue;
+                if (/^heatmap-/.test(l.id)) continue;
+                if ((m.getLayoutProperty(l.id, 'visibility') || 'visible') !== 'visible') continue;
+                m.setLayoutProperty(l.id, 'visibility', 'none');
+                off.push(l.id);
+            }
+            // Markers and popups are DOM nodes, not style layers, so hiding every layer
+            // above does not remove them — "The Spot" check-in pin and its label survived
+            // the layer sweep on the first re-capture. Remove them so nothing but the
+            // basemap and the heat stack is in frame.
+            for (const p of document.querySelectorAll(
+                '.mapboxgl-popup, .maplibregl-popup, .mapboxgl-marker, .maplibregl-marker'
+            )) {
+                p.remove();
+                off.push('(dom) ' + (p.className || 'marker'));
+            }
+            return off;
+        });
+        console.log(`force-hidden (master checkbox missed) : ${forcedOff.join(', ') || '(none)'}`);
+        await page.waitForTimeout(1500);
+
         // What is actually still drawn, so the caption cannot overstate the cleanup.
         const remaining = await page.evaluate(() => {
             const m = window._map;

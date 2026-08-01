@@ -4,14 +4,14 @@ milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
 status: Ready to execute
 stopped_at: "Phase 72 plan 04 COMPLETE (AUTHORING ONLY, NOTHING APPLIED) — ghosts container flipped to MESHTK_GUARDRAIL_FAILMODE=closed with the depends_on START rationale rewritten (HEALTHY would kill beacons/position and drop the ghosts off the map); MESHTK_RICKY_FALLBACK_URL + ricky-fallback-url secret key declared with a CHANGEME placeholder only; guardrail-outage metric filter (plain-text MESHTK_GUARDRAIL_OUTAGE, NOT a JSON selector) + >=3/5min alarm on the existing dcr-admin-reports-tripwire topic, count-gated, ghosts log group kept OUT of the retention adoption set. Applies sequenced: secrets 72-08 BEFORE ecs-task 72-09."
-last_updated: "2026-07-31T22:04:22.974Z"
+last_updated: "2026-08-01T00:18:24.371Z"
 last_activity: 2026-07-31
 progress:
   total_phases: 32
-  completed_phases: 20
-  total_plans: 106
-  completed_plans: 101
-  percent: 63
+  completed_phases: 21
+  total_plans: 114
+  completed_plans: 110
+  percent: 66
 current_phase: 72
 current_phase_name: bot-hardening-clickable-one-time-awards-fail-closed-guardrai
 ---
@@ -80,6 +80,9 @@ Deferred to v2: MIGR-04 (flash/human/auth/gpx migration), I18N-01 (locale popula
 See PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [71-16]: The VERSION bump is CI's job, not the executor's. buildpub runs `release-all.sh` WITHOUT `--skip-bump`, and `version.sh` increments from the DISPATCHED ref — so bumping the file by hand first DOUBLE-bumps. Branch read v0.0.109, CI produced exactly v0.0.110. Check ECR for the target tag BEFORE dispatching, not after
+- [71-16]: `curl https://gpx.defcon.run/use1/ | grep -oE 'v0\.0\.[0-9]+'` can NEVER verify run.gpx — `/use1/` is a 308 redirect stub and run.gpx exposes no version over HTTP anywhere (no NEXT_PUBLIC_APP_VERSION, none in /api/health). That command is a run.human idiom. Verify run.gpx by ECS task-def image + a behavioural sentinel instead
+- [71-16]: Restore, don't supersede, a prior plan's committed screenshots when the regenerating script uses a capture method the current plan prohibits — the probe's `parkAndShoot` shoots at default zoom with public layer groups ON, which is exactly what 71-08 captioned ⚠️ MISLEADING
 - [v1.9]: Words-only scope — each app keeps its own React header/menu and reads labels by shared `common.*` key; no shared component library
 - [v1.9]: No Redis / no revalidation webhook — eventual consistency (~15 min) rides the existing master/worker + Litestream topology + time-based `revalidate:N`
 - [v1.9]: Model our own `locale` column (not native Strapi i18n plugin) for the three-column admin grid
@@ -330,3 +333,4 @@ Resume file: None
 | Phase 71 P14 | ~30 min | 4 tasks | 5 files |
 | Phase 71 P15 | ~30m | 3 tasks | 1 files |
 | Phase 72 P03 | 4min | 2 tasks | 2 files |
+| Phase 71 P16 | ~55m | 5 tasks | 8 files |

@@ -1,0 +1,28 @@
+==============================================================================
+Phase 70 DLGS-06 — shared dialog shell production probe
+==============================================================================
+timestamp   : 2026-07-31T19:57:48.342Z
+git sha     : a9937889
+target      : https://gpx.defcon.run/use1/studio/app
+bundle etag : W/"3975-19fb9afa988"
+bundle date : Fri, 31 Jul 2026 19:38:45 GMT
+entry chunks: /use1/studio/_app/immutable/entry/start.DjNiGEUi.js /use1/studio/_app/immutable/chunks/DLrfeuic.js /use1/studio/_app/immutable/chunks/wi-Nb4rh.js /use1/studio/_app/immutable/chunks/Bazhv4Ep.js
+------------------------------------------------------------------------------
+PASS  1. Layers control button is present
+PASS  2. Hovering the layers button does NOT open the dialog
+PASS  3. Clicking the layers button opens a visible role=dialog
+PASS  4. Zero native hover-tooltip attributes inside layer rows — 17 rows inspected
+PASS  5. Map Layers section order follows the spec — order ok [Basemap | DEF CON 34 Routes | Rabbit Routes | Heat Map] — PASS (skipped: no User Check-ins / My DEF CON Runs / Community Routes in prod data)
+PASS  6. Hint bar shows its default copy once nothing hinted is hovered or focused — "Hover a row for details" (on open it read "Choose the background map style.")
+PASS  7. Hint bar text changes when a hinted row is hovered — "All four classics - North, East, South, West - stitched into one 20K epic."
+PASS  8. Escape closes the Map Layers dialog
+PASS  9. Ctrl+O opens the My Maps dialog
+PASS  10. My Maps puts MY FILES before SHARED WITH YOU — [My files | Other maps | Shared with you]
+PASS  11. My Maps footer carries the Add run button
+PASS  12. Zero native hover-tooltip attributes inside file rows — 2 rows inspected
+PASS  13. My Maps hides the Add run footer on the access-denied gate screen — gate reads "My Maps Your DEF CON run folder Access denied. You need the gpxstudio service. Contact an admin to request acc"
+PASS  14. Map Layers body overflows and scrolls rather than crushing its children — clientH=562 scrollH=2236 filler 1400px rendered 1400px scrollTop=400
+PASS  15. Section collapse state survives closing and reopening Map Layers — 5 section(s) open#1, toggled 5, unmounted=true, 5 section(s) on reopen, 5 compared [before Basemap=false, User Check-ins=false, DEF CON 34 Routes=true, Rabbit Routes=false, Heat Map=true] [after Basemap=true, User Check-ins=true, DEF CON 34 Routes=false, Rabbit Routes=true, Heat Map=false] [reopen Basemap=true, User Check-ins=true, DEF CON 34 Routes=false, Rabbit Routes=true, Heat Map=false]
+PASS  16. Layer visibility survives a page load and the restore does not move the camera — seeded {"route:def-con-34-maps-bigstar_391f53c473":false,"checkins":true}; route ok (none), check-ins visible, row checked=false, camera before -0.1276,51.5074@9 after -0.1276,51.5074@9.000 moves=0
+------------------------------------------------------------------------------
+RESULT: 16/16 assertions passed

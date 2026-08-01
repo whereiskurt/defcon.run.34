@@ -1,0 +1,63 @@
+==============================================================================
+Phase 71 HEAT-06 — DC33/DC34 heat-map production probe
+==============================================================================
+timestamp   : 2026-07-31T19:55:56.268Z
+git sha     : a9937889
+target      : https://gpx.defcon.run/use1/studio/app
+heat base   : https://gpx.defcon.run/use1/api/gpx/public/heatmap
+live version : v0.0.110 (ECS run-gpx-use1-dc34:200, image dc34-run-gpx-app:v0.0.110)
+buildpub run : https://github.com/whereiskurt/defcon.run.34/actions/runs/30659716961 (success)
+release PR   : #1147 Release v20260731.1936 — cut and merged BY CI
+deploy run   : https://github.com/whereiskurt/defcon.run.34/actions/runs/30660029251 (success, us-east-1, invalidate_cache=true)
+compare with : transcript-gap-pre.txt (8/19, pre-fix, v0.0.109)
+------------------------------------------------------------------------------
+      dc34 x-cache over 4 sequential requests: #1 "Miss from cloudfront" | #2 "Hit from cloudfront" | #3 "Hit from cloudfront" | #4 "Hit from cloudfront"
+PASS  1. GET /api/gpx/public/heatmap/dc34 is 200 JSON, carries s-maxage, AND the edge HONOURS it (repeat request hits) — status=200 content-type="application/json" cache-control="public, s-maxage=900, stale-while-revalidate=900" bytes=131 edge-hits=3/3
+      dc33 x-cache over 4 sequential requests: #1 "Miss from cloudfront" | #2 "Hit from cloudfront" | #3 "Hit from cloudfront" | #4 "Hit from cloudfront"
+PASS  2. GET /api/gpx/public/heatmap/dc33 is 200 JSON, carries s-maxage, AND the edge HONOURS it (repeat request hits) — status=200 content-type="application/json" cache-control="public, s-maxage=900, stale-while-revalidate=900" bytes=439858 edge-hits=3/3
+PASS  3. GET /api/gpx/public/heatmap/dc32 is 404 (year allowlist holds) — status=404
+PASS  4. ?meta=1 on dc34 returns only the bare meta block, under 500 bytes — status=200 bytes=81 keys=[generatedAt, runCount, totalKm, year]
+      verifier dc33: exit 0 — OK year=dc33 runCount=90 totalKm=658.4
+      verifier dc34: NON-ZERO EXIT —    FAIL  meta.runCount is 0, expected > 0
+FAIL  5. Live bytes are non-attributable for BOTH years (verify-heatmap-artifact.mjs, exit 0) — dc34:    FAIL  meta.runCount is 0, expected > 0
+      71-04-SUMMARY.md HEATMAP_DC33_RUNCOUNT parsed as: 90
+      live dc33 meta: generatedAt=2025-08-15T02:41:54.347Z runCount=90 (HTTP 200)
+PASS  6. Served dc33 meta matches 71-04 (generatedAt exact, runCount from the summary) — generatedAt=2025-08-15T02:41:54.347Z runCount=90 (== summary 90)
+PASS  7. dc34 meta.generatedAt is a valid instant within the last 26h — generatedAt=2026-07-31T18:32:03.294Z age=1.40h runCount=0 totalKm=0
+PASS  8. Unauthenticated POST to /api/gpx/internal/heatmap-build is REFUSED AT THE EDGE and never reaches the application — status=404 x-dc34-edge-block="1" body=""
+      dc33 bare    x-cache: #1 "Hit from cloudfront" | #2 "Hit from cloudfront" | #3 "Hit from cloudfront" | #4 "Hit from cloudfront"
+      dc33 ?meta=1 x-cache: #1 "Hit from cloudfront" | #2 "Hit from cloudfront" | #3 "Hit from cloudfront" | #4 "Hit from cloudfront"
+      edge-served bodies differ: bare=439858 bytes, ?meta=1=86 bytes
+PASS  14. The CDN cache key separates dc33 bare from dc33?meta=1 (both served from the edge, bodies differ) — bare 439858b hit=true, ?meta=1 86b hit=true
+      heatmap-build (region-prefixed): status=404 x-dc34-edge-block="1"
+      heatmap-build (no-region): status=404 x-dc34-edge-block="1"
+      strava-sync (region-prefixed): status=404 x-dc34-edge-block="1"
+      strava-sync (no-region): status=404 x-dc34-edge-block="1"
+      reconcile (region-prefixed): status=404 x-dc34-edge-block="1"
+      reconcile (no-region): status=404 x-dc34-edge-block="1"
+PASS  15. Every gpx internal route is blocked at the EDGE, in both the region-prefixed and no-region form — 6 path(s) probed, all non-2xx and all carrying x-dc34-edge-block=1
+      run.human's meshtk claim-link mint (MESHTK_RUN_INTERNAL_URL): status=405 x-dc34-edge-block=(absent)
+      run.auth's internal quota family: status=401 x-dc34-edge-block=(absent)
+PASS  16. REGRESSION GATE — the edge block does NOT reach run.human or run.auth internal paths — 2 public-HTTPS internal path(s), none carrying x-dc34-edge-block
+      dc33 features=90 meta.runCount=90 degenerate=0
+PASS  17. No feature in the LIVE dc33 artifact is degenerate (all coordinates identical) — 0 of 90 features degenerate
+      schedule heatmap-build-use1-hourly: State=ENABLED ScheduleExpression=cron(0 * 5-10 8 ? 2026) ScheduleExpressionTimezone=America/Los_Angeles
+      schedule heatmap-build-use1-daily: State=ENABLED ScheduleExpression=cron(20 4 * * ? *) ScheduleExpressionTimezone=America/Los_Angeles
+PASS  13. Both DC34 schedules exist, are ENABLED, and carry 71-07's exact expression + timezone — both ENABLED in America/Los_Angeles; hourly=cron(0 * 5-10 8 ? 2026), daily=cron(20 4 * * ? *)
+      heatmap-build-use1-hourly: live expression="cron(0 * 5-10 8 ? 2026)" parsed minute field="0"
+      heatmap-build-use1-daily: live expression="cron(20 4 * * ? *)" parsed minute field="20"
+PASS  18. The hourly and daily DC34 schedules cannot fire in the same minute (live minute fields differ) — hourly minute="0", daily minute="20"
+PASS  9. Map Layers has a "Heat Map" section with exactly two rows labelled DC34 and DC33 — section #5 of 5; rows [🔥 DC34 — live | 🔥 DC33 — the classic]
+      stamp="1h ago" hint="Last built 7/31/2026, 2:32:03 PM · 0 runs · 0.0 km · no runs yet — this layer fills in during the con"
+PASS  10. Section header carries a relative stamp and hovering DC34 fills the hint bar — stamp="1h ago" hint="Last built 7/31/2026, 2:32:03 PM · 0 runs · 0.0 km · no runs yet — this layer fills in during the con"
+      dc33: layer=true source=true features=90 visibility=visible line-color=#ff8c00
+      dc34: layer=true source=true features=0 visibility=visible line-color=#ff0000
+FAIL  11. Both heat layers render simultaneously with their locked colours (D-12) — dc34 feature count is 0
+      dc33 line-opacity read off the live map: 0.7
+PASS  19. The live DC33 heat layer paints at the D-13 line-opacity of 0.7 — line-opacity=0.7
+      before toggle: meta requests=2 [dc33?meta=1, dc34?meta=1] bare requests=0
+      before toggle on map: dc33={"layer":false,"source":false} dc34={"layer":false,"source":false}
+      after toggling DC34 on: dc34 bare fetches=1, dc33 bare fetches=0
+PASS  12. Heat layers are off by default and fetch no geometry until toggled (SC-4) — meta=2, bare-before=0, dc34 bare fetches=1, dc33 bare fetches=0
+------------------------------------------------------------------------------
+RESULT: 17/19 assertions passed
