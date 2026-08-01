@@ -74,6 +74,7 @@ Deferred to v2: MIGR-04 (flash/human/auth/gpx migration), I18N-01 (locale popula
 - Phase 56 added: CTF Flag Types — Slice 3 Wordlist One-Time Codes (CtfCode Entity + Atomic Single-Use Claim)
 - v2.3 milestone now fully sliced into phases 53 (done) → 54 → 55 → 56; autonomous execution of 54–56 authorized 2026-07-15
 - Phase 72 added: Bot Hardening — Clickable One-Time Awards, Fail-Closed Guardrails, Lyric Delivery. Spec `docs/superpowers/specs/2026-07-31-bot-hardening-design.md` (`e0ff5643`). Independent of Phase 71. Fully autonomous execution through PR → merge → buildpub deploy authorized by Kurt 2026-07-31.
+- Phase 73 added: meshtk LLM per-sender rate limiting — non-blocking token bucket at the `handleLLMChat` → `generateReply` Bedrock choke point. Promotes the deliberately-deferred Phase 72 todo `.planning/todos/pending/2026-07-31-llm-rate-limiting-bedrock-ceiling.md`. Scope narrowed by Kurt 2026-08-01: per-sender bucket ONLY (global cap, daily spend ceiling, and AWS Budgets/CloudWatch backstop all offered and declined), and the fleet is never globally silenced — a trip refuses the one abusive sender and alarms. ⚠️ Accepted residual: aggregate spend across many distinct radios stays unbounded.
 
 ### Decisions
 
