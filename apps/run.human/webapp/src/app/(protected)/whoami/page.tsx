@@ -20,6 +20,8 @@ import { useCopy } from '@/components/CopyProvider';
 import { usePersistedDisclosure } from '@/hooks/usePersistedDisclosure';
 import { apiUrl } from '@/lib/api';
 import { LEADERBOARD_SELF_ENABLED } from '@/lib/leaderboard-launch';
+import { gpxAddRunUrl } from '@/lib/gpx-addrun';
+import { buildScannerCopy } from '@/lib/scanner-copy';
 
 const homeUrl = '/';
 const isDev = process.env.NODE_ENV !== 'production';
@@ -146,19 +148,8 @@ export default function WhoAmIPage() {
     optionWallpaper: copyOr('qrcard.option.wallpaper', 'Lock-screen wallpaper'),
     optionShare: copyOr('qrcard.option.share', 'Share card'),
   };
-  const scanCopy = {
-    title: copyOr('socialqr.scan.title', 'Scan a runner'),
-    hint: copyOr('socialqr.scan.hint', "Point your camera at another runner's QR"),
-    miss: copyOr('socialqr.scan.miss', 'Not a runner QR - keep it in frame'),
-    found: copyOr('socialqr.scan.found', '🐰 Runner found!'),
-    claim: copyOr('socialqr.scan.claim', 'Claim connection'),
-    again: copyOr('socialqr.scan.again', 'Scan another'),
-    unavailable: copyOr(
-      'socialqr.scan.unavailable',
-      "Camera unavailable - use your phone's camera app on the QR instead.",
-    ),
-    cancel: copyOr('socialqr.scan.cancel', 'Done'),
-  };
+  // Shared with the landing page's Scan button so the modal copy cannot drift.
+  const scanCopy = buildScannerCopy(copyOr);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -293,10 +284,6 @@ export default function WhoAmIPage() {
   const bunnyHeadUrl = isDev
     ? '/header/bunny-head-alpha.png'
     : `/${REGION_SHORT}/header/bunny-head-alpha.png`;
-  // ?addrun opens gpx's QuickStart hub (handled in the studio app page).
-  const gpxAddRunUrl = isDev
-    ? 'http://localhost:3003/studio/app?addrun'
-    : `https://gpx.${siteDomain}/${REGION_SHORT}/studio/app?addrun`;
 
   return (
     <div className="max-w-[900px] mx-auto space-y-2.5 animate-fade-up">
@@ -378,7 +365,7 @@ export default function WhoAmIPage() {
                 demoted to the text link below — it is a link, not a CTA. */}
             <div className="flex flex-wrap items-center gap-2 self-start">
               <a
-                href={gpxAddRunUrl}
+                href={gpxAddRunUrl()}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="cta-bar seg-addrun flex items-center gap-2 rounded-full font-semibold text-xs sm:text-sm px-3 sm:px-4 py-2 sm:py-2.5 whitespace-nowrap"
