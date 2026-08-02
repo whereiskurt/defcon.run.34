@@ -3,6 +3,11 @@ import { parseGPX } from 'gpx';
 import mapboxgl from 'mapbox-gl';
 import { DC34, routeColor } from '$lib/dc34-palette';
 import { pinIconById, pinSvg, DEFAULT_PIN_ICON, DEFAULT_PIN_COLOR } from '$lib/dc34-pins';
+import {
+    clusterCheckins,
+    DEFAULT_MAP_CLUSTER_CONFIG,
+    type MapClusterConfig,
+} from '$lib/checkin-cluster';
 import { getSvgForSymbol } from './gpx-layer/gpx-layer';
 import { getSymbolKey } from '$lib/assets/symbols';
 import {
@@ -132,6 +137,8 @@ const CHECKINS_COUNT_LAYER = 'public-checkins-count';
 type PublicCheckIn = {
     lat: number;
     lon: number;
+    /** Opaque per-runner grouping key. Absent on responses predating clustering. */
+    rid?: string;
     displayName: string;
     userType?: string; // rabbit | admin | wildhare | og (from the run-user record)
     timestamp: number;
@@ -285,6 +292,43 @@ function resolvePin(c: PublicCheckIn): { iconId: string; svg: string } {
     const icon = pinIconById(c.pinIcon) ?? pinIconById(DEFAULT_PIN_ICON)!;
     const color = icon.fixedColor ?? c.pinColor ?? DEFAULT_PIN_COLOR;
     return { iconId: `dc34-pin-${icon.id}-${color}`, svg: pinSvg(icon, color) };
+}
+
+/**
+ * Popup for a semantic check-in cluster.
+ *
+ * Reports PRESENCE, never points. The map clusters PUBLIC check-ins only, so a
+ * marker reading 12 may be a scoring cluster of 31 — attaching the award value
+ * to that number would be wrong, and showing the true size would disclose that
+ * runners who chose privacy were there. Names are the public ones only, and the
+ * list is already de-duplicated and capped by the caller.
+ */
+function clusterPopupHtml(
+    size: number,
+    startAt: number,
+    endAt: number,
+    names: string[]
+): string {
+    const day = new Date(startAt).toLocaleDateString(undefined, {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+    });
+    const t = (ms: number) =>
+        new Date(ms).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    const span = endAt > startAt ? `${t(startAt)} – ${t(endAt)}` : t(startAt);
+    const roster = names.length
+        ? `<div style="font-size:12px;opacity:.75;margin-top:6px;line-height:1.5">${names
+              .map((n) => escapeHtml(n))
+              .join(', ')}</div>`
+        : '';
+    return `
+        <div style="padding:8px 10px;border-left:4px solid ${DC34.magenta};font-family:system-ui,sans-serif;color:#e4e4ef;max-width:260px">
+            <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.55">Group check-in</div>
+            <div style="font-size:15px;font-weight:600;margin-top:2px">👥 ${size} runner${size === 1 ? '' : 's'} checked in here</div>
+            <div style="font-size:12px;opacity:.8;margin-top:4px">${escapeHtml(day)} · ${escapeHtml(span)}</div>
+            ${roster}
+        </div>`;
 }
 
 function checkinPopupHtml(displayName: string, timestamp: number, checkInType?: string): string {
@@ -636,6 +680,8 @@ export class PublicOverlaysLayer {
     // Raw fetched check-ins — filters re-derive the source data from this list
     // (setData re-clusters; a layer filter would leave cluster counts stale).
     private checkins: PublicCheckIn[] = [];
+    /** Clustering knobs, served by the feed so they track /admin/clusters. */
+    private clusterConfig: MapClusterConfig = DEFAULT_MAP_CLUSTER_CONFIG;
 
     /** Feature collection for the check-ins passing the current filters,
      * registering each (icon, color) pin image on first use. */
@@ -657,23 +703,71 @@ export class PublicOverlaysLayer {
                 // user-type chips: [] = all; else the owner's type must be selected.
                 (f.types.length === 0 || (!!c.userType && f.types.includes(c.userType)))
         );
+
+        // Semantic clustering (v1.9): a crowd that checked in at the same place
+        // and time collapses into ONE marker, and only the check-ins that did
+        // not join a cluster are drawn as pins. This runs AFTER the filters, so
+        // changing the time window / runner / type chips re-clusters live.
+        //
+        // Identity is `rid`, the opaque per-runner key from the feed — NOT the
+        // display name, because every runner without a custom name shares the
+        // literal "a rabbit" and would collapse into a single person. A response
+        // predating `rid` falls back to a per-check-in key, which simply means
+        // nothing clusters rather than clustering wrongly.
+        const byId = new Map(visible.map((c, i) => [`ci-${i}`, c]));
+        const { clusters, orphans } = clusterCheckins(
+            visible.map((c, i) => ({
+                id: `ci-${i}`,
+                rid: c.rid ?? `anon-${i}`,
+                lat: c.lat,
+                lng: c.lon,
+                t: c.timestamp,
+            })),
+            this.clusterConfig
+        );
+
+        const clusterFeatures: GeoJSON.Feature[] = clusters.map((cl) => {
+            // Public names only — the popup lists who it can, in arrival order.
+            const names = cl.memberIds
+                .map((id) => byId.get(id))
+                .filter((c): c is PublicCheckIn => !!c)
+                .sort((a, b) => a.timestamp - b.timestamp)
+                .map((c) => c.displayName);
+            return {
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: [cl.lng, cl.lat] },
+                properties: {
+                    kind: 'cluster',
+                    size: cl.size,
+                    startAt: cl.startAt,
+                    endAt: cl.endAt,
+                    // Bounded so a 200-runner corral cannot blow up the popup.
+                    names: JSON.stringify([...new Set(names)].slice(0, 40)),
+                },
+            };
+        });
+
+        const pinFeatures: GeoJSON.Feature[] = orphans.map((o) => {
+            const c = byId.get(o.id)!;
+            const pin = resolvePin(c);
+            this.loadSvgImage(pin.iconId, pin.svg);
+            return {
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: [c.lon, c.lat] },
+                properties: {
+                    kind: 'pin',
+                    displayName: c.displayName,
+                    userType: c.userType ?? '',
+                    timestamp: c.timestamp,
+                    checkInType: c.checkInType ?? '',
+                    iconId: pin.iconId,
+                },
+            };
+        });
+
         return {
             type: 'FeatureCollection',
-            features: visible.map((c) => {
-                const pin = resolvePin(c);
-                this.loadSvgImage(pin.iconId, pin.svg);
-                return {
-                    type: 'Feature',
-                    geometry: { type: 'Point', coordinates: [c.lon, c.lat] },
-                    properties: {
-                        displayName: c.displayName,
-                        userType: c.userType ?? '',
-                        timestamp: c.timestamp,
-                        checkInType: c.checkInType ?? '',
-                        iconId: pin.iconId,
-                    },
-                };
-            }),
+            features: [...clusterFeatures, ...pinFeatures],
         };
     }
 
@@ -696,17 +790,37 @@ export class PublicOverlaysLayer {
         try {
             const res = await fetch(checkinsUrl(), { credentials: 'omit' });
             if (!res.ok) return;
-            const body = (await res.json()) as { checkIns: PublicCheckIn[] };
+            const body = (await res.json()) as {
+                checkIns: PublicCheckIn[];
+                clusterConfig?: Partial<MapClusterConfig> & { enabled?: boolean };
+            };
             if (!body.checkIns || body.checkIns.length === 0) return;
             this.checkins = body.checkIns;
 
+            // Adopt the live scoring knobs when the feed sends them, so retuning
+            // the radius in /admin/clusters moves the map too. `enabled: false`
+            // means cluster scoring is off, so the map shows plain pins.
+            const cc = body.clusterConfig;
+            this.clusterConfig =
+                cc && cc.enabled !== false
+                    ? {
+                          radiusMeters: cc.radiusMeters ?? DEFAULT_MAP_CLUSTER_CONFIG.radiusMeters,
+                          windowMinutes:
+                              cc.windowMinutes ?? DEFAULT_MAP_CLUSTER_CONFIG.windowMinutes,
+                          minRunners: cc.minRunners ?? DEFAULT_MAP_CLUSTER_CONFIG.minRunners,
+                      }
+                    : // Unreachably-high threshold = nothing clusters, all pins.
+                      { ...DEFAULT_MAP_CLUSTER_CONFIG, minRunners: Number.MAX_SAFE_INTEGER };
+
             if (!this.map.getSource(CHECKINS_SOURCE)) {
+                // NO native `cluster: true`. Mapbox's built-in clustering is
+                // pixel-proximity at the current zoom; ours is semantic (same
+                // place, same hour, enough distinct runners) and survives
+                // zooming. Running both would put two different kinds of
+                // cluster bubble on screen at once.
                 this.map.addSource(CHECKINS_SOURCE, {
                     type: 'geojson',
                     data: this.checkinFeatures(),
-                    cluster: true,
-                    clusterMaxZoom: 14,
-                    clusterRadius: 40,
                 });
             }
             // Cluster bubbles — teal, sized by member count, magenta ring.
@@ -715,36 +829,47 @@ export class PublicOverlaysLayer {
                     id: CHECKINS_CLUSTER_LAYER,
                     type: 'circle',
                     source: CHECKINS_SOURCE,
-                    filter: ['has', 'point_count'],
+                    filter: ['==', ['get', 'kind'], 'cluster'],
                     layout: { visibility: 'none' },
                     paint: {
                         'circle-color': DC34.teal,
                         'circle-opacity': 0.85,
-                        'circle-radius': ['step', ['get', 'point_count'], 14, 10, 18, 50, 24],
+                        'circle-radius': ['step', ['get', 'size'], 16, 8, 20, 15, 26, 25, 32],
                         'circle-stroke-width': 2,
                         'circle-stroke-color': DC34.magenta,
                     },
                 });
 
+                // Click opens the roster, it does NOT zoom-expand: a semantic
+                // cluster is a real gathering, not an artifact of the current
+                // zoom, so it stays a single marker at every zoom level.
                 const onClusterClick = (e: mapboxgl.MapMouseEvent) => {
-                    const features = this.map.queryRenderedFeatures(e.point, {
-                        layers: [CHECKINS_CLUSTER_LAYER],
-                    });
-                    const clusterId = features[0]?.properties?.cluster_id;
-                    const source = this.map.getSource(CHECKINS_SOURCE) as
-                        | mapboxgl.GeoJSONSource
-                        | undefined;
-                    if (clusterId === undefined || !source) return;
-                    source.getClusterExpansionZoom(clusterId, (err, zoom) => {
-                        if (err || zoom == null) return;
-                        this.map.easeTo({
-                            center: (features[0].geometry as GeoJSON.Point).coordinates as [
-                                number,
-                                number,
-                            ],
-                            zoom,
-                        });
-                    });
+                    const f = (e as unknown as { features?: GeoJSON.Feature[] }).features?.[0];
+                    if (!f) return;
+                    const p = f.properties as {
+                        size?: number;
+                        startAt?: number;
+                        endAt?: number;
+                        names?: string;
+                    };
+                    let names: string[] = [];
+                    try {
+                        names = p.names ? (JSON.parse(p.names) as string[]) : [];
+                    } catch {
+                        names = [];
+                    }
+                    this.hoverPopup.remove();
+                    this.popup
+                        .setLngLat((f.geometry as GeoJSON.Point).coordinates as [number, number])
+                        .setHTML(
+                            clusterPopupHtml(
+                                Number(p.size) || 0,
+                                Number(p.startAt) || 0,
+                                Number(p.endAt) || 0,
+                                names
+                            )
+                        )
+                        .addTo(this.map);
                 };
                 const onClusterEnter = () => (this.map.getCanvas().style.cursor = 'pointer');
                 const onClusterLeave = () => (this.map.getCanvas().style.cursor = '');
@@ -762,10 +887,10 @@ export class PublicOverlaysLayer {
                     id: CHECKINS_COUNT_LAYER,
                     type: 'symbol',
                     source: CHECKINS_SOURCE,
-                    filter: ['has', 'point_count'],
+                    filter: ['==', ['get', 'kind'], 'cluster'],
                     layout: {
                         visibility: 'none',
-                        'text-field': ['get', 'point_count_abbreviated'],
+                        'text-field': ['to-string', ['get', 'size']],
                         'text-font': ['Open Sans Bold'],
                         'text-size': 12,
                     },
@@ -778,7 +903,7 @@ export class PublicOverlaysLayer {
                     id: CHECKINS_PIN_LAYER,
                     type: 'symbol',
                     source: CHECKINS_SOURCE,
-                    filter: ['!', ['has', 'point_count']],
+                    filter: ['==', ['get', 'kind'], 'pin'],
                     layout: {
                         visibility: 'none',
                         'icon-image': ['get', 'iconId'],
