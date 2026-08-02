@@ -4,7 +4,7 @@ import { applyToOrderedItemsFromFile, copied, cut, selection } from '$lib/logic/
 import { currentTool, Tool } from '$lib/components/toolbar/tools';
 import { SplitType } from '$lib/components/toolbar/tools/scissors/scissors';
 import { autoSaveManager } from '$lib/auto-save';
-import { saveToCloud } from '$lib/cloud-sync';
+import { saveToCloud, loadFromCloud } from '$lib/cloud-sync';
 import { isAuthenticated, hasGpxStudioAccess } from '$lib/stores/auth';
 import {
     ListFileItem,
@@ -212,6 +212,33 @@ export async function uploadRouteFromFile(file: File): Promise<string | null> {
 
     autoSaveManager.registerCloudLinkedFile(localId, cloudFileId, fileName, folderId, false);
     return cloudFileId;
+}
+
+/**
+ * Open a cloud file on the map: fetch → parse → add → select → fit bounds →
+ * register for auto-save.
+ *
+ * `loadFromCloud` only FETCHES; every one of the steps after it is required for
+ * the route to actually appear and stay synced. Extracted because two callers
+ * need the whole sequence (the My Routes list, and accepting a share link) and
+ * a partial copy silently downloads a file and shows nothing.
+ */
+export async function openCloudFileOnMap(
+    fileId: string,
+    fileName: string,
+    folderId: string | null = null
+): Promise<void> {
+    const { content } = await loadFromCloud(fileId);
+    const gpx = parseGPX(content);
+    if (gpx.metadata === undefined) {
+        gpx.metadata = {};
+    }
+    // Prefer the passed name: it reflects renames the GPX body does not.
+    gpx.metadata.name = fileName.replace(/\.gpx$/i, '');
+    fileActions.add(gpx);
+    selection.selectFileWhenLoaded(gpx._data.id);
+    boundsManager.fitBoundsOnLoad([gpx._data.id]);
+    autoSaveManager.registerCloudLinkedFile(gpx._data.id, fileId, fileName, folderId);
 }
 
 export function triggerFileInput() {
