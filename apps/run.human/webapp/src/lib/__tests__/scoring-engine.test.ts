@@ -113,3 +113,103 @@ describe("computeUserScore", () => {
     expect(r.latestActivityAt).toBe(b);
   });
 });
+
+describe("computeUserScore — cluster check-in bonus", () => {
+  const empty = { accomplishments: [], solves: [], events: [], configs: new Map() };
+
+  it("is 0 with no awards, and absent input is legal", () => {
+    const r = computeUserScore(empty);
+    expect(r.breakdown.clusterBonus).toBe(0);
+    expect(r.counts.clusters).toBe(0);
+    expect(r.score).toBe(0);
+  });
+
+  it("adds cluster points to the total as a fifth term", () => {
+    const r = computeUserScore({
+      ...empty,
+      accomplishments: [{ source: "checkin" as const, completedAt: noon("2026-08-05") }],
+      clusterAwards: [{ points: 200, startAt: noon("2026-08-05") }],
+    });
+    expect(r.breakdown.runStreak).toBe(25);
+    expect(r.breakdown.clusterBonus).toBe(200);
+    expect(r.score).toBe(225);
+  });
+
+  it("sums awards across different con days without capping", () => {
+    const r = computeUserScore({
+      ...empty,
+      clusterAwards: [
+        { points: 200, startAt: noon("2026-08-05") },
+        { points: 100, startAt: noon("2026-08-06") },
+        { points: 50, startAt: noon("2026-08-07") },
+      ],
+    });
+    expect(r.breakdown.clusterBonus).toBe(350);
+    expect(r.counts.clusters).toBe(3);
+  });
+
+  it("keeps the BEST N per day, not the first N", () => {
+    const day = "2026-08-05";
+    const r = computeUserScore({
+      ...empty,
+      clusterAwards: [
+        { points: 25, startAt: Date.parse(`${day}T13:00:00Z`) },  // earliest, smallest
+        { points: 200, startAt: Date.parse(`${day}T16:00:00Z`) },
+        { points: 100, startAt: Date.parse(`${day}T19:00:00Z`) },
+        { points: 50, startAt: Date.parse(`${day}T22:00:00Z`) },
+      ],
+      clusterCap: 3,
+    });
+    // 200 + 100 + 50 — the early 25 is the one dropped.
+    expect(r.breakdown.clusterBonus).toBe(350);
+  });
+
+  it("applies the cap per day, independently", () => {
+    const r = computeUserScore({
+      ...empty,
+      clusterAwards: [
+        { points: 25, startAt: Date.parse("2026-08-05T13:00:00Z") },
+        { points: 25, startAt: Date.parse("2026-08-05T16:00:00Z") },
+        { points: 25, startAt: Date.parse("2026-08-05T19:00:00Z") },
+        { points: 25, startAt: Date.parse("2026-08-06T13:00:00Z") },
+        { points: 25, startAt: Date.parse("2026-08-06T16:00:00Z") },
+      ],
+      clusterCap: 2,
+    });
+    expect(r.breakdown.clusterBonus).toBe(100); // 2/day on two days
+  });
+
+  it("re-values when the cap changes — no re-sweep needed", () => {
+    const awards = [
+      { points: 200, startAt: Date.parse("2026-08-05T13:00:00Z") },
+      { points: 100, startAt: Date.parse("2026-08-05T16:00:00Z") },
+      { points: 50, startAt: Date.parse("2026-08-05T19:00:00Z") },
+    ];
+    expect(computeUserScore({ ...empty, clusterAwards: awards, clusterCap: 1 })
+      .breakdown.clusterBonus).toBe(200);
+    expect(computeUserScore({ ...empty, clusterAwards: awards, clusterCap: 3 })
+      .breakdown.clusterBonus).toBe(350);
+  });
+
+  it("ignores awards outside the con days", () => {
+    const r = computeUserScore({
+      ...empty,
+      clusterAwards: [
+        { points: 200, startAt: Date.parse("2026-07-04T19:00:00Z") },
+        { points: 50, startAt: noon("2026-08-05") },
+      ],
+    });
+    expect(r.breakdown.clusterBonus).toBe(50);
+  });
+
+  it("defaults the cap to 3 when the caller does not pass one", () => {
+    const day = "2026-08-05";
+    const r = computeUserScore({
+      ...empty,
+      clusterAwards: [200, 100, 50, 25].map((points, i) => ({
+        points, startAt: Date.parse(`${day}T${13 + i}:00:00Z`),
+      })),
+    });
+    expect(r.breakdown.clusterBonus).toBe(350);
+  });
+});

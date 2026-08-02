@@ -1,13 +1,14 @@
 /**
  * Derived scoring engine (points-consistency design, 2026-07-30). PURE — no
  * I/O, no entities. Values a user's ENTIRE ledger against CURRENT config:
- *   score = runStreak + socialStreak + ctfStreak + flagPoints
+ *   score = runStreak + socialStreak + ctfStreak + flagPoints + clusterBonus
  * Solve ORDINALS are frozen history; solve VALUES are recomputed here, so a
  * config retune re-values everyone on their next rescore. The ONLY writer of
  * the result is lib/rescore.ts (enforced by scoring-write-invariant.test.ts).
  */
 import { computePoints } from "./ctf-scoring";
 import { conLocalDate, isConDay, streakPoints } from "./con-days";
+import { DEFAULT_CLUSTER_CONFIG } from "./cluster-config";
 
 export type EngineAccomplishment = {
   source: "checkin" | "gpx" | "strava";
@@ -32,12 +33,53 @@ export type EngineCtfConfig = {
   timeTiers?: { from: string; to: string; ceiling: number }[];
 };
 
+/**
+ * One cluster check-in award off the ClusterAward ledger. `startAt` is when the
+ * CLUSTER happened (not when the sweep ran), so the per-day cap groups by the
+ * con day the runners were actually standing together.
+ */
+export type EngineClusterAward = { points: number; startAt: number };
+
 export interface UserScore {
   score: number;
-  breakdown: { runStreak: number; socialStreak: number; ctfStreak: number; flagPoints: number };
+  breakdown: {
+    runStreak: number;
+    socialStreak: number;
+    ctfStreak: number;
+    flagPoints: number;
+    clusterBonus: number;
+  };
   days: { run: number; social: number; ctf: number };
-  counts: { checkin: number; gpx: number; strava: number; solves: number };
+  counts: { checkin: number; gpx: number; strava: number; solves: number; clusters: number };
   latestActivityAt?: number;
+}
+
+/**
+ * Cluster bonus with the per-day cap applied. The cap counts a runner's BEST
+ * `cap` clusters per con day, not their first `cap` — a runner who joins a
+ * 5-person group before a 30-person one is not punished for arriving early.
+ *
+ * The cap lives HERE rather than at award-write time for two reasons: raising
+ * it in the admin UI re-values everyone on their next rescore (exactly like a
+ * CTF config retune), and the live sweep only ever sees one time window, so it
+ * cannot enforce a whole-day cap correctly. The engine sees the full ledger.
+ */
+function clusterBonusPoints(awards: EngineClusterAward[], cap: number): number {
+  const byDay = new Map<string, number[]>();
+  for (const a of awards) {
+    const day = conLocalDate(a.startAt);
+    if (!isConDay(day)) continue;
+    const pts = byDay.get(day) ?? [];
+    pts.push(a.points ?? 0);
+    byDay.set(day, pts);
+  }
+
+  let total = 0;
+  for (const pts of byDay.values()) {
+    pts.sort((a, b) => b - a);
+    for (const p of pts.slice(0, Math.max(0, cap))) total += p;
+  }
+  return total;
 }
 
 /** The one non-flag ledger challenge: scan events light social days, worth 0. */
@@ -77,12 +119,18 @@ export function computeUserScore(input: {
   solves: EngineSolve[];
   events: EngineScoreEvent[];
   configs: Map<string, EngineCtfConfig>;
+  /** Cluster check-in awards. Absent on callers that predate the feature. */
+  clusterAwards?: EngineClusterAward[];
+  /** Per-runner per-con-day cap on counted awards. Defaults to config default. */
+  clusterCap?: number;
 }): UserScore {
   const { accomplishments, solves, events, configs } = input;
+  const clusterAwards = input.clusterAwards ?? [];
+  const clusterCap = input.clusterCap ?? DEFAULT_CLUSTER_CONFIG.maxPerUserPerDay;
 
   // ── Run track: any accomplishment (run OR check-in) lights its con day. ──
   const runDays = new Set<string>();
-  const counts = { checkin: 0, gpx: 0, strava: 0, solves: 0 };
+  const counts = { checkin: 0, gpx: 0, strava: 0, solves: 0, clusters: clusterAwards.length };
   let latestActivityAt: number | undefined;
   for (const a of accomplishments) {
     counts[a.source] += 1;
@@ -133,9 +181,15 @@ export function computeUserScore(input: {
     socialStreak: streakPoints(socialDays.size),
     ctfStreak: streakPoints(ctfDays.size),
     flagPoints,
+    clusterBonus: clusterBonusPoints(clusterAwards, clusterCap),
   };
   return {
-    score: breakdown.runStreak + breakdown.socialStreak + breakdown.ctfStreak + breakdown.flagPoints,
+    score:
+      breakdown.runStreak +
+      breakdown.socialStreak +
+      breakdown.ctfStreak +
+      breakdown.flagPoints +
+      breakdown.clusterBonus,
     breakdown,
     days: { run: runDays.size, social: socialDays.size, ctf: ctfDays.size },
     counts,

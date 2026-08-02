@@ -33,6 +33,7 @@ const mockSolvesQuery = vi.fn();
 const mockEventsQuery = vi.fn();
 const mockListCtf = vi.fn();
 const mockGetCheckInsByUser = vi.fn();
+const mockClusterAwardQuery = vi.fn();
 
 vi.mock("@/config/auth", () => ({
   auth: (...a: unknown[]) => mockAuth(...a),
@@ -54,6 +55,23 @@ vi.mock("@/lib/qr-admin", () => ({
 }));
 vi.mock("@/entities/checkin", () => ({
   getCheckInsByUser: (...a: unknown[]) => mockGetCheckInsByUser(...a),
+}));
+// Cluster check-in bonus: the drill reads the ClusterAward ledger and the
+// persisted cap. Both are mocked so this route test stays offline.
+vi.mock("@/entities/cluster", () => ({
+  ClusterAward: {
+    query: { primary: (...a: unknown[]) => mockClusterAwardQuery(...a) },
+  },
+}));
+vi.mock("@/lib/cluster-config-store", () => ({
+  getClusterConfig: async () => ({
+    enabled: true,
+    radiusMeters: 200,
+    windowMinutes: 60,
+    minRunners: 4,
+    maxPerUserPerDay: 3,
+    tiers: [{ minRunners: 4, points: 25 }],
+  }),
 }));
 
 import { GET } from "../route";
@@ -145,6 +163,10 @@ beforeEach(() => {
   ]);
   mockGetCheckInsByUser.mockReset();
   mockGetCheckInsByUser.mockResolvedValue({ data: [], cursor: null });
+  mockClusterAwardQuery.mockReset();
+  mockClusterAwardQuery.mockReturnValue({
+    go: vi.fn().mockResolvedValue({ data: [] }),
+  });
 });
 
 describe("GET /api/leaderboard/[userId]/accomplishments", () => {

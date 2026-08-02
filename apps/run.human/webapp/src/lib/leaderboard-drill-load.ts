@@ -4,10 +4,13 @@ import {
 } from "@/entities/accomplishment";
 import { CtfSolve, CtfScoreEvent } from "@/entities/ctf";
 import { getCheckInsByUser } from "@/entities/checkin";
+import { ClusterAward } from "@/entities/cluster";
 import { listCtf } from "@/lib/qr-admin";
+import { getClusterConfig } from "@/lib/cluster-config-store";
 import {
   groupSocial,
   buildCtfLines,
+  buildClusterLines,
   injectCheckinLocations,
 } from "@/lib/leaderboard-drill";
 
@@ -47,16 +50,25 @@ function applyPrivacyFilter(items: AccomplishmentItem[]): AccomplishmentItem[] {
  * cached by `getCachedDrill`.
  */
 export async function loadDrill(userId: string) {
-  const [accomplishments, solvesResult, eventsResult, ctfRows, checkins] =
-    await Promise.all([
-      getAccomplishmentsByUser(userId),
-      CtfSolve.query.byUser({ user: userId }).go({ pages: "all" }),
-      CtfScoreEvent.query.byUser({ user: userId }).go({ pages: "all" }),
-      listCtf(),
-      // Location join for PUBLIC check-ins (pin-map thumbnails). 200 covers
-      // any realistic per-runner check-in count; a miss just means no map.
-      getCheckInsByUser(userId, 200),
-    ]);
+  const [
+    accomplishments,
+    solvesResult,
+    eventsResult,
+    ctfRows,
+    checkins,
+    awardsResult,
+    clusterCfg,
+  ] = await Promise.all([
+    getAccomplishmentsByUser(userId),
+    CtfSolve.query.byUser({ user: userId }).go({ pages: "all" }),
+    CtfScoreEvent.query.byUser({ user: userId }).go({ pages: "all" }),
+    listCtf(),
+    // Location join for PUBLIC check-ins (pin-map thumbnails). 200 covers
+    // any realistic per-runner check-in count; a miss just means no map.
+    getCheckInsByUser(userId, 200),
+    ClusterAward.query.primary({ userId }).go({ pages: "all" }),
+    getClusterConfig(),
+  ]);
 
   const visible = applyPrivacyFilter(accomplishments);
 
@@ -88,6 +100,17 @@ export async function loadDrill(userId: string) {
     accomplishments: rows,
     social: groupSocial(eventsResult.data),
     ctf: buildCtfLines(solvesResult.data, eventsResult.data, names),
+    // Group check-in bonuses. `counted` mirrors the engine's per-day cap so the
+    // drill can show an award that exists but did not score, rather than
+    // silently omitting it and leaving the total unexplained.
+    cluster: buildClusterLines(
+      awardsResult.data.map((a) => ({
+        startAt: a.startAt,
+        size: a.size,
+        points: a.points,
+      })),
+      clusterCfg.maxPerUserPerDay,
+    ),
   };
 }
 
