@@ -1,10 +1,12 @@
 import { describe, it, expect } from "vitest";
+// The PURE scenario module — importing `cluster-demo` here would drag the
+// entity layer (and its AWS client) into a test that needs none of it.
 import {
   buildDemoCheckIns,
   demoRoster,
   demoUserId,
   DEMO_SCENARIOS,
-} from "../cluster-demo";
+} from "../cluster-demo-data";
 import { detectClusters, type ClusterPoint } from "../cluster-detect";
 import { DEFAULT_CLUSTER_CONFIG } from "../cluster-config";
 import { computeUserScore } from "../scoring-engine";
