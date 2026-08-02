@@ -58,7 +58,10 @@ the path for a per-check-in pin, a privacy flip, or admin manual coordinates.
 ### 2. `useGpsSamples()` — `src/hooks/useGpsSamples.ts`
 
 The 3-sample GPS loop currently living inside `CheckInModal` is extracted verbatim so
-both modals share one implementation.
+both modals share one implementation. Its pure parts — the `GpsSample` type,
+`toGpsSample()`, `bestAccuracyOf()`, and the timing constants — live in
+`src/lib/gps-samples.ts` so they are testable in the node environment; the hook is the
+React lifecycle wrapped around them.
 
 ```ts
 type GpsPhase = 'collecting' | 'ready' | 'error';
@@ -156,34 +159,49 @@ The other Flash button (radio-list empty state) is not in a modal and is not tou
 
 | File | Change |
 |---|---|
-| `src/hooks/useGpsSamples.ts` | new — extracted GPS sampling |
+| `src/lib/gps-samples.ts` | new — `GpsSample` type + pure sampling helpers |
+| `src/lib/quick-checkin.ts` | new — pure copy resolution, request body, error mapping |
+| `src/hooks/useGpsSamples.ts` | new — React lifecycle around `lib/gps-samples` |
 | `src/components/QuickCheckInModal.tsx` | new — confirm-and-go check-in |
 | `src/components/CheckInModal.tsx` | refactor to use the hook; no behavior change |
 | `src/app/(protected)/whoami/page.tsx` | relabel to `Connect`, add `Check-in` button + modal |
 | `src/components/profile/MeshtasticRadios.tsx` | `onPress={closeAdd}` on Goto Flash |
-| `src/hooks/__tests__/useGpsSamples.test.ts` | new |
-| `src/components/__tests__/QuickCheckInModal.test.tsx` | new |
+| `src/lib/__tests__/gps-samples.test.ts` | new |
+| `src/lib/__tests__/quick-checkin.test.ts` | new |
 
 ## Testing
 
-Vitest, matching the existing suites under `src/**/__tests__/`.
+**Constraint that shapes this section:** `run.human` has no jsdom and no
+`@testing-library/react`. All 115 existing suites are node-environment logic tests, and
+the single `.tsx` test inspects a server component's returned element without rendering
+it. Adding a DOM-testing stack for this feature is not proportionate.
 
-**`useGpsSamples`**
-- collects three samples then reports `ready` with the minimum accuracy
-- reports `error` when geolocation is absent
-- reports `error` when `getCurrentPosition` invokes its error callback
-- writes no state after `isActive` goes false mid-collection
+So the design pushes every decision worth asserting *out* of the components and into two
+pure modules, which are then covered properly. What is left in the components is JSX and
+React lifecycle — the same thing every other component in this app leaves untested.
 
-**`QuickCheckInModal`**
-- title and body follow `checkinPreference` in both directions
-- the POST body carries `samples` and `source: 'Web Quick'` and **no** `isPrivate`,
-  `pinIcon`, or `pinColor` — this is the guarantee that the fast path honors the profile
-- confirming before the fix lands still submits once the samples arrive, exactly once
-- `429` surfaces the quota message and does not dispatch `checkin-created`
-- success dispatches `checkin-created`
+**`lib/gps-samples`**
+- `toGpsSample()` maps a `GeolocationPosition` to the wire shape
+- `bestAccuracyOf()` returns the minimum accuracy, and `null` for an empty list
+- `SAMPLE_TARGET` is 3 and `SAMPLE_INTERVAL_MS` is 667 — pins the timing the UX assumes
 
-`CheckInModal` has no existing test coverage. The refactor's guard is that the hook is
-behavior-identical plus a manual pass on the `+` flow before merge.
+**`lib/quick-checkin`**
+- `quickCheckInCopy()` returns private title/body for `'private'` and public for
+  `undefined`, `'public'`, and any unrecognized value
+- `buildQuickCheckInBody()` emits exactly `{ samples, source: 'Web Quick' }` — asserted
+  key-by-key so `isPrivate`, `pinIcon`, and `pinColor` can never creep in. This is the
+  guarantee that the fast path honors the profile.
+- `quickCheckInError()` maps 429 to the quota string and anything else to the generic one
+
+**Not covered by automated tests** (and why): the warm-start submit-once-ready path, the
+`checkin-created` dispatch, and the `CheckInModal` refactor. These are React lifecycle.
+They get a manual pass against a local dev server before merge:
+
+1. `+` on the Check-ins card → full modal still collects 3 samples, map preview renders,
+   pin picker and privacy select still work, check-in lands.
+2. `Check-in` in the action bar → confirm, check-in lands, history card expands.
+3. Press `Check in` immediately on open (before the fix lands) → submits once, not twice.
+4. Deny location permission → error state with a working `Try again`.
 
 ## Risks
 
