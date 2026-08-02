@@ -7,9 +7,24 @@ describe("buildDc34SeedRows", () => {
 
   it("emits the full DC34 set", () => {
     // 5 eggs + 6 personas(+ricky) + 5 otp chains + 4 phones + 5 unlocks +
-    // jack-egg + exceptional-run = 27, per the LOCKED value table.
-    expect(rows).toHaveLength(27);
-    expect(new Set(rows.map((r) => r.challenge)).size).toBe(27);
+    // jack-egg + exceptional-run + bib-pickup = 28, per the LOCKED value table.
+    expect(rows).toHaveLength(28);
+    expect(new Set(rows.map((r) => r.challenge)).size).toBe(28);
+  });
+
+  it("bib-pickup is a grant-only flat 200 that is NOT repeatable", () => {
+    // Repeatability would let a runner farm 200 a day off their own bib, and
+    // would break the "first scan proves it is yours" workflow.
+    const row = byName.get("bib-pickup");
+    expect(row).toMatchObject({
+      answerType: "static",
+      answerHash: ZERO_HASH,
+      pointMax: 200,
+      pointFloor: 200,
+      enabled: true,
+    });
+    expect(row).not.toHaveProperty("knobsOnly");
+    expect(row?.perPlayerIntervalHours).toBeUndefined();
   });
 
   it("eggs are knobsOnly flat 5", () => {
