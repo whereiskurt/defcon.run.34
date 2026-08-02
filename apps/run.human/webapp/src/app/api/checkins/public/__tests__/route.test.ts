@@ -1,14 +1,31 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const mockGetRecentCheckIns = vi.fn();
-const mockGetRunUser = vi.fn();
+const mockBatchGet = vi.fn();
 
 vi.mock("@/entities/checkin", () => ({
   getRecentCheckIns: (...args: unknown[]) => mockGetRecentCheckIns(...args),
 }));
+// Display names are joined with a BATCH get (one round-trip per 100 runners)
+// rather than one get per runner — see the route's header note.
 vi.mock("@/entities/run-user", () => ({
-  getRunUser: (...args: unknown[]) => mockGetRunUser(...args),
+  RunUser: { get: (...args: unknown[]) => mockBatchGet(...args) },
 }));
+vi.mock("@/lib/cluster-config-store", () => ({
+  getClusterConfig: async () => ({
+    enabled: true,
+    radiusMeters: 200,
+    windowMinutes: 60,
+    minRunners: 4,
+    maxPerUserPerDay: 3,
+    tiers: [{ minRunners: 4, points: 25 }],
+  }),
+}));
+
+/** Resolve the batch get to these RunUser rows. */
+function batchResolves(rows: Record<string, unknown>[]) {
+  mockBatchGet.mockReturnValue({ go: async () => ({ data: rows }) });
+}
 
 import { GET } from "../route";
 import type { NextRequest } from "next/server";
@@ -36,7 +53,8 @@ function checkIn(overrides: Record<string, unknown> = {}) {
 describe("GET /api/checkins/public", () => {
   beforeEach(() => {
     mockGetRecentCheckIns.mockReset();
-    mockGetRunUser.mockReset();
+    mockBatchGet.mockReset();
+    batchResolves([]);
   });
 
   it("returns only check-ins explicitly marked public (isPrivate === false)", async () => {
@@ -48,20 +66,59 @@ describe("GET /api/checkins/public", () => {
       ],
       cursor: null,
     });
-    mockGetRunUser.mockResolvedValue({ displayName: "rabbit_pub" });
+    batchResolves([{ userId: "pub", displayName: "rabbit_pub" }]);
 
     const res = await GET(request());
     const body = await res.json();
 
     expect(res.status).toBe(200);
     expect(body.checkIns).toHaveLength(1);
-    expect(body.checkIns[0]).toEqual({
+    expect(body.checkIns[0]).toMatchObject({
       lat: 36.13,
       lon: -115.15,
       displayName: "rabbit_pub",
       timestamp: 1751600000000,
       checkInType: "Basic",
     });
+    // Opaque per-runner grouping key — never the raw userId.
+    expect(body.checkIns[0].rid).toMatch(/^[0-9a-f]{12}$/);
+    expect(body.checkIns[0].rid).not.toContain("pub");
+  });
+
+  it("gives the same runner a stable rid and different runners different ones", async () => {
+    mockGetRecentCheckIns.mockResolvedValueOnce({
+      data: [
+        checkIn({ userId: "a", checkInId: "c1", isPrivate: false }),
+        checkIn({ userId: "a", checkInId: "c2", isPrivate: false }),
+        checkIn({ userId: "b", checkInId: "c3", isPrivate: false }),
+      ],
+      cursor: null,
+    });
+    batchResolves([]);
+
+    const body = await (await GET(request())).json();
+
+    expect(body.checkIns[0].rid).toBe(body.checkIns[1].rid);
+    expect(body.checkIns[2].rid).not.toBe(body.checkIns[0].rid);
+  });
+
+  it("serves the live cluster config so the map matches the scoreboard's knobs", async () => {
+    mockGetRecentCheckIns.mockResolvedValueOnce({
+      data: [checkIn({ isPrivate: false })],
+      cursor: null,
+    });
+
+    const body = await (await GET(request())).json();
+
+    expect(body.clusterConfig).toEqual({
+      enabled: true,
+      radiusMeters: 200,
+      windowMinutes: 60,
+      minRunners: 4,
+    });
+    // Point tiers are deliberately NOT exposed: the map clusters PUBLIC
+    // check-ins only, so an award value against its counts would be wrong.
+    expect(body.clusterConfig.tiers).toBeUndefined();
   });
 
   it("projects only the public fields — no userId, samples, or userAgent", async () => {
@@ -69,7 +126,7 @@ describe("GET /api/checkins/public", () => {
       data: [checkIn({ isPrivate: false })],
       cursor: null,
     });
-    mockGetRunUser.mockResolvedValue({ displayName: "rabbit_u1" });
+    batchResolves([{ userId: "u1", displayName: "rabbit_u1" }]);
 
     const body = await (await GET(request())).json();
 
@@ -78,6 +135,7 @@ describe("GET /api/checkins/public", () => {
       "displayName",
       "lat",
       "lon",
+      "rid",
       "timestamp",
     ]);
   });
@@ -87,7 +145,11 @@ describe("GET /api/checkins/public", () => {
       data: [checkIn({ isPrivate: false })],
       cursor: null,
     });
-    mockGetRunUser.mockRejectedValue(new Error("dynamo down"));
+    mockBatchGet.mockReturnValue({
+      go: async () => {
+        throw new Error("dynamo down");
+      },
+    });
 
     const body = await (await GET(request())).json();
 
@@ -122,7 +184,7 @@ describe("GET /api/checkins/public", () => {
       ],
       cursor: null,
     });
-    mockGetRunUser.mockResolvedValue({ displayName: "KPH" });
+    batchResolves([{ userId: "u1", displayName: "KPH" }]);
 
     const body = await (await GET(request())).json();
 
@@ -140,8 +202,34 @@ describe("GET /api/checkins/public", () => {
     await (await GET(request(`?since=${since}`))).json();
 
     expect(mockGetRecentCheckIns).toHaveBeenCalledWith(100, undefined, since);
-    // MAX_SCANNED_WINDOWED (5000) / PAGE_SIZE (100) = 50 pages max.
-    expect(mockGetRecentCheckIns).toHaveBeenCalledTimes(50);
+    // MAX_SCANNED_WINDOWED (20000) / PAGE_SIZE (100) = 200 pages max. Raised
+    // from 5000 because the feed pages NEWEST-first, so the old bound silently
+    // dropped the con's first day once the event got busy.
+    expect(mockGetRecentCheckIns).toHaveBeenCalledTimes(200);
+  });
+
+  it("flags a truncated response instead of passing it off as complete", async () => {
+    mockGetRecentCheckIns.mockResolvedValue({
+      data: Array.from({ length: 100 }, (_, i) =>
+        checkIn({ userId: `u${i}`, isPrivate: false })
+      ),
+      cursor: "more",
+    });
+
+    const body = await (await GET(request(`?since=${Date.now() - 3600_000}`))).json();
+
+    expect(body.truncated).toBe(true);
+  });
+
+  it("does not flag truncation when the feed was fully drained", async () => {
+    mockGetRecentCheckIns.mockResolvedValueOnce({
+      data: [checkIn({ isPrivate: false })],
+      cursor: null,
+    });
+
+    const body = await (await GET(request())).json();
+
+    expect(body.truncated).toBe(false);
   });
 
   it("ignores a since= older than the max window", async () => {

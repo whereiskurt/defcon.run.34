@@ -15,6 +15,9 @@ import { fileURLToPath } from "node:url";
 export default defineConfig({
   test: {
     environment: "node",
+    // Tests that import pure modules out of gpx-studio need the studio's
+    // build-generated tsconfig to exist first — see vitest.globalSetup.ts.
+    globalSetup: ["./vitest.globalSetup.ts"],
     include: [
       "src/__tests__/**/*.test.{ts,tsx}",
       "src/**/__tests__/**/*.test.{ts,tsx}",
