@@ -292,12 +292,52 @@ html.dark .drill-card.rail-success { border-left-color: #22c55e; }
 html.dark .drill-card.rail-secondary { border-left-color: #9353d3; }
 html.dark .drill-card.rail-warning { border-left-color: #f5a524; }
 
-/* Separator between UNSELECTED board rows (Kurt, sketch 007) — the shipped
-   border-default-200 is invisible in light. `last:border-b-0` still suppresses
-   the trailing one; this only changes the colour/weight. */
-.board-row-sep {
+/* ============================================================================
+   Board rows as BOUNDED BLOCKS (sketch 008 variant A).
+
+   A separator line was not enough. Two EXPANDED runners are tall blocks, and
+   the board sits on the live map background, so a 1px rule between them just
+   disappeared and one runner's drill ran straight into the next runner's
+   header (Kurt, 2026-08-01). Each row is now its own framed card with a faint
+   fill — the fill matters as much as the border, because it is what stops the
+   map reading as the shared background of two adjacent rows.
+
+   The group is a flex column with a real gap, so rows are separated by air and
+   frame rather than by a shared edge. Colours are per-theme by hand for the
+   same reason as .drill-card above.
+   ============================================================================ */
+.board-row {
+  border: 1.5px solid #c9c9d1;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  overflow: hidden;
+}
+html.dark .board-row {
+  border-color: #3a3a4e;
+  background: rgba(17, 17, 24, 0.55);
+}
+/* The current runner keeps the green selection frame, now on a bounded card. */
+.board-row-own {
+  border: 2px solid #16a34a;
+  border-left-width: 6px;
+}
+html.dark .board-row-own {
+  border-color: #22c55e;
+}
+/* Header band — marks where each runner starts inside their own card. */
+.board-row-head {
+  background: rgba(16, 16, 24, 0.05);
+}
+html.dark .board-row-head {
+  background: rgba(255, 255, 255, 0.05);
+}
+/* Rule under the header ONLY while the row is open; collapsed, it would double
+   up with the card border one pixel below. Keyed off the trigger button's
+   aria-expanded, which the accordion owns. If :has() is unavailable the rule is
+   simply absent — the band and frame still separate everything. */
+.board-row:has([aria-expanded="true"]) .board-row-head {
   border-bottom: 1px solid #c9c9d1;
 }
-html.dark .board-row-sep {
+html.dark .board-row:has([aria-expanded="true"]) .board-row-head {
   border-bottom-color: #3a3a4e;
 }

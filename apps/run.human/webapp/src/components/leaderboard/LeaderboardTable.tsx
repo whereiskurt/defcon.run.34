@@ -300,13 +300,13 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
       ) : (
         <Accordion
           selectionMode="multiple"
-          variant="bordered"
+          // `light` (not `bordered`): the group no longer draws one shared
+          // frame around every row — each ROW is its own framed card now
+          // (sketch 008 A), separated by real gap rather than a shared edge.
+          variant="light"
           isCompact
           itemClasses={itemClasses}
-          // px-0 kills the bordered variant's px-4 channel so rows run flush to
-          // the group border; overflow-hidden clips full-bleed row fills to the
-          // group's rounded corners (UAT: own-row green spans the whole card).
-          className="gap-0 px-0 overflow-hidden"
+          className="flex flex-col gap-2.5 px-0"
           onSelectionChange={(keys) => {
             Array.from(keys).forEach((key) => fetchUserAccomplishments(String(key)));
           }}
@@ -323,26 +323,24 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
               <AccordionItem
                 key={row.userId}
                 className={
-                  // Own row: a 2px green perimeter with a 6px left rail, so the
-                  // selection reads as SELECTED rather than merely outlined and
+                  // EVERY row is its own bounded card (sketch 008 A) — a frame
+                  // plus a faint fill, so two EXPANDED runners can never run
+                  // together and the map stops showing through as their shared
+                  // background. The current runner swaps the neutral frame for
+                  // the green selection one, keeping the 6px left rail that
                   // echoes the drill cards' tone rail (sketch 007).
-                  // Every other row gets an explicit bottom separator that is
-                  // visible in BOTH themes — `border-default-200` was invisible
-                  // against a light surface (Kurt, 2026-08-01).
-                  isCurrentUser
-                    ? 'border-2 border-l-[6px] border-green-500'
-                    : 'board-row-sep last:border-b-0'
+                  `board-row ${isCurrentUser ? 'board-row-own' : ''}`
                 }
-                classNames={
-                  // Own-row highlight tints the HEADER ROW ONLY - the expanded
-                  // drill content stays on the default surface so its muted
-                  // greys/rails/thumbnails keep their contrast (UAT 2026-07-24).
-                  // Tint the full-width `heading` slot (not the inset trigger)
-                  // so the fill meets the item border with no dark gap.
-                  isCurrentUser
-                    ? { heading: 'bg-green-400/20 dark:bg-green-500/30' }
-                    : undefined
-                }
+                classNames={{
+                  // The header band marks where each runner starts inside their
+                  // own card. Tint the full-width `heading` slot (not the inset
+                  // trigger) so the fill meets the item border with no gap. The
+                  // expanded drill content stays on the default surface so its
+                  // muted greys/rails/thumbnails keep contrast (UAT 2026-07-24).
+                  heading: isCurrentUser
+                    ? 'bg-green-400/20 dark:bg-green-500/30'
+                    : 'board-row-head',
+                }}
                 textValue={`${displayName} accomplishments`}
                 title={
                   <div className="flex items-center flex-wrap w-full py-0.5 px-1 gap-2">
