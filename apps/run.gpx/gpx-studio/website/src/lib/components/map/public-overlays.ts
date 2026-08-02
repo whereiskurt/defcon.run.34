@@ -14,6 +14,7 @@ import {
     setLayersVisible,
     storedVisible,
 } from '$lib/stores/layer-visibility';
+import { requestedLayers } from '$lib/stores/layer-url';
 
 /**
  * Public overlays — DEF CON 34 official map layers (v1.7 Phase 28, decorated v1.8).
@@ -413,6 +414,12 @@ export class PublicOverlaysLayer {
     /** Fetch the manifest and render every route (hidden until toggled on by the group default). */
     async add() {
         if (this.loaded) return;
+        // A `?layers=` deep link names an EXACT set (see stores/layer-url.ts). It is read
+        // HERE, at the seeding site, because this is the only point where the alias ->
+        // folder -> fileId chain is knowable, and because nothing runs after it that could
+        // overwrite the result: the routes below are added hidden and revealed once, in
+        // their resolved state, so there is neither a race to lose nor a flash to see.
+        const requested = requestedLayers();
         let groups: PublicOverlayGroup[];
         try {
             const res = await fetch(MANIFEST_URL, { credentials: 'omit' });
@@ -429,6 +436,10 @@ export class PublicOverlaysLayer {
             groups = body.groups.map((g) => {
                 // "DEF CON 34 Maps" is ON by default; every other group opts in.
                 const on = g.folderName === DEFAULT_ON_FOLDER;
+                // Under a deep link the folder's whole answer is "was I named?" — a folder
+                // it did not name goes off even if the viewer once turned it on, which is
+                // the point of the parameter. `null` means no deep link, defer as before.
+                const forced = requested ? requested.folders.has(g.folderName) : null;
                 const maps = g.maps.map((m) => ({
                     ...m,
                     // CMS-provided mapColor wins; otherwise cycle the DC34 varied ramp.
@@ -436,14 +447,14 @@ export class PublicOverlaysLayer {
                     // A persisted per-route choice wins; a route the viewer has never
                     // touched keeps its folder default, so a first-time visitor sees
                     // exactly what they saw before this store existed.
-                    visible: storedVisible(publicRouteLayer(m.fileId), on),
+                    visible: forced ?? storedVisible(publicRouteLayer(m.fileId), on),
                 }));
                 return {
                     folderId: g.folderId,
                     folderName: g.folderName,
                     // The master mirrors "all children visible" — the same rule
                     // setRouteVisible applies — so restoring the leaves restores it too.
-                    visible: maps.length > 0 ? maps.every((m) => m.visible) : on,
+                    visible: maps.length > 0 ? maps.every((m) => m.visible) : (forced ?? on),
                     maps,
                 };
             });
@@ -507,6 +518,17 @@ export class PublicOverlaysLayer {
         for (const g of groups) {
             for (const m of g.maps) this.setLayerPairVisible(m.fileId, m.visible);
         }
+        // A deep-linked set is written straight through to the persisted store, so store
+        // and map never disagree about what is on. The store has no session-only mode
+        // (see layer-visibility.ts) and this outliving the link is the accepted trade.
+        if (requested) {
+            for (const g of groups) {
+                setLayersVisible(
+                    g.maps.map((m) => publicRouteLayer(m.fileId)),
+                    requested.folders.has(g.folderName)
+                );
+            }
+        }
         // Authoritative manifest in hand — forget stored ids whose route is gone.
         pruneLayerVisibility(
             PREFIX.publicRoute,
@@ -541,8 +563,13 @@ export class PublicOverlaysLayer {
             // Restored in ONE store write (never "available, off" then "on"): the layer
             // control derives collapse from an ON/OFF transition, so a two-step restore
             // would read as a user toggle and rewrite the persisted collapse state.
-            const visible = storedVisible(LAYER.aggregate, false);
+            // `?layers=` outranks the stored value, on and off alike; see add() above.
+            const requested = requestedLayers();
+            const visible = requested
+                ? requested.keys.has(LAYER.aggregate)
+                : storedVisible(LAYER.aggregate, false);
             if (visible) this.map.setLayoutProperty(AGGREGATE_LAYER, 'visibility', 'visible');
+            if (requested) setLayerVisible(LAYER.aggregate, visible);
             publicAggregate.set({ available: true, visible });
         } catch {
             // aggregate unavailable → no layer, studio unaffected
@@ -790,8 +817,13 @@ export class PublicOverlaysLayer {
             // check-ins collapse effect keys off an ON/OFF transition, so landing
             // "available, off" and then flipping it on would look like a user toggle
             // and clobber the persisted collapse state.
-            const visible = storedVisible(LAYER.checkins, false);
+            // `?layers=` outranks the stored value, on and off alike; see add() above.
+            const requested = requestedLayers();
+            const visible = requested
+                ? requested.keys.has(LAYER.checkins)
+                : storedVisible(LAYER.checkins, false);
             this.applyCheckInsLayers(visible);
+            if (requested) setLayerVisible(LAYER.checkins, visible);
             publicCheckIns.set({ available: true, visible, count: body.checkIns.length });
         } catch {
             // check-ins unavailable → no layer, studio unaffected

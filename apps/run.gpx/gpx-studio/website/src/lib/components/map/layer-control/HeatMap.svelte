@@ -25,8 +25,8 @@
     // Display order: the live year first. Colours are read from HEAT_PAINT, never
     // re-typed, so a row swatch cannot drift from the line it stands for.
     const ROWS: { year: HeatYear; label: string }[] = [
-        { year: 'dc34', label: '🔥 DC34 — live' },
-        { year: 'dc33', label: '🔥 DC33 — the classic' },
+        { year: 'dc34', label: '🔥 DC34' },
+        { year: 'dc33', label: '🔥 DC33' },
     ];
 
     /** Exact local build time, or a word — never a throw (T-71-26). */

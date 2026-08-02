@@ -12,6 +12,7 @@ import {
     setLayersVisible,
     storedVisible,
 } from '$lib/stores/layer-visibility';
+import { requestedLayers } from '$lib/stores/layer-url';
 
 /**
  * "Community Routes" (2026-07-28 routes-vs-runs spec) — routes other runners
@@ -113,6 +114,11 @@ export class CommunityRoutesLayer {
     private routeBounds = new Map<string, [[number, number], [number, number]]>();
     private routeMeta = new Map<string, RouteSummary>();
     private colorByRoute = new Map<string, string>();
+    // Same rule as my-con-runs.ts: a `?layers=` deep link names an EXACT set
+    // (stores/layer-url.ts) and no token can name a community route, so an override
+    // starts them all hidden. Consumed by the first load so `reload()` cannot re-clobber
+    // a route the runner turned on afterwards.
+    private urlOverride = requestedLayers() !== null;
 
     constructor(map: mapboxgl.Map) {
         this.map = map;
@@ -186,13 +192,24 @@ export class CommunityRoutesLayer {
             .map((r) => ({
                 routeId: r.routeId,
                 name: r.name,
-                visible: storedVisible(communityRouteLayer(r.routeId), false),
+                visible: this.urlOverride
+                    ? false
+                    : storedVisible(communityRouteLayer(r.routeId), false),
             }));
         // Raw layout property, never setRouteVisible: that fitBounds, and a restore
         // must not move the camera on page load.
         for (const e of entries) this.setLayerPairVisible(e.routeId, e.visible);
 
         this.loaded = true;
+        // Write the forced-off state through so store and map agree, then drop the
+        // override — from here the runner's own toggles are the only authority.
+        if (this.urlOverride) {
+            this.urlOverride = false;
+            setLayersVisible(
+                entries.map((e) => communityRouteLayer(e.routeId)),
+                false
+            );
+        }
         communityRoutes.set(entries);
         // Authoritative manifest in hand — forget stored ids whose route is gone.
         pruneLayerVisibility(
