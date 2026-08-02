@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { auth } from "@/config/auth";
 import RoutesTable from "./RoutesTable";
+import { isGpxAdmin } from "@/lib/gpx-admin";
 
 /**
  * /admin/routes — community-route moderation (routes-vs-runs spec section 7).
@@ -11,7 +12,7 @@ export default async function AdminRoutesPage() {
   const session = await auth();
   const services =
     (session?.user as { services?: string[] } | undefined)?.services ?? [];
-  if (!session?.user?.id || !services.includes("admin")) {
+  if (!session?.user?.id || !isGpxAdmin(services)) {
     notFound();
   }
 
