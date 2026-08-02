@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { groupSocial, buildCtfLines, maskCtfLines, injectCheckinLocations } from "./leaderboard-drill";
+import { groupSocial, buildCtfLines, maskCtfLines, injectCheckinLocations, buildClusterLines } from "./leaderboard-drill";
 
 /**
  * Task 5 — pure lib for the leaderboard drill: social-scan day rollups +
@@ -149,5 +149,83 @@ describe("injectCheckinLocations", () => {
     const out = injectCheckinLocations([gpx, preloaded], checkins);
     expect(out[0]).toBe(gpx);
     expect(out[1].metadata?.polyline).toEqual([{ lat: 9, lng: 9 }]);
+  });
+});
+
+describe("buildClusterLines", () => {
+  const at = (day: string, hour: number) => Date.parse(`${day}T${String(hour).padStart(2, "0")}:00:00Z`);
+
+  it("returns nothing for an empty ledger", () => {
+    expect(buildClusterLines([], 3)).toEqual([]);
+  });
+
+  it("marks every award counted when under the cap", () => {
+    const lines = buildClusterLines(
+      [
+        { startAt: at("2026-08-05", 14), size: 12, points: 50 },
+        { startAt: at("2026-08-06", 14), size: 5, points: 25 },
+      ],
+      3,
+    );
+    expect(lines.every((l) => l.counted)).toBe(true);
+  });
+
+  it("drops the WORST award of a day when over the cap, not the latest", () => {
+    const lines = buildClusterLines(
+      [
+        { startAt: at("2026-08-05", 13), size: 4, points: 25 },
+        { startAt: at("2026-08-05", 16), size: 31, points: 200 },
+        { startAt: at("2026-08-05", 19), size: 15, points: 100 },
+        { startAt: at("2026-08-05", 22), size: 8, points: 50 },
+      ],
+      3,
+    );
+    const dropped = lines.filter((l) => !l.counted);
+    expect(dropped).toHaveLength(1);
+    expect(dropped[0].points).toBe(25);
+  });
+
+  it("applies the cap per day independently", () => {
+    const lines = buildClusterLines(
+      [
+        { startAt: at("2026-08-05", 13), size: 4, points: 25 },
+        { startAt: at("2026-08-05", 16), size: 4, points: 25 },
+        { startAt: at("2026-08-06", 13), size: 4, points: 25 },
+        { startAt: at("2026-08-06", 16), size: 4, points: 25 },
+      ],
+      1,
+    );
+    expect(lines.filter((l) => l.counted)).toHaveLength(2);
+  });
+
+  it("sums counted points to the same total the engine computes", () => {
+    const awards = [
+      { startAt: at("2026-08-05", 13), size: 4, points: 25 },
+      { startAt: at("2026-08-05", 16), size: 31, points: 200 },
+      { startAt: at("2026-08-05", 19), size: 15, points: 100 },
+      { startAt: at("2026-08-05", 22), size: 8, points: 50 },
+    ];
+    const lines = buildClusterLines(awards, 3);
+    const total = lines.reduce((s, l) => s + (l.counted ? l.points : 0), 0);
+    expect(total).toBe(350);
+  });
+
+  it("ignores awards outside the con days", () => {
+    const lines = buildClusterLines(
+      [{ startAt: Date.parse("2026-07-04T19:00:00Z"), size: 9, points: 50 }],
+      3,
+    );
+    expect(lines).toEqual([]);
+  });
+
+  it("orders newest first", () => {
+    const lines = buildClusterLines(
+      [
+        { startAt: at("2026-08-05", 13), size: 4, points: 25 },
+        { startAt: at("2026-08-07", 13), size: 4, points: 25 },
+      ],
+      3,
+    );
+    expect(lines[0].day).toBe("2026-08-07");
   });
 });

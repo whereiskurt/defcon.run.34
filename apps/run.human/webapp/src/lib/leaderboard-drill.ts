@@ -8,6 +8,7 @@
  * and the `getCachedDrill` wiring; this module only shapes already-fetched
  * rows so it stays trivially unit-testable.
  */
+import { conLocalDate, isConDay } from "./con-days";
 
 export type SocialDayLine = { day: string; count: number; points: number };
 
@@ -193,4 +194,63 @@ export function injectCheckinLocations<T extends LocatableRow>(
       },
     };
   });
+}
+
+/** One cluster check-in award, as the drill renders it. */
+export type ClusterLine = {
+  /** Cluster start, epoch ms. */
+  startAt: number;
+  /** Con-local day the cluster fell on. */
+  day: string;
+  /** Distinct runners in the cluster. */
+  size: number;
+  /** Points the award is worth. */
+  points: number;
+  /** False when the per-day cap dropped it — the UI says so rather than lying. */
+  counted: boolean;
+};
+
+type ClusterAwardLike = {
+  startAt: number;
+  size?: number;
+  points?: number;
+};
+
+/**
+ * Roll a runner's cluster awards into drill lines, marking which ones the
+ * per-day cap actually counted.
+ *
+ * MIRRORS `scoring-engine.clusterBonusPoints`: group by con-local day, keep the
+ * BEST `cap` by points. Ties break on the earlier cluster so the marking is
+ * deterministic; the TOTAL is identical either way. Newest first for display.
+ */
+export function buildClusterLines(
+  awards: ClusterAwardLike[],
+  cap: number,
+): ClusterLine[] {
+  const byDay = new Map<string, ClusterLine[]>();
+
+  for (const a of awards) {
+    const day = conLocalDate(a.startAt);
+    if (!isConDay(day)) continue;
+    const line: ClusterLine = {
+      startAt: a.startAt,
+      day,
+      size: a.size ?? 0,
+      points: a.points ?? 0,
+      counted: false,
+    };
+    byDay.set(day, [...(byDay.get(day) ?? []), line]);
+  }
+
+  const out: ClusterLine[] = [];
+  for (const lines of byDay.values()) {
+    const ranked = [...lines].sort(
+      (x, y) => y.points - x.points || x.startAt - y.startAt,
+    );
+    for (const line of ranked.slice(0, Math.max(0, cap))) line.counted = true;
+    out.push(...lines);
+  }
+
+  return out.sort((a, b) => b.startAt - a.startAt);
 }

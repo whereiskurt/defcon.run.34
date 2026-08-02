@@ -8,7 +8,9 @@
 import { RunUser } from "@/entities/run-user";
 import { getAccomplishmentsByUser } from "@/entities/accomplishment";
 import { CtfSolve, CtfScoreEvent } from "@/entities/ctf";
+import { ClusterAward } from "@/entities/cluster";
 import { listCtf } from "@/lib/qr-admin";
+import { getClusterConfig } from "./cluster-config-store";
 import {
   computeUserScore,
   type EngineCtfConfig,
@@ -16,12 +18,14 @@ import {
 } from "./scoring-engine";
 
 export async function rescoreUser(userId: string): Promise<UserScore> {
-  const [accomplishments, solvesResult, eventsResult, ctfRows] =
+  const [accomplishments, solvesResult, eventsResult, ctfRows, awardsResult, clusterCfg] =
     await Promise.all([
       getAccomplishmentsByUser(userId),
       CtfSolve.query.byUser({ user: userId }).go({ pages: "all" }),
       CtfScoreEvent.query.byUser({ user: userId }).go({ pages: "all" }),
       listCtf(),
+      ClusterAward.query.primary({ userId }).go({ pages: "all" }),
+      getClusterConfig(),
     ]);
 
   const configs = new Map<string, EngineCtfConfig>(
@@ -46,6 +50,11 @@ export async function rescoreUser(userId: string): Promise<UserScore> {
       scoredAt: e.scoredAt,
     })),
     configs,
+    clusterAwards: awardsResult.data.map((a) => ({
+      points: a.points ?? 0,
+      startAt: a.startAt,
+    })),
+    clusterCap: clusterCfg.maxPerUserPerDay,
   });
 
   await RunUser.patch({ userId })

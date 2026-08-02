@@ -44,11 +44,22 @@ export type SocialSummary = {
 
 export const EMPTY_SOCIAL: SocialSummary = { days: [], egg: null };
 
+/** One group check-in bonus. `counted: false` = dropped by the per-day cap. */
+export type ClusterLine = {
+  startAt: number;
+  day: string;
+  size: number;
+  points: number;
+  counted: boolean;
+};
+
 /** The full per-runner drill payload. */
 export type Drill = {
   accomplishments: Accomplishment[];
   social: SocialSummary;
   ctf: CtfLine[];
+  /** Absent on payloads cached before the cluster feature shipped. */
+  cluster?: ClusterLine[];
 };
 
 /** epoch-ms → `YYYY-MM-DD HH:MM` (DC33 formatDate, minus seconds). */
@@ -165,10 +176,16 @@ export default function RunnerDrill({
   const runs = drill.accomplishments ?? [];
   const social = drill.social ?? EMPTY_SOCIAL;
   const ctf = drill.ctf ?? [];
+  const cluster = drill.cluster ?? [];
 
   const hasRuns = runs.length > 0;
   const hasSocial = social.days.length > 0 || !!social.egg;
   const hasCtf = ctf.length > 0;
+  const hasCluster = cluster.length > 0;
+
+  // Only COUNTED awards contribute — capped-out ones still render, greyed, so
+  // the total is explainable rather than mysteriously short.
+  const clusterTotal = cluster.reduce((s, c) => s + (c.counted ? c.points : 0), 0);
 
   // Section totals (each entry carries its own full date+time).
   const ctfTotal = ctf.reduce((s, c) => s + c.points, 0);
@@ -268,6 +285,37 @@ export default function RunnerDrill({
                 points={social.egg.points}
               />
             )}
+          </div>
+        </div>
+      )}
+
+      {hasCluster && (
+        <div className="space-y-1.5">
+          <SectionHeading
+            label="Group check-ins"
+            chip={
+              <Chip color="secondary" variant="flat" size="sm" className="shrink-0">
+                +{clusterTotal} 🥕 ·{' '}
+                {cluster.length === 1 ? '1 group' : `${cluster.length} groups`}
+              </Chip>
+            }
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-1.5 items-start">
+            {cluster.map((c) => (
+              <div key={c.startAt} className={c.counted ? undefined : 'opacity-50'}>
+                <TokenCard
+                  icon="👥"
+                  tone="secondary"
+                  name={`Group check-in ×${c.size}`}
+                  meta={
+                    c.counted
+                      ? formatDate(c.startAt)
+                      : `${formatDate(c.startAt)} · over daily cap`
+                  }
+                  points={c.counted ? c.points : 0}
+                />
+              </div>
+            ))}
           </div>
         </div>
       )}

@@ -17,6 +17,7 @@ import { checkQuota } from "@/lib/quota-client";
 import { resolveCheckInPin } from "@/lib/pin-icons";
 import { logEvent } from "@/lib/log-event";
 import { assertNotLockedLive } from "@/lib/live-lockout";
+import { sweepRecentBestEffort } from "@/lib/cluster-sweep";
 
 /**
  * Resolve a check-in by checkinId for the given user.
@@ -121,6 +122,13 @@ export async function POST(req: NextRequest) {
       email: session.user.email ?? undefined,
       meta: { checkinId: checkInItem.checkInId },
     });
+
+    // Cluster bonus (live sweep): a group arriving one-by-one only becomes a
+    // cluster once enough of them have checked in, so every check-in re-runs a
+    // window-bounded sweep and upgrades everyone already in the group. Wired
+    // here rather than in createCheckIn so entities/ never imports lib/rescore.
+    // Fire-and-forget by contract — scoring must never fail the check-in.
+    void sweepRecentBestEffort();
 
     // Get remaining quota for response
     const quotaCheck = await checkQuota(session.user.id, "checkin", 1, tier);
@@ -256,6 +264,11 @@ export async function DELETE(req: NextRequest) {
     }
 
     await deleteCheckIn(session.user.id, item.timestamp, checkinId);
+
+    // A removed check-in can drop a cluster back under minRunners, so the same
+    // window-bounded sweep runs here — the reconcile deletes awards whose
+    // cluster no longer exists.
+    void sweepRecentBestEffort();
 
     return NextResponse.json({ success: true });
   } catch (error) {
