@@ -41,8 +41,6 @@
     let state: ShareState = $state('private');
     let shareUrl = $state('');
     let copied = $state(false);
-    let aggregate = $state(false);
-    let aggregateBusy = $state(false);
 
     // Seed from the file every time the dialog opens. `publishedRouteId` is the
     // authoritative "this is Public" signal; a live token is discovered by
@@ -52,7 +50,6 @@
             error = null;
             shareUrl = '';
             copied = false;
-            aggregate = file.includeInAggregate ?? false;
             state = file.publishedRouteId ? 'public' : 'private';
             void loadExistingLink();
         }
@@ -90,32 +87,6 @@
             error = e instanceof Error ? e.message : 'Could not update sharing';
         } finally {
             busy = false;
-        }
-    }
-
-    // Orthogonal to the three states: anonymity, not sharing. The overlay
-    // carries zero identifying properties.
-    async function toggleAggregate(next: boolean) {
-        if (!file || aggregateBusy) return;
-        aggregateBusy = true;
-        error = null;
-        try {
-            const response = await fetch(
-                `${getApiBase()}/files/${file.fileId}/aggregate-optin`,
-                {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ include: next }),
-                }
-            );
-            if (!response.ok) throw new Error('Could not update the overlay opt-in');
-            aggregate = next;
-            onStateChange?.();
-        } catch (e) {
-            error = e instanceof Error ? e.message : 'Could not update the overlay opt-in';
-        } finally {
-            aggregateBusy = false;
         }
     }
 
@@ -223,25 +194,6 @@
                 </div>
             {/if}
 
-            <!-- Orthogonal to the three states above: this is anonymity, not
-                 sharing. The overlay carries zero identifying properties. -->
-            <div class="pt-4 border-t">
-                <label class="flex items-start gap-2 cursor-pointer text-sm">
-                    <input
-                        type="checkbox"
-                        class="mt-0.5"
-                        checked={aggregate}
-                        disabled={aggregateBusy}
-                        onchange={(e) => toggleAggregate(e.currentTarget.checked)}
-                    />
-                    <span>
-                        Also blend into the anonymous heat overlay
-                        <span class="block text-xs text-muted-foreground">
-                            Adds the shape only — no name, no link back to you.
-                        </span>
-                    </span>
-                </label>
-            </div>
         </div>
     </Dialog.Content>
 </Dialog.Root>

@@ -119,8 +119,16 @@ export interface CloudFile {
   // routes spec). Its presence is the client-side "this row is Public" signal
   // and gates the auto-save resync, so unpublished routes pay nothing.
   publishedRouteId?: string;
-  // Opt-in to the anonymous aggregate overlay. Orthogonal to share state: this
-  // is anonymity, not sharing.
+  // Opt-in to the Phase 32 "All Runners" aggregate overlay — NOT the heat map,
+  // which ignores this flag entirely and covers every con-day run.
+  //
+  // NO LONGER SETTABLE (2026-08-01). The Share dialog briefly carried a checkbox
+  // for it mislabelled as the heat overlay; it was removed because the heat map
+  // is deliberately not an owner choice. Nothing has ever opted in (verified:
+  // zero rows true in prod), so `/api/gpx/public/aggregate` returns an empty
+  // FeatureCollection and public-overlays.ts skips adding the layer at all when
+  // there are no features — which is why that layer appears not to exist. The
+  // endpoint and this field are left in place; they are inert, not broken.
   includeInAggregate?: boolean;
   createdAt: number;
   updatedAt: number;

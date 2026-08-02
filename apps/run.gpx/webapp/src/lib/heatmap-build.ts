@@ -44,6 +44,8 @@ export type HeatmapRunRow = {
   conDay?: string;
   stravaActivityId?: string;
   createdAt: number;
+  /** Admin moderation pull — see the entity comment and isSelected below. */
+  heatmapHidden?: boolean;
 };
 
 export type BuildDeps = {
@@ -119,7 +121,7 @@ async function defaultListRuns(): Promise<HeatmapRunRow[]> {
   const scan = await GpxFile.scan
     .where(
       (attr, op) =>
-        `${op.eq(attr.status, "active")} AND ${op.exists(attr.conDay)} AND ${op.ne(attr.userId, "GLOBAL")}`
+        `${op.eq(attr.status, "active")} AND ${op.exists(attr.conDay)} AND ${op.ne(attr.userId, "GLOBAL")} AND (${op.notExists(attr.heatmapHidden)} OR ${op.eq(attr.heatmapHidden, false)})`
     )
     .go({ pages: "all" });
   return scan.data as unknown as HeatmapRunRow[];
@@ -159,7 +161,13 @@ function isSelected(r: HeatmapRunRow): boolean {
     r.status === "active" &&
     !!r.conDay &&
     CON_DAY_DATES.has(r.conDay) &&
-    r.userId !== "GLOBAL"
+    r.userId !== "GLOBAL" &&
+    // ADMIN moderation pull. This is NOT the owner opt-in predicate removed by
+    // D-03 above — that one was `includeInAggregate`, and restoring it is still
+    // forbidden. This flag is only ever set by an admin through
+    // /api/gpx/admin/heatmap to take down an abusive shape, and defaults absent
+    // so it excludes nothing until someone acts.
+    r.heatmapHidden !== true
   );
 }
 
