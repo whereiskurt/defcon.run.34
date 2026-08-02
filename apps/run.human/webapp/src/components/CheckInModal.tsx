@@ -16,6 +16,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTheme } from 'next-themes';
 import { apiUrl } from '@/lib/api';
+import { useGpsSamples } from '@/hooks/useGpsSamples';
+import { SAMPLE_TARGET } from '@/lib/gps-samples';
+import { GPS_UNAVAILABLE_MESSAGE } from '@/lib/quick-checkin';
 import PinPicker, { type PinOption } from '@/components/profile/PinPicker';
 import dynamic from 'next/dynamic';
 import 'leaflet/dist/leaflet.css';
@@ -50,13 +53,6 @@ function zoomForAccuracy(radiusMeters: number, lat: number): number {
   return Math.min(Math.max(Math.round(z), 10), 18);
 }
 
-interface GpsSample {
-  latitude: number;
-  longitude: number;
-  accuracy: number;
-  timestamp: number;
-}
-
 /** Services allowed to type coordinates instead of using browser GPS. */
 const MANUAL_COORD_SERVICES = ['admin', 'runadmin', 'gpxadmin'];
 
@@ -83,6 +79,9 @@ interface CheckInModalProps {
 
 type Phase = 'collecting' | 'ready' | 'submitting' | 'success' | 'error';
 
+/** The half of Phase this component owns; the rest comes from useGpsSamples. */
+type SubmitPhase = 'idle' | 'submitting' | 'success' | 'error';
+
 export default function CheckInModal({
   isOpen,
   onClose,
@@ -94,10 +93,20 @@ export default function CheckInModal({
   const { data: session } = useSession();
   const services: string[] = (session?.user as { services?: string[] } | undefined)?.services ?? [];
   const canManualCoords = MANUAL_COORD_SERVICES.some((s) => services.includes(s));
-  const [phase, setPhase] = useState<Phase>('collecting');
-  const [samples, setSamples] = useState<GpsSample[]>([]);
-  const [sampleCount, setSampleCount] = useState(0);
-  const [bestAccuracy, setBestAccuracy] = useState<number | null>(null);
+  // GPS sampling lives in the shared hook; this component owns only the
+  // submit half of Phase and composes the two for render.
+  const { phase: gpsPhase, samplesRef, sampleCount, bestAccuracy, restart } =
+    useGpsSamples(isOpen, {
+      // The hook reports the failure; the wording stays this component's.
+      onError: () => setErrorMessage(GPS_UNAVAILABLE_MESSAGE),
+    });
+  const [submitPhase, setSubmitPhase] = useState<SubmitPhase>('idle');
+  const phase: Phase =
+    submitPhase !== 'idle'
+      ? (submitPhase as Phase)
+      : gpsPhase === 'error'
+        ? 'error'
+        : gpsPhase;
   const [isPrivate, setIsPrivate] = useState(checkinPreference === 'private');
   const [quotaRemaining, setQuotaRemaining] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -115,80 +124,27 @@ export default function CheckInModal({
 
   const isOpenRef = useRef(false);
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const samplesRef = useRef<GpsSample[]>([]);
 
-  const resetState = useCallback(() => {
-    setPhase('collecting');
-    setSamples([]);
-    setSampleCount(0);
-    setBestAccuracy(null);
+  // Plain function, not useCallback: it is only called from event handlers now
+  // (never an effect dependency), and hand-memoizing it is something the React
+  // Compiler cannot preserve.
+  const resetState = () => {
+    setSubmitPhase('idle');
     setIsPrivate(checkinPreference === 'private');
     setQuotaRemaining(null);
     setErrorMessage(null);
     setManualCoords('');
     setShowManualCoords(false);
-    samplesRef.current = [];
-  }, [checkinPreference]);
+  };
 
   const clearTimeouts = useCallback(() => {
     timeoutsRef.current.forEach(clearTimeout);
     timeoutsRef.current = [];
   }, []);
 
-  const collectGps = useCallback(() => {
-    if (!navigator.geolocation) {
-      setPhase('error');
-      setErrorMessage('Location unavailable -- enable GPS and try again');
-      return;
-    }
-
-    let collected = 0;
-
-    const takeSample = () => {
-      if (!isOpenRef.current) return;
-
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          if (!isOpenRef.current) return;
-
-          const sample: GpsSample = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-            timestamp: Date.now(),
-          };
-
-          samplesRef.current = [...samplesRef.current, sample];
-          collected++;
-          setSamples([...samplesRef.current]);
-          setSampleCount(collected);
-
-          if (collected >= 3) {
-            const best = Math.min(...samplesRef.current.map((s) => s.accuracy));
-            setBestAccuracy(best);
-            setPhase('ready');
-          } else {
-            const t = setTimeout(takeSample, 667);
-            timeoutsRef.current.push(t);
-          }
-        },
-        () => {
-          if (!isOpenRef.current) return;
-          setPhase('error');
-          setErrorMessage('Location unavailable -- enable GPS and try again');
-        },
-        { enableHighAccuracy: true, timeout: 10000 },
-      );
-    };
-
-    takeSample();
-  }, []);
-
   useEffect(() => {
     if (isOpen) {
       isOpenRef.current = true;
-      resetState();
-      setShowPinPicker(false);
       // Refresh the allowed pins + profile default each open (cheap, auth'd).
       fetch(apiUrl('/api/checkins/pin-options'))
         .then((r) => (r.ok ? r.json() : null))
@@ -199,8 +155,6 @@ export default function CheckInModal({
           setPinColor(data.pinColor);
         })
         .catch(() => {});
-      const t = setTimeout(() => collectGps(), 100);
-      timeoutsRef.current.push(t);
     } else {
       isOpenRef.current = false;
       clearTimeouts();
@@ -209,15 +163,20 @@ export default function CheckInModal({
     return () => {
       clearTimeouts();
     };
-  }, [isOpen, resetState, collectGps, clearTimeouts]);
+  }, [isOpen, clearTimeouts]);
 
-  const handleClose = useCallback(() => {
+  const handleClose = () => {
     if (phase === 'submitting') return;
+    // Reset on the way out rather than on the way in: same "fresh every open"
+    // result, but the state writes happen in an event handler instead of an
+    // effect, so opening no longer costs a cascading render.
+    resetState();
+    setShowPinPicker(false);
     onClose();
-  }, [phase, onClose]);
+  };
 
   const handleSubmit = async () => {
-    setPhase('submitting');
+    setSubmitPhase('submitting');
     try {
       // Manual override (admins only): one synthetic sample at the typed
       // coordinates. The server accepts any valid non-empty sample list; the
@@ -238,44 +197,45 @@ export default function CheckInModal({
       });
 
       if (res.status === 429) {
-        setPhase('error');
+        setSubmitPhase('error');
         setErrorMessage('Check-in limit reached for today');
         return;
       }
 
       if (!res.ok) {
-        setPhase('error');
+        setSubmitPhase('error');
         setErrorMessage('Something went wrong');
         return;
       }
 
       const data = await res.json();
       setQuotaRemaining(data.quota?.remaining ?? null);
-      setPhase('success');
+      setSubmitPhase('success');
       window.dispatchEvent(new Event('checkin-created'));
 
       const t = setTimeout(() => {
         if (isOpenRef.current) {
+          resetState(); // auto-close bypasses handleClose; reset here too
+          setShowPinPicker(false);
           onClose();
           onCheckInComplete?.();
         }
       }, 1500);
       timeoutsRef.current.push(t);
     } catch {
-      setPhase('error');
+      setSubmitPhase('error');
       setErrorMessage('Something went wrong');
     }
   };
 
   const handleRetry = () => {
-    if (phase === 'error' && samplesRef.current.length === 3) {
-      // Retry submit with existing samples
+    if (samplesRef.current.length === SAMPLE_TARGET) {
+      // The fix is good; the submit is what failed.
       handleSubmit();
     } else {
       // Retry GPS collection
       resetState();
-      const t = setTimeout(() => collectGps(), 100);
-      timeoutsRef.current.push(t);
+      restart();
     }
   };
 
@@ -296,11 +256,11 @@ export default function CheckInModal({
               {phase === 'collecting' && (
                 <div className="flex flex-col gap-3">
                   <Progress
-                    value={(sampleCount / 3) * 100}
+                    value={(sampleCount / SAMPLE_TARGET) * 100}
                     color="primary"
                     label="Collecting GPS..."
                     showValueLabel
-                    valueLabel={`${sampleCount}/3`}
+                    valueLabel={`${sampleCount}/${SAMPLE_TARGET}`}
                     className="w-full"
                   />
                 </div>

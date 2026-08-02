@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { useLogout } from '@/hooks/useLogout';
 import { Card, CardBody, Divider, Button, Chip, Avatar, Skeleton, Input } from '@heroui/react';
-import { LogOut, ChevronRight, ChevronDown, RefreshCw, Pencil, Check, X, Download, Camera, Footprints, Trophy } from 'lucide-react';
+import { LogOut, ChevronRight, ChevronDown, RefreshCw, Pencil, Check, X, Download, Camera, Footprints, Trophy, MapPin } from 'lucide-react';
 import { SiStrava, SiDiscord, SiGithub } from 'react-icons/si';
 import MeshtasticRadios from '@/components/profile/MeshtasticRadios';
 import CheckInHistory from '@/components/profile/CheckInHistory';
@@ -14,6 +14,7 @@ import StyledRunnerQr from '@/components/qr/StyledRunnerQr';
 import SocialQrFlair, { type SocialInfo } from '@/components/qr/SocialQrFlair';
 import QrCardModal from '@/components/qr/QrCardModal';
 import QrScannerModal from '@/components/qr/QrScannerModal';
+import QuickCheckInModal from '@/components/QuickCheckInModal';
 import YourStandingModal from '@/components/leaderboard/YourStandingModal';
 import { useCopy } from '@/components/CopyProvider';
 import { usePersistedDisclosure } from '@/hooks/usePersistedDisclosure';
@@ -115,6 +116,7 @@ export default function WhoAmIPage() {
   const [isQROpen, setIsQROpen] = usePersistedDisclosure('social-qr');
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [isQuickCheckInOpen, setIsQuickCheckInOpen] = useState(false);
   const [isStandingOpen, setIsStandingOpen] = useState(false);
   const [isQuotasOpen, setIsQuotasOpen] = usePersistedDisclosure('quotas');
   const [isDebugOpen, setIsDebugOpen] = usePersistedDisclosure('debug');
@@ -386,7 +388,8 @@ export default function WhoAmIPage() {
               </a>
               {/* The camera, promoted out of the collapsed QR panel — scanning
                   another runner is the headline social act, not a sub-feature
-                  of your own QR. */}
+                  of your own QR. Labelled for the outcome ("Connect"), not the
+                  mechanism ("Scan"). */}
               <Button
                 color="primary"
                 variant="bordered"
@@ -395,7 +398,21 @@ export default function WhoAmIPage() {
                 startContent={<Camera className="w-4 h-4 sm:w-5 sm:h-5" />}
                 onPress={() => setIsScannerOpen(true)}
               >
-                {copyOr('socialqr.scan.button', 'Scan a runner')}
+                {copyOr('socialqr.scan.button', 'Connect')}
+              </Button>
+              {/* One tap to mark that you were here. No privacy or pin controls:
+                  the server applies this runner's profile defaults, and the
+                  Check-ins card "+" is still the way to override either for a
+                  single check-in. */}
+              <Button
+                color="primary"
+                variant="bordered"
+                radius="full"
+                className="font-semibold"
+                startContent={<MapPin className="w-4 h-4 sm:w-5 sm:h-5" />}
+                onPress={() => setIsQuickCheckInOpen(true)}
+              >
+                {copyOr('checkin.quick.button', 'Check-in')}
               </Button>
               {/* Pre-launch this is admin-only; flipping LEADERBOARD_SELF_ENABLED
                   shows it to every runner. Cosmetic gate only — the API behind it
@@ -688,6 +705,11 @@ export default function WhoAmIPage() {
         onClose={() => setIsScannerOpen(false)}
         copy={scanCopy}
         attendanceAvailable={!!userData?.social?.attendance}
+      />
+      <QuickCheckInModal
+        isOpen={isQuickCheckInOpen}
+        onClose={() => setIsQuickCheckInOpen(false)}
+        checkinPreference={userData?.preferences?.checkinPreference}
       />
       {(LEADERBOARD_SELF_ENABLED || isAdmin) && (
         <YourStandingModal
