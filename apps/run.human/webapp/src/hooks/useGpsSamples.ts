@@ -12,15 +12,30 @@ import {
 
 export type GpsPhase = 'collecting' | 'ready' | 'error';
 
+export interface UseGpsSamplesOptions {
+  /** The fix landed. Fired from the geolocation callback, not an effect. */
+  onReady?: (samples: GpsSample[]) => void;
+  /** Geolocation is unavailable or was denied. */
+  onError?: () => void;
+}
+
 /**
  * Collects SAMPLE_TARGET GPS fixes while `isActive`, then reports 'ready'.
  * Extracted from CheckInModal so the full and quick check-in modals share one
  * sampling implementation -- a GPS bug now has a single place to be fixed.
  *
+ * Outcomes are pushed to onReady/onError rather than left for the caller to
+ * watch with an effect: reacting to `phase` from a consumer effect means a
+ * cascading render on every fix (react-hooks/set-state-in-effect).
+ *
  * Every async callback is guarded by activeRef so a closed modal never writes
  * state, and all pending timers are cleared on deactivate and on unmount.
  */
-export function useGpsSamples(isActive: boolean) {
+export function useGpsSamples(isActive: boolean, options: UseGpsSamplesOptions = {}) {
+  // Held in a ref so a caller passing inline closures does not restart sampling.
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+
   const [phase, setPhase] = useState<GpsPhase>('collecting');
   const [samples, setSamples] = useState<GpsSample[]>([]);
   const [sampleCount, setSampleCount] = useState(0);
@@ -38,6 +53,7 @@ export function useGpsSamples(isActive: boolean) {
   const collect = useCallback(() => {
     if (!navigator.geolocation) {
       setPhase('error');
+      optionsRef.current.onError?.();
       return;
     }
 
@@ -58,6 +74,7 @@ export function useGpsSamples(isActive: boolean) {
           if (collected >= SAMPLE_TARGET) {
             setBestAccuracy(bestAccuracyOf(samplesRef.current));
             setPhase('ready');
+            optionsRef.current.onReady?.(samplesRef.current);
           } else {
             timeoutsRef.current.push(setTimeout(takeSample, SAMPLE_INTERVAL_MS));
           }
@@ -65,6 +82,7 @@ export function useGpsSamples(isActive: boolean) {
         () => {
           if (!activeRef.current) return;
           setPhase('error');
+          optionsRef.current.onError?.();
         },
         GEO_OPTIONS,
       );

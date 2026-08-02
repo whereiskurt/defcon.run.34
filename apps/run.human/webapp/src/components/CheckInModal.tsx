@@ -95,8 +95,11 @@ export default function CheckInModal({
   const canManualCoords = MANUAL_COORD_SERVICES.some((s) => services.includes(s));
   // GPS sampling lives in the shared hook; this component owns only the
   // submit half of Phase and composes the two for render.
-  const { phase: gpsPhase, samples, samplesRef, sampleCount, bestAccuracy, restart } =
-    useGpsSamples(isOpen);
+  const { phase: gpsPhase, samplesRef, sampleCount, bestAccuracy, restart } =
+    useGpsSamples(isOpen, {
+      // The hook reports the failure; the wording stays this component's.
+      onError: () => setErrorMessage(GPS_UNAVAILABLE_MESSAGE),
+    });
   const [submitPhase, setSubmitPhase] = useState<SubmitPhase>('idle');
   const phase: Phase =
     submitPhase !== 'idle'
@@ -122,14 +125,17 @@ export default function CheckInModal({
   const isOpenRef = useRef(false);
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  const resetState = useCallback(() => {
+  // Plain function, not useCallback: it is only called from event handlers now
+  // (never an effect dependency), and hand-memoizing it is something the React
+  // Compiler cannot preserve.
+  const resetState = () => {
     setSubmitPhase('idle');
     setIsPrivate(checkinPreference === 'private');
     setQuotaRemaining(null);
     setErrorMessage(null);
     setManualCoords('');
     setShowManualCoords(false);
-  }, [checkinPreference]);
+  };
 
   const clearTimeouts = useCallback(() => {
     timeoutsRef.current.forEach(clearTimeout);
@@ -139,8 +145,6 @@ export default function CheckInModal({
   useEffect(() => {
     if (isOpen) {
       isOpenRef.current = true;
-      resetState();
-      setShowPinPicker(false);
       // Refresh the allowed pins + profile default each open (cheap, auth'd).
       fetch(apiUrl('/api/checkins/pin-options'))
         .then((r) => (r.ok ? r.json() : null))
@@ -159,17 +163,17 @@ export default function CheckInModal({
     return () => {
       clearTimeouts();
     };
-  }, [isOpen, resetState, clearTimeouts]);
+  }, [isOpen, clearTimeouts]);
 
-  // The hook reports the GPS failure; the message stays this component's.
-  useEffect(() => {
-    if (gpsPhase === 'error') setErrorMessage(GPS_UNAVAILABLE_MESSAGE);
-  }, [gpsPhase]);
-
-  const handleClose = useCallback(() => {
+  const handleClose = () => {
     if (phase === 'submitting') return;
+    // Reset on the way out rather than on the way in: same "fresh every open"
+    // result, but the state writes happen in an event handler instead of an
+    // effect, so opening no longer costs a cascading render.
+    resetState();
+    setShowPinPicker(false);
     onClose();
-  }, [phase, onClose]);
+  };
 
   const handleSubmit = async () => {
     setSubmitPhase('submitting');
@@ -211,6 +215,8 @@ export default function CheckInModal({
 
       const t = setTimeout(() => {
         if (isOpenRef.current) {
+          resetState(); // auto-close bypasses handleClose; reset here too
+          setShowPinPicker(false);
           onClose();
           onCheckInComplete?.();
         }
