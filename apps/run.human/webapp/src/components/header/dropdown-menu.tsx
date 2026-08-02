@@ -17,6 +17,7 @@ import { FaUserAlt } from 'react-icons/fa';
 import { PiPersonSimpleRun } from 'react-icons/pi';
 import { FiDollarSign, FiShield } from 'react-icons/fi';
 import { useCopy } from '../CopyProvider';
+import { gpxMapUrl } from '@/lib/gpx-map';
 
 const iconClasses = 'text-lg text-default-400 pointer-events-none flex-shrink-0';
 
@@ -78,7 +79,7 @@ const MenuDropDown = (params: any) => {
             textValue="maps"
             startContent={<GrMapLocation className={iconClasses} />}
             key="maps"
-            onClick={() => { setIsOpen(false); window.open('https://gpx.defcon.run', '_blank'); }}
+            onClick={() => { setIsOpen(false); window.open(gpxMapUrl(), '_blank'); }}
           >
             <span className="text-base">{t('common.header.maps')}</span>
           </DropdownItem>

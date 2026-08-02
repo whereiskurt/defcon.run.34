@@ -13,6 +13,7 @@ import {
     setLayersVisible,
     storedVisible,
 } from '$lib/stores/layer-visibility';
+import { requestedLayers } from '$lib/stores/layer-url';
 
 /**
  * "My DEF CON Runs" — the signed-in runner's own con-day-tagged files, rendered
@@ -108,6 +109,13 @@ export class MyConRunsLayer {
     private routeBounds = new Map<string, [[number, number], [number, number]]>();
     // conDay -> fixed color (all runs of one day share a hue).
     private dayColor = new Map<string, string>();
+    // A `?layers=` deep link names an EXACT set (stores/layer-url.ts) and has no token
+    // that can name a con run, so an override means every run starts hidden — the link
+    // then renders the same for a signed-in runner as for anyone else. Captured at
+    // construction and CONSUMED BY THE FIRST LOAD: `reload()` (the post-import refresh)
+    // re-reads visibility, and re-forcing there would silently clobber a run the runner
+    // turned on after landing.
+    private urlOverride = requestedLayers() !== null;
 
     constructor(map: mapboxgl.Map) {
         this.map = map;
@@ -211,7 +219,7 @@ export class MyConRunsLayer {
                 .map((r) => ({
                     fileId: r.fileId,
                     fileName: r.fileName,
-                    visible: storedVisible(conRunLayer(r.fileId), false),
+                    visible: this.urlOverride ? false : storedVisible(conRunLayer(r.fileId), false),
                 }));
             return {
                 conDay,
@@ -232,6 +240,15 @@ export class MyConRunsLayer {
         }
 
         this.loaded = true;
+        // Write the forced-off state through so store and map agree, then drop the
+        // override — from here the runner's own toggles are the only authority.
+        if (this.urlOverride) {
+            this.urlOverride = false;
+            setLayersVisible(
+                manifest.map((r) => conRunLayer(r.fileId)),
+                false
+            );
+        }
         myConRunGroups.set(groups);
         // Authoritative manifest in hand — forget stored ids whose run is gone.
         pruneLayerVisibility(

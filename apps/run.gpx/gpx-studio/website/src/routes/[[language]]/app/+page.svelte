@@ -27,6 +27,7 @@
     import { openShareAcceptDialog } from '$lib/components/cloud/utils.svelte';
     import { autoSaveManager } from '$lib/auto-save';
     import { quickStartOpen } from '$lib/stores/quickstart';
+    import { requestedLayers } from '$lib/stores/layer-url';
 
     const {
         autoSaveEnabled,
@@ -72,6 +73,15 @@
         if (page.url.searchParams.has('addrun')) {
             quickStartOpen.set(true);
         }
+
+        // Deep link ?layers=routes,rabbits,heat:dc34,… preselects an EXACT set of map
+        // layers (stores/layer-url.ts). Resolved here rather than applied: each layer
+        // family reads the selection at its own seeding point, off the map's async
+        // `load`, which is the only place the folder aliases can expand and the only
+        // place the answer cannot be overwritten afterwards. Pinning it now is still
+        // worth doing — it locks the selection to the URL the visitor arrived on, so a
+        // client-side navigation cannot change what a still-seeding layer resolves to.
+        requestedLayers();
 
         // Auto-save is always on — the menu toggle is gone. Force the persisted
         // setting true rather than merely ignoring it: anyone who switched it

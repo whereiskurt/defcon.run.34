@@ -1,6 +1,7 @@
 import mapboxgl from 'mapbox-gl';
 import { writable } from 'svelte/store';
 import { LAYER, setLayerVisible, storedVisible } from '$lib/stores/layer-visibility';
+import { requestedLayers } from '$lib/stores/layer-url';
 
 /**
  * HeatmapLayer — the DC33 / DC34 stacked-flame heat layers (Phase 71, HEAT-04).
@@ -267,13 +268,23 @@ export class HeatmapLayer {
      */
     async loadMeta(): Promise<void> {
         const metas = await Promise.all(HEAT_YEARS.map((year) => this.fetchMeta(year)));
+        // `?layers=heat:dc34` names an EXACT set (see stores/layer-url.ts), so it decides
+        // BOTH directions here — a year it does not name goes off even if stored on.
+        // Read at this seeding point, which is the last word on a year's visibility:
+        // nothing else writes it until the runner touches the row themselves.
+        const requested = requestedLayers();
 
         const next = blankState();
         HEAT_YEARS.forEach((year, i) => {
             const meta = metas[i];
             const available = meta !== null;
-            // A stored ON for a year that no longer exists must not resurrect it.
-            const visible = available && storedVisible(HEAT_STORE_ID[year], false);
+            // A stored (or deep-linked) ON for a year that no longer exists must not
+            // resurrect it.
+            const visible =
+                available &&
+                (requested
+                    ? requested.keys.has(HEAT_STORE_ID[year])
+                    : storedVisible(HEAT_STORE_ID[year], false));
             next[year] = {
                 available,
                 visible,
@@ -289,6 +300,14 @@ export class HeatmapLayer {
         // would read as a user toggle and rewrite the persisted collapse state. Same
         // reasoning as `public-overlays.ts` addAggregate and `community-routes.ts`.
         heatmapState.set(next);
+
+        // A deep-linked set is written through to the persisted store so store and map
+        // agree. Only for years that exist — a key for an unbuilt year would be junk.
+        if (requested) {
+            for (const year of HEAT_YEARS) {
+                if (next[year].available) setLayerVisible(HEAT_STORE_ID[year], next[year].visible);
+            }
+        }
 
         // Restored-ON years load their geometry in the background. Deliberately not
         // awaited and deliberately no second store write — the state above is already

@@ -109,7 +109,8 @@
       "Bash(jq:*)",
       "Bash(bun --version:*)",
       "Bash(pkill:*)",
-      "Bash(bash -n:*)"
+      "Bash(bash -n:*)",
+      "Bash(PUBLIC_MAPBOX_TOKEN=pk.dummy npm run build)"
     ],
     "deny": [],
     "ask": []
