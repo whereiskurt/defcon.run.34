@@ -73,14 +73,13 @@
             quickStartOpen.set(true);
         }
 
-        // Wire up auto-save setting to manager
-        const unsubscribeAutoSave = autoSaveEnabled.subscribe((enabled) => {
-            autoSaveManager.setEnabled(enabled);
-        });
-
-        return () => {
-            unsubscribeAutoSave();
-        };
+        // Auto-save is always on — the menu toggle is gone. Force the persisted
+        // setting true rather than merely ignoring it: anyone who switched it
+        // off while the toggle existed still has `false` in IndexedDB, and
+        // without this heal they would silently never sync again with no UI
+        // left to fix it.
+        autoSaveEnabled.set(true);
+        autoSaveManager.setEnabled(true);
     });
 
     onDestroy(() => {
