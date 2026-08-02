@@ -14,6 +14,17 @@
  *   DYNAMODB_ACCESS_KEY=... DYNAMODB_SECRET_KEY=... \
  *   S3_UPLOADS_BUCKET=... S3_UPLOADS_ACCESS_KEY=... S3_UPLOADS_SECRET_KEY=... \
  *   npx tsx scripts/import-dc33.ts
+ *
+ * ⚠️ RE-RUNNING THIS REVERTS A HAND-APPLIED PROD FIX (2026-08-02).
+ * Three routes — north_5276453c29, south_0b4e77ffac, west_4ba676aaaa — arrived from DC33
+ * as route-only GPX (`<rte>/<rtept>`, creator Aspose.Gis, no `<trk>`). Garmin devices do
+ * not render those, and `boundsOf()` below returns undefined for them, so their overlay
+ * layers could not fit-to-bounds. They were converted to `<trk>/<trkseg>/<trkpt>` by hand
+ * and written straight into prod S3 + DynamoDB; the geometry is unchanged, only the
+ * container. The upstream DC33 repo still serves the BROKEN originals, and the deterministic
+ * fileId means the `put` below is an upsert — so an unguarded re-import silently restores
+ * the route-only versions. Before re-running, either re-apply those three files afterwards
+ * (originals are backed up at uploads/GLOBAL/gpx/_backup-rte-20260802/) or fix them upstream.
  */
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { GpxFolder } from "../src/entities/gpx-folder";
@@ -56,6 +67,13 @@ function displayName(fileName: string): string {
   return base.replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+// NOTE: matches `<trkpt>` ONLY. A route-only GPX (`<rte>/<rtept>`) or a waypoint-only one
+// (`<wpt>`) yields zero points here, so `bounds` lands undefined and the public overlay
+// serves that route with a null bounds — it renders, but cannot fit-to-bounds. This bit
+// north/south/west (see the header warning) and still affects history_7cd9eb0707, which is
+// waypoint-only. Widening the regex is safe for bounds, but do not assume it fixes
+// `trackCount` (hardcoded to 1 below) or the distance/elevation fields (never computed —
+// totalDistance/totalElevation are 0 on every imported route).
 function boundsOf(gpx: string) {
   const re = /<trkpt[^>]*\blat="([-\d.]+)"[^>]*\blon="([-\d.]+)"/g;
   let m: RegExpExecArray | null;
