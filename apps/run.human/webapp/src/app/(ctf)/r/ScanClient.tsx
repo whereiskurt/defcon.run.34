@@ -6,6 +6,7 @@ import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { UserPlus, ScanLine } from "lucide-react";
 import { useCopy } from "@/components/CopyProvider";
+import BibPickupCard from "@/components/bib/BibPickupCard";
 
 const isDev = process.env.NODE_ENV !== "production";
 const region = process.env.NEXT_PUBLIC_REGION_SHORT || "use1";
@@ -19,9 +20,16 @@ interface Props {
   h?: string;
 }
 
+type BibPickup = {
+  nameOnBib: string;
+  runnerCode: string;
+  hasSponsored: boolean;
+};
+
 type ScanState =
   | { phase: "loading" }
   | { phase: "success"; ownerName: string; remainingToday: number }
+  | { phase: "pickup"; bib: BibPickup; points: number }
   | { phase: "error"; code: string; message: string };
 
 /**
@@ -60,7 +68,11 @@ export default function ScanClient({ mode, p, h }: Props) {
           body: JSON.stringify({ p, h }),
         });
         const json = await res.json();
-        if (res.ok) {
+        // Bib pickup is a 200 like an ordinary pair, so it MUST be checked
+        // before the generic res.ok branch or it would render as "connected".
+        if (res.ok && json.code === "bib_pickup") {
+          setState({ phase: "pickup", bib: json.bib, points: json.points ?? 0 });
+        } else if (res.ok) {
           setState({
             phase: "success",
             ownerName: json.ownerName,
@@ -116,6 +128,18 @@ export default function ScanClient({ mode, p, h }: Props) {
                 {copyOr("socialqr.loading", "Connecting…")}
               </p>
             </>
+          ) : state.phase === "pickup" ? (
+            <BibPickupCard
+              nameOnBib={state.bib.nameOnBib}
+              runnerCode={state.bib.runnerCode}
+              hasSponsored={state.bib.hasSponsored}
+              points={state.points}
+              title={copyOr("bibpickup.title", "Bib Pickup!")}
+              subtitle={copyOr(
+                "bibpickup.body",
+                "This is your bib - show this screen to the volunteer."
+              )}
+            />
           ) : state.phase === "success" ? (
             <>
               <p className="text-4xl leading-none">🐰🤝🐰</p>
