@@ -12,13 +12,18 @@ import {
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, MapPin, Footprints, Camera } from "lucide-react";
 
 import { EggTrigger } from "@/components/EggTrigger";
 import SocialQRRow from "@/components/profile/SocialQRRow";
 import { useCopy } from "@/components/CopyProvider";
+import QuickCheckInModal from "@/components/QuickCheckInModal";
+import QrScannerModal from "@/components/qr/QrScannerModal";
 import { DEFAULT_STRAVA_GROUP_URL, DEFAULT_SIGNAL_GROUP_URL } from "@/lib/social-groups";
 import { gpxMapUrl } from "@/lib/gpx-map";
+import { gpxAddRunUrl } from "@/lib/gpx-addrun";
+import { buildScannerCopy } from "@/lib/scanner-copy";
+import { apiUrl } from "@/lib/api";
 
 const isDev = process.env.NODE_ENV !== "production";
 const region = process.env.NEXT_PUBLIC_REGION_SHORT || "use1";
@@ -177,17 +182,55 @@ function WelcomeContent({ userName }: { userName: string }) {
   const stravaGroupUrl = asUrl('socials.strava_group_url') || DEFAULT_STRAVA_GROUP_URL;
   const signalGroupUrl = asUrl('socials.signal_group_url') || DEFAULT_SIGNAL_GROUP_URL;
 
+  const [isQuickCheckInOpen, setIsQuickCheckInOpen] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  // Cosmetic only. QuickCheckInModal uses checkinPreference to pick private vs
+  // public wording and QrScannerModal uses attendance to show the admin
+  // toggle. The check-in POSTs exactly {samples, source} and the server
+  // resolves privacy from the stored preference, so a slow or failed fetch can
+  // show the wrong wording for a moment but can NEVER make a private runner
+  // public. Do not gate the buttons on this.
+  const [checkinPreference, setCheckinPreference] = useState<string>();
+  const [attendanceAvailable, setAttendanceAvailable] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(apiUrl("/api/user"))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled || !data?.user) return;
+        setCheckinPreference(data.user.preferences?.checkinPreference);
+        setAttendanceAvailable(!!data.user.social?.attendance);
+      })
+      .catch(() => {
+        /* defaults stand; the server still decides the real behaviour */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // t() echoes the raw key when unset, so floor every lookup on a real default.
+  const copyOr = (key: string, fallback: string) => {
+    const v = t(key);
+    return !v || v === key ? fallback : v;
+  };
+  const scanCopy = buildScannerCopy(copyOr);
+
   return (
     <div className="flex flex-col gap-2.5 py-4 animate-slide-up">
-      {/* Full-bleed hero - DC33 group photo, welcome + CTAs inside. */}
-      <Card isFooterBlurred className="w-full h-[420px]">
+      {/* Full-bleed hero - DC33 group photo, welcome + CTAs inside.
+          The photo is absolutely positioned and the content flows, so the card
+          grows with the CTA stack on narrow screens; min-h keeps the original
+          420px on desktop, where the buttons wrap into rows instead. */}
+      <Card isFooterBlurred className="w-full">
         <Image
           removeWrapper
           alt="DC33 defcon.run group at the finish"
           src={asset("/dashboard/defcongroup.jpg")}
-          className="z-0 w-full h-full object-cover brightness-[.55]"
+          className="absolute inset-0 z-0 w-full h-full object-cover brightness-[.55]"
         />
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 text-center px-5">
+        <div className="relative z-10 min-h-[420px] flex flex-col items-center justify-center gap-4 text-center px-5 py-10 pb-14">
           <h1 className="font-museo text-3xl sm:text-4xl font-bold text-white drop-shadow-[0_2px_18px_rgba(0,0,0,0.8)]">
             Welcome back, {userName}
           </h1>
@@ -217,6 +260,39 @@ function WelcomeContent({ userName }: { userName: string }) {
               endContent={<ChevronRight className="w-4 h-4" />}
             >
               Routes
+            </Button>
+            {/* The three event-time actions, same flows as /whoami. Ordered by
+                how often a runner needs them mid-event. */}
+            <Button
+              className="w-[190px] bg-white/15 text-white backdrop-blur-sm"
+              size="lg"
+              startContent={<MapPin className="w-4 h-4" />}
+              onPress={() => setIsQuickCheckInOpen(true)}
+            >
+              {copyOr("checkin.quick.button", "Check-in")}
+            </Button>
+            <Button
+              className="w-[190px] bg-white/15 text-white backdrop-blur-sm"
+              size="lg"
+              href={gpxAddRunUrl()}
+              as="a"
+              target="_blank"
+              rel="noopener noreferrer"
+              startContent={<Footprints className="w-4 h-4" />}
+            >
+              Add Run
+            </Button>
+            {/* Its own CMS key on purpose: /whoami names the outcome
+                ("Connect") via the socialqr scan button key, this names the
+                mechanism because it sits beside four navigational CTAs.
+                Sharing the key would let one CMS edit rename both. */}
+            <Button
+              className="w-[190px] bg-white/15 text-white backdrop-blur-sm"
+              size="lg"
+              startContent={<Camera className="w-4 h-4" />}
+              onPress={() => setIsScannerOpen(true)}
+            >
+              {copyOr("socialqr.scan.button.short", "Scan")}
             </Button>
           </div>
         </div>
@@ -276,6 +352,20 @@ function WelcomeContent({ userName }: { userName: string }) {
           <SocialQRRow stravaUrl={stravaGroupUrl} signalUrl={signalGroupUrl} />
         </CardBody>
       </Card>
+
+      {/* Hero action modals live at page level so their triggers never depend
+          on a collapsible panel being open (same arrangement as /whoami). */}
+      <QuickCheckInModal
+        isOpen={isQuickCheckInOpen}
+        onClose={() => setIsQuickCheckInOpen(false)}
+        checkinPreference={checkinPreference}
+      />
+      <QrScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        copy={scanCopy}
+        attendanceAvailable={attendanceAvailable}
+      />
     </div>
   );
 }
