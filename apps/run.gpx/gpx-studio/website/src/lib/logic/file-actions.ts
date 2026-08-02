@@ -69,6 +69,61 @@ export function newGPXFile() {
     return file;
 }
 
+/**
+ * Persist a brand-new LOCAL file to the cloud and register it for auto-save.
+ *
+ * Shared by every path that mints a file locally: `createFile()` (File → New
+ * route) and the draw tool's implicit create-on-first-point in
+ * toolbar/tools/routing/Routing.svelte. That second path used to add the file
+ * to the map and nothing else, so "New file 1" existed only in the browser and
+ * was silently never saved — the route looked live, and auto-save skipped it
+ * forever because auto-save only tracks files registered here.
+ *
+ * Takes the GPXFile directly rather than looking it up, because the caller has
+ * just built it and the state collection may not have observed it yet.
+ *
+ * Silent-fail by design: a failed initial save must never block drawing.
+ */
+export async function persistNewLocalFile(
+    localFileId: string,
+    file: ReturnType<typeof newGPXFile>
+): Promise<string | null> {
+    if (!get(isAuthenticated) || !get(hasGpxStudioAccess)) return null;
+    // Already cloud-linked (e.g. a second point on an existing draw) — no-op.
+    if (autoSaveManager.getCloudInfo(localFileId)) return null;
+
+    try {
+        const gpxContent = buildGPX(file, []);
+        const fileName = `${file.metadata?.name || 'New File'}.gpx`;
+        const lastFolder = get(settings.lastSaveFolder);
+        const folderId = lastFolder === 'ROOT' ? null : lastFolder;
+
+        const cloudFileId = await saveToCloud(
+            gpxContent,
+            fileName,
+            {
+                trackCount: file.trk?.length || 0,
+                waypointCount: file.wpt?.length || 0,
+            },
+            folderId
+        );
+
+        // wasDefaultName=true: renaming an auto-named file renames the cloud row
+        // in place rather than minting a second one.
+        autoSaveManager.registerCloudLinkedFile(
+            localFileId,
+            cloudFileId,
+            fileName,
+            folderId,
+            true
+        );
+        return cloudFileId;
+    } catch (error) {
+        console.warn('Initial cloud save failed:', error);
+        return null;
+    }
+}
+
 export async function createFile() {
     let file = newGPXFile();
 
@@ -76,36 +131,7 @@ export async function createFile() {
     selection.selectFileWhenLoaded(file._data.id);
     currentTool.set(Tool.ROUTING);
 
-    // If auto-save is enabled and user is authenticated, immediately save to cloud
-    const autoSaveEnabled = get(settings.autoSaveEnabled);
-    const authenticated = get(isAuthenticated);
-    const hasAccess = get(hasGpxStudioAccess);
-
-    if (autoSaveEnabled && authenticated && hasAccess) {
-        try {
-            const gpxContent = buildGPX(file, []);
-            const fileName = `${file.metadata?.name || 'New File'}.gpx`;
-            const lastFolder = get(settings.lastSaveFolder);
-            const folderId = lastFolder === 'ROOT' ? null : lastFolder;
-
-            const cloudFileId = await saveToCloud(gpxContent, fileName, {
-                trackCount: file.trk?.length || 0,
-                waypointCount: file.wpt?.length || 0,
-            }, folderId);
-
-            // Register with auto-save manager (wasDefaultName=true since this is a new file)
-            autoSaveManager.registerCloudLinkedFile(
-                file._data.id,
-                cloudFileId,
-                fileName,
-                folderId,
-                true  // wasDefaultName - file created with auto-generated name
-            );
-        } catch (error) {
-            // Silent fail - user can still manually save later
-            console.warn('Auto-save initial save failed:', error);
-        }
-    }
+    await persistNewLocalFile(file._data.id, file);
 }
 
 /**

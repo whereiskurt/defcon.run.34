@@ -38,7 +38,12 @@
     import { map } from '$lib/components/map/map';
     import { fileStateCollection, GPXFileStateCollectionObserver } from '$lib/logic/file-state';
     import { selection } from '$lib/logic/selection';
-    import { fileActions, getFileIds, newGPXFile } from '$lib/logic/file-actions';
+    import {
+        fileActions,
+        getFileIds,
+        newGPXFile,
+        persistNewLocalFile,
+    } from '$lib/logic/file-actions';
     import { mapCursor, MapCursorState } from '$lib/logic/map-cursor';
     import { RoutingControls, routingControls } from './routing-controls';
 
@@ -78,6 +83,11 @@
             file._data.id = getFileIds(1)[0];
             fileActions.add(file);
             selection.selectFileWhenLoaded(file._data.id);
+            // Draw-first used to stop here, leaving a browser-only "New file N"
+            // that auto-save never tracked (it only syncs files registered as
+            // cloud-linked). Persist it exactly like File → New route does, so
+            // both ways of starting a route behave identically.
+            void persistNewLocalFile(file._data.id, file);
         }
     }
 

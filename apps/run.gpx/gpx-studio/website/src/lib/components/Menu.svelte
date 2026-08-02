@@ -38,7 +38,6 @@
         ChartArea,
         Maximize,
         Cloud,
-        RefreshCw,
         Footprints,
         Upload,
     } from '@lucide/svelte';
@@ -59,7 +58,6 @@
     import BulkUpload from '$lib/components/cloud/BulkUpload.svelte';
     import ShareAcceptDialog from '$lib/components/cloud/ShareAcceptDialog.svelte';
     import { openMyMaps } from '$lib/components/cloud/utils.svelte';
-    import { autoSaveManager } from '$lib/auto-save';
     import { mode, setMode } from 'mode-watcher';
     import { i18n } from '$lib/i18n.svelte';
     import { languages } from '$lib/languages';
@@ -93,7 +91,6 @@
         directionMarkers,
         streetViewSource,
         routing,
-        autoSaveEnabled,
     } = settings;
 
     const canUndo = fileActionManager.canUndo;
@@ -139,13 +136,6 @@
                         My Routes...
                         <Shortcut key="O" ctrl={true} />
                     </Menubar.Item>
-                    <Menubar.Item
-                        class="add-run-glow !text-white focus:!text-white"
-                        onclick={() => quickStartOpen.set(true)}
-                    >
-                        <Footprints size="16" />
-                        Add run...
-                    </Menubar.Item>
                     <Menubar.Separator />
                     <Menubar.Sub>
                         <Menubar.SubTrigger>
@@ -166,11 +156,6 @@
                             </Menubar.Item>
                         </Menubar.SubContent>
                     </Menubar.Sub>
-                    <Menubar.Separator />
-                    <Menubar.CheckboxItem bind:checked={$autoSaveEnabled}>
-                        <RefreshCw size="16" />
-                        Auto-Save
-                    </Menubar.CheckboxItem>
                     <Menubar.Separator />
                     <Menubar.Item
                         onclick={() => tick().then(fileActions.deleteSelectedFiles)}
