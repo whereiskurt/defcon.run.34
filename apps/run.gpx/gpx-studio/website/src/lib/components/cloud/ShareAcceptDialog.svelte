@@ -17,7 +17,8 @@
         openCloudStorage,
     } from '$lib/components/cloud/utils.svelte';
     import { isAuthenticated, hasGpxStudioAccess, auth } from '$lib/stores/auth';
-    import { loadFromCloud, getApiBase } from '$lib/cloud-sync';
+    import { getApiBase } from '$lib/cloud-sync';
+    import { openCloudFileOnMap } from '$lib/logic/file-actions';
     import { toast } from 'svelte-sonner';
 
     interface ShareInfo {
@@ -117,20 +118,30 @@
             const result = await response.json();
             accepted = true;
 
-            // Show success toast
-            toast.success(`Added "${result.fileName}" to your cloud storage`, {
-                description: 'Open View → Cloud Storage to see your files',
+            toast.success(`Added "${result.fileName}" to My Routes`, {
                 duration: 4000,
             });
 
-            // Close dialog after a moment
+            // Close the dialog and OPEN the route on the map. Accepting used to
+            // stop at the toast, so from the recipient's side the dialog just
+            // vanished and nothing visibly happened — the copy was in their
+            // routes, but nothing said so and nothing showed it. Opening it is
+            // the whole point of following a share link.
             setTimeout(() => {
                 closeShareAcceptDialog();
-                // Clear the share token from URL
+                // Clear the share token from URL so a refresh does not re-prompt.
                 const url = new URL(window.location.href);
                 url.searchParams.delete('share');
                 window.history.replaceState({}, '', url.toString());
-            }, 1500);
+
+                if (result.fileId) {
+                    // Best-effort: a failure here must not look like the accept
+                    // failed, because it did not — the copy is already saved.
+                    openCloudFileOnMap(result.fileId, result.fileName).catch(() => {
+                        toast.info('Saved to My Routes — open it from File → My Routes.');
+                    });
+                }
+            }, 1200);
         } catch (e) {
             error = e instanceof Error ? e.message : 'Failed to accept share';
         } finally {
@@ -282,10 +293,10 @@
                     >
                         {#if accepting}
                             <Loader2 class="h-4 w-4 mr-2 animate-spin" />
-                            Adding to Cloud Storage...
+                            Adding to My Routes...
                         {:else}
                             <FileDown class="h-4 w-4 mr-2" />
-                            Add to My Cloud Storage
+                            Add to My Routes
                         {/if}
                     </Button>
                     <Button

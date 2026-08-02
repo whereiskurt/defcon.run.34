@@ -67,7 +67,11 @@
     import { cloudStorageOpen, closeCloudStorage } from '$lib/components/cloud/utils.svelte';
     import { auth, isAuthenticated, hasGpxStudioAccess } from '$lib/stores/auth';
     import { settings } from '$lib/logic/settings';
-    import { fileActions, uploadRouteFromFile } from '$lib/logic/file-actions';
+    import {
+        fileActions,
+        uploadRouteFromFile,
+        openCloudFileOnMap,
+    } from '$lib/logic/file-actions';
     import { boundsManager } from '$lib/logic/bounds';
     import { selection } from '$lib/logic/selection';
     import { parseGPX } from 'gpx';
@@ -389,27 +393,7 @@
         loading = true;
         error = null;
         try {
-            const { content } = await loadFromCloud(file.fileId);
-            const gpx = parseGPX(content);
-            if (gpx.metadata === undefined) {
-                gpx.metadata = {};
-            }
-            // Use the current fileName from the cloud file list (reflects any renames)
-            gpx.metadata.name = file.fileName.replace(/\.gpx$/i, '');
-            fileActions.add(gpx);
-            selection.selectFileWhenLoaded(gpx._data.id);
-
-            // Center map on the loaded file's bounds
-            boundsManager.fitBoundsOnLoad([gpx._data.id]);
-
-            // Register file with auto-save manager (file is now cloud-linked)
-            autoSaveManager.registerCloudLinkedFile(
-                gpx._data.id,
-                file.fileId,
-                file.fileName,
-                file.folderId ?? null
-            );
-
+            await openCloudFileOnMap(file.fileId, file.fileName, file.folderId ?? null);
             closeCloudStorage();
         } catch (e) {
             error = e instanceof Error ? e.message : 'Failed to load file';
@@ -417,6 +401,7 @@
             loading = false;
         }
     }
+
 
     // Per-file GPX download. Deliberately reuses loadFromCloud — the same
     // authenticated endpoint the row click already takes — so no presigned URL or
