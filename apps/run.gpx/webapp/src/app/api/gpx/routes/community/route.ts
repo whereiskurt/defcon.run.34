@@ -48,6 +48,10 @@ export async function GET() {
         createdByName: r.createdByName,
         copyCount: r.copyCount,
         publishedAt: r.publishedAt,
+        // Boolean, deliberately NOT the raw sourceGpxFileId — this projection is
+        // an allow-list and no internal id belongs in it. Admin moderation uses
+        // it to warn that deleting an orphan destroys the owner's only copy.
+        hasBackingFile: !!r.sourceGpxFileId,
         downloadUrl: await getSignedUrl(
           s3ClientForPresign,
           new GetObjectCommand({ Bucket: BUCKET, Key: r.key }),

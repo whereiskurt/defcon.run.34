@@ -36,6 +36,9 @@ export async function GET() {
       copyCount: r.copyCount,
       publishedAt: r.publishedAt,
       status: r.status,
+      // Drives the delete warning: an orphan (no backing file) has no copy left
+      // once its Route row goes, so deleting destroys the owner's only one.
+      hasBackingFile: !!r.sourceGpxFileId,
     }));
 
     return NextResponse.json({ routes });

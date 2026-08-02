@@ -57,6 +57,7 @@
         getApiBase,
         getConDayUsage,
         listOrphanRoutes,
+        deleteRoute,
         type CloudFile,
         type CloudFolder,
         type FileVersion,
@@ -94,6 +95,28 @@
         } catch {
             // The list simply stays empty; the files above are the main event.
             orphanRoutes = [];
+        }
+    }
+
+    // Orphan routes have no backing file, so deleting the row IS deleting the
+    // route — there is nothing left behind. Copies other runners already made
+    // are independent GpxFiles and survive (the DELETE /routes/{id} contract).
+    async function removeOrphanRoute(route: RouteSummary) {
+        if (
+            !confirm(
+                `Delete "${route.name}"? This removes it for good. Copies other runners already saved are not affected.`
+            )
+        )
+            return;
+        loading = true;
+        error = null;
+        try {
+            await deleteRoute(route.routeId);
+            await refreshOrphanRoutes();
+        } catch (e) {
+            error = e instanceof Error ? e.message : 'Could not delete the route';
+        } finally {
+            loading = false;
         }
     }
 
@@ -593,7 +616,7 @@
      "Add run" can never paint on a screen where it would be a dead end. -->
 {#snippet addRunFooter()}
     <span class="text-[11px] text-muted-foreground">GPX up to 10mb</span>
-    <Button onclick={openAddRun}>
+    <Button class="add-run-glow" onclick={openAddRun}>
         <span class="mr-2 text-[13px] leading-none" aria-hidden="true">👟</span>Add run
     </Button>
 {/snippet}
@@ -999,15 +1022,28 @@
                                 {/if}
                             </div>
                         </div>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            class="h-7 flex-shrink-0 px-2.5 text-xs"
-                            disabled={loading || route.status !== 'active'}
-                            onclick={() => toggleOrphanPublic(route)}
-                        >
-                            {route.visibility === 'published' ? 'Make private' : 'Make public'}
-                        </Button>
+                        <div class="flex flex-shrink-0 items-center gap-1.5">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                class="h-7 px-2.5 text-xs"
+                                disabled={loading || route.status !== 'active'}
+                                onclick={() => toggleOrphanPublic(route)}
+                            >
+                                {route.visibility === 'published' ? 'Make private' : 'Make public'}
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                class="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                                aria-label={'Delete ' + route.name}
+                                data-hint={'Delete ' + route.name}
+                                disabled={loading}
+                                onclick={() => removeOrphanRoute(route)}
+                            >
+                                <Trash2 class="h-3.5 w-3.5" />
+                            </Button>
+                        </div>
                     </div>
                 {/each}
             </Section>

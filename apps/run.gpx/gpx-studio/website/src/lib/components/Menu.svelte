@@ -721,31 +721,4 @@
         @apply py-0.5;
     }
 
-    /* "Add run" — the primary call-to-action: a bright, softly-glowing pill
-       so runners immediately see where to log a run. */
-    .add-run-glow {
-        background: #22c55e; /* brand green-500 (matches the /\ + heart marks) */
-        color: #fff;
-        animation: add-run-pulse 2.1s ease-in-out infinite;
-    }
-    /* win over the generic `div button:hover { bg-accent }` rule above */
-    .add-run-glow:hover {
-        background: #16a34a; /* green-600 */
-        filter: brightness(1.05);
-    }
-    @keyframes add-run-pulse {
-        0%,
-        100% {
-            box-shadow: 0 0 6px 1px rgb(34 197 94 / 0.6);
-        }
-        50% {
-            box-shadow: 0 0 18px 5px rgb(34 197 94 / 0.95);
-        }
-    }
-    @media (prefers-reduced-motion: reduce) {
-        .add-run-glow {
-            animation: none;
-            box-shadow: 0 0 10px 2px rgb(34 197 94 / 0.8);
-        }
-    }
 </style>

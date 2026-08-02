@@ -296,3 +296,46 @@
     align-items: flex-end;
 }
 .mapboxgl-ctrl-top-right .profile-control { order: -1; }
+
+/* ── "Add run" — the primary call-to-action ──────────────────────────────────
+   GLOBAL on purpose. This is applied to four surfaces: the desktop menubar
+   pill, the mobile FAB, the File ▾ menubar item, the QuickStart hub card, and
+   the My Routes dialog footer button. That last one is a <Button> COMPONENT —
+   Svelte's scoped styles do not reach into a child component's element, so a
+   per-component `<style>` copy silently does nothing there. One global rule
+   keeps every "add a run" surface identically green. */
+.add-run-glow {
+    background: #22c55e; /* brand green-500 (matches the /\ + heart marks) */
+    color: #fff;
+    animation: add-run-pulse 2.1s ease-in-out infinite;
+}
+.add-run-glow:hover {
+    background: #16a34a; /* green-600 */
+    filter: brightness(1.05);
+}
+@keyframes add-run-pulse {
+    0%,
+    100% {
+        box-shadow: 0 0 6px 1px rgb(34 197 94 / 0.6);
+    }
+    50% {
+        box-shadow: 0 0 18px 5px rgb(34 197 94 / 0.95);
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .add-run-glow {
+        animation: none;
+        box-shadow: 0 0 10px 2px rgb(34 197 94 / 0.8);
+    }
+}
+
+/* Strava brand orange, so orange consistently means Strava and green
+   consistently means "add a run". */
+.strava-cta {
+    background: #fc4c02;
+    border-color: #fc4c02;
+    color: #fff;
+}
+.strava-cta:hover {
+    filter: brightness(1.08);
+}
