@@ -10,6 +10,7 @@ import {
   requestSecurityKeys,
   disconnectMeshtasticDevice,
 } from "@/lib/meshtastic";
+import { nodeIdFromPublicKeyBase64 } from "@/lib/node-id";
 import type { MeshDevice } from "@meshtastic/core";
 import type { DeviceFamily } from "@/types/device";
 
@@ -23,8 +24,14 @@ export type RegistrationStatus =
   /**
    * `updated` = re-flash of a radio already on this account.
    * `transferred` = the radio was registered to ANOTHER account and ownership
-   * moved here (same physical radio keeps its "!id" across re-flashes, so event
-   * loaners land in this case). Mutually exclusive with `updated`.
+   * moved here (event loaners land in this case). Mutually exclusive with
+   * `updated`.
+   *
+   * NOTE: on 2.8 firmware a re-flash that regenerates the X25519 keypair also
+   * changes the node ID (crc32 of the new pubkey — see @/lib/node-id), so a
+   * re-flashed radio does NOT reliably keep its "!id". Both of these states are
+   * therefore rarer than they used to be; a re-flash usually registers as a new
+   * radio instead.
    */
   | { state: "success"; nodeId: string; updated: boolean; transferred: boolean }
   | { state: "skipped"; reason: string }
@@ -209,10 +216,39 @@ export function useConfigure(): UseConfigureReturn {
           publicKey = keys.publicKey;
         }
 
+        // ── Node ID: derive from the key, don't trust the handshake ─────────
+        // `registrationInfo.nodeId` came from myNodeInfo during the config-dump
+        // handshake — which ran BEFORE pushDeviceConfig, i.e. before a freshly
+        // flashed device had generated its X25519 keypair. On the 2.8 firmware
+        // this wizard installs (both slots in firmware-versions.json), the node
+        // number is crc32(public_key), recomputed at boot whenever a keypair
+        // exists. So the handshake value is the OLD MAC-derived number and the
+        // device will come up under a different ID — registering it pairs the
+        // profile with an ID the mesh never sees (observed live 2026-08-01:
+        // registered !a1cc1d70, device joined as !66b5d888).
+        //
+        // The pubkey read back above is the authoritative input, so compute the
+        // ID the device is about to boot with. Falls back to the handshake value
+        // when no usable key was read (nodeIdFromPublicKeyBase64 returns null) —
+        // never register a guess.
+        const derivedNodeId = nodeIdFromPublicKeyBase64(publicKey || "");
+        if (derivedNodeId && derivedNodeId !== registrationInfo.nodeId) {
+          console.log(
+            `[configure] Node ID renumbered by firmware: handshake reported ` +
+              `${registrationInfo.nodeId}, registering ${derivedNodeId} (crc32 of device pubkey)`
+          );
+        } else if (!derivedNodeId) {
+          console.warn(
+            "[configure] No usable public key — falling back to the handshake node ID, " +
+              "which 2.8 firmware may renumber at boot"
+          );
+        }
+        const effectiveNodeId = derivedNodeId || registrationInfo.nodeId;
+
         // Auto-register radio with run.human
-        if (registrationInfo.nodeId) {
+        if (effectiveNodeId) {
           registrationInfoRef.current = {
-            nodeId: registrationInfo.nodeId,
+            nodeId: effectiveNodeId,
             privateKey: privateKey || "",
             publicKey: publicKey || "",
           };
@@ -222,7 +258,7 @@ export function useConfigure(): UseConfigureReturn {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                nodeId: registrationInfo.nodeId,
+                nodeId: effectiveNodeId,
                 privateKey,
                 publicKey,
               }),
@@ -231,7 +267,7 @@ export function useConfigure(): UseConfigureReturn {
             if (regResponse.ok) {
               setRegistrationStatus({
                 state: "success",
-                nodeId: registrationInfo.nodeId,
+                nodeId: effectiveNodeId,
                 updated: regData.updated === true,
                 transferred: regData.transferred === true,
               });
@@ -345,6 +381,14 @@ export function useConfigure(): UseConfigureReturn {
           publicKey = keys.publicKey;
         }
 
+        // Unlike configure(), this path deliberately TRUSTS the handshake
+        // nodeId and does NOT derive it from the pubkey. syncKeys runs against
+        // an already-booted device that may not have been flashed by this
+        // wizard — so it can meet pre-2.8 firmware, where the node number stays
+        // MAC-derived even with a keypair present and crc32(pubkey) would be
+        // flat wrong. On a booted device myNodeInfo is authoritative on EITHER
+        // firmware (2.8 has already done its renumber by then), which makes the
+        // read-back the correct source here. See @/lib/node-id.
         if (!registrationInfo.nodeId) {
           setRegistrationStatus({ state: "skipped", reason: "Node ID not captured from device" });
           return;
