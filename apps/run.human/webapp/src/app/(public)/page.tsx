@@ -29,7 +29,9 @@ const region = process.env.NEXT_PUBLIC_REGION_SHORT || "use1";
 const whoamiUrl = isDev ? "/whoami" : `/${region}/whoami`;
 // Routes live in the gpx.studio editor (gpx.defcon.run), not run.human — the
 // local /routes page no longer exists, so the old region-relative href 404'd.
-const routesUrl = "https://gpx.defcon.run/";
+// Same destination as the tiles below: the bare origin only redirects there via
+// an interstitial, so go straight to the map (see lib/gpx-map).
+const routesUrl = gpxMapUrl();
 // public/ assets rendered via raw <img> (HeroUI Image) need the region basePath
 // prefixed by hand — same reason as the raw-anchor hrefs above.
 const asset = (p: string) => (isDev ? p : `/${region}${p}`);
