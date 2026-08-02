@@ -457,6 +457,9 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
                 href={flashUrl}
                 target="_blank"
                 rel="noopener noreferrer"
+                // The flasher opens in a new tab; drop this modal so the runner
+                // does not come back to a dialog they are done with.
+                onPress={closeAdd}
                 startContent={<Zap className="h-4 w-4" />}
                 endContent={<ExternalLink className="h-3 w-3" />}
                 className="shrink-0"
