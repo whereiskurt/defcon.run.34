@@ -22,6 +22,22 @@ export type ClusterConfig = {
   minRunners: number;
   /** Per-runner, per-con-day cap on how many cluster awards count (best-N). */
   maxPerUserPerDay: number;
+  /**
+   * Anti-sybil: how old an account must be to count toward a cluster on age
+   * alone. A runner younger than this still counts if they show ANY other
+   * established signal (a run, a Strava import, a flag) — see
+   * `isEstablishedRunner`. Set to 0 to disable the gate entirely (every
+   * account then satisfies the age signal).
+   */
+  minAccountAgeHours: number;
+  /**
+   * Anti-spoof: km/h between a runner's consecutive check-ins above which the
+   * later one is ignored for CLUSTERING. Defaults to a fast running pace,
+   * because clusters are gatherings of runners. Note this also catches a
+   * runner who DROVE between two check-ins made close together — the cost is
+   * one group bonus, never a check-in or a streak day. Set to 0 to disable.
+   */
+  maxSpeedKmh: number;
   /** Award ladder, ascending by minRunners. */
   tiers: ClusterTier[];
 };
@@ -36,6 +52,9 @@ export const DEFAULT_CLUSTER_CONFIG: ClusterConfig = {
   windowMinutes: 60,
   minRunners: 4,
   maxPerUserPerDay: 3,
+  minAccountAgeHours: 24,
+  // Roughly elite marathon pace — clusters are gatherings of runners.
+  maxSpeedKmh: 21,
   tiers: [
     { minRunners: 4, points: 25 },
     { minRunners: 8, points: 50 },
@@ -50,6 +69,8 @@ const LIMITS = {
   windowMinutes: { min: 1, max: 24 * 60 },
   minRunners: { min: 2, max: 500 },
   maxPerUserPerDay: { min: 1, max: 50 },
+  minAccountAgeHours: { min: 0, max: 24 * 30 },
+  maxSpeedKmh: { min: 0, max: 1000 },
 } as const;
 
 function clampInt(raw: unknown, fallback: number, min: number, max: number): number {
@@ -120,6 +141,64 @@ export function normalizeClusterConfig(raw: unknown): ClusterConfig {
     maxPerUserPerDay: clampInt(
       o.maxPerUserPerDay, d.maxPerUserPerDay,
       LIMITS.maxPerUserPerDay.min, LIMITS.maxPerUserPerDay.max),
+    minAccountAgeHours: clampInt(
+      o.minAccountAgeHours, d.minAccountAgeHours,
+      LIMITS.minAccountAgeHours.min, LIMITS.minAccountAgeHours.max),
+    maxSpeedKmh: clampInt(
+      o.maxSpeedKmh, d.maxSpeedKmh,
+      LIMITS.maxSpeedKmh.min, LIMITS.maxSpeedKmh.max),
     tiers,
   };
+}
+
+/**
+ * The facts the sybil gate reads about a runner. All denormalized onto the
+ * RunUser row, so the whole established-set is one batch get — no per-runner
+ * queries at sweep time.
+ */
+export type RunnerSignals = {
+  /** Account creation, epoch ms. Absent on very old rows → treated as old. */
+  createdAt?: number;
+  /** Rollup of non-check-in activity (written by rescoreUser). */
+  activityCounts?: { gpx?: number; strava?: number };
+  /** CTF solve count (written by rescoreUser). */
+  ctfSolves?: number;
+};
+
+/**
+ * PURE: may this runner count toward a cluster?
+ *
+ * A permissive OR — a real attendee almost certainly satisfies one of these; a
+ * throwaway account created minutes ago to pad a cluster satisfies none:
+ *   • the account is older than `minAccountAgeHours`, OR
+ *   • they have logged a run or a Strava import, OR
+ *   • they have solved a flag.
+ *
+ * Deliberately NOT gated on owning a bib: that would turn the cluster bonus
+ * into a bib-holder perk and exclude most social-event attendees.
+ *
+ * Failing this does NOT invalidate the check-in — it still saves and still
+ * lights the runner's con-day. It only stops the account swelling a cluster.
+ */
+export function isEstablishedRunner(
+  signals: RunnerSignals | undefined,
+  cfg: Pick<ClusterConfig, "minAccountAgeHours">,
+  now: number,
+): boolean {
+  // A missing row is treated as NOT established — an account we cannot see is
+  // exactly the case the gate exists for (fail closed).
+  if (!signals) return false;
+
+  if (cfg.minAccountAgeHours <= 0) return true;
+
+  const ageMs = cfg.minAccountAgeHours * 3_600_000;
+  // No createdAt = a pre-dating row, i.e. genuinely old.
+  if (signals.createdAt === undefined) return true;
+  if (now - signals.createdAt >= ageMs) return true;
+
+  if ((signals.activityCounts?.gpx ?? 0) > 0) return true;
+  if ((signals.activityCounts?.strava ?? 0) > 0) return true;
+  if ((signals.ctfSolves ?? 0) > 0) return true;
+
+  return false;
 }

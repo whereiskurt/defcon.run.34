@@ -45,6 +45,20 @@ export type DetectedCluster = {
   members: ClusterMember[];
 };
 
+/**
+ * Abuse gates supplied by the caller (the sweep). Kept as an argument rather
+ * than read here so the detector stays PURE and offline-testable.
+ */
+export type DetectOptions = {
+  /**
+   * userIds allowed to count toward a cluster (the anti-sybil gate). When
+   * OMITTED the gate is off and every runner counts — the map port and older
+   * callers rely on that. When PRESENT it is authoritative: a userId absent
+   * from the set is excluded, which is why the sweep must build it fail-closed.
+   */
+  established?: Set<string>;
+};
+
 const EARTH_RADIUS_M = 6_371_000;
 
 /** Great-circle distance in metres. Exported for tests and the sweep's logging. */
@@ -136,20 +150,25 @@ function earliestPerUser(points: ClusterPoint[]): ClusterMember[] {
 export function detectClusters(
   points: ClusterPoint[],
   cfg: ClusterConfig,
+  opts: DetectOptions = {},
 ): DetectedCluster[] {
   if (!cfg.enabled) return [];
 
   const windowMs = cfg.windowMinutes * 60_000;
 
-  const pool = points
-    .filter(
-      (p) =>
-        Number.isFinite(p.lat) &&
-        Number.isFinite(p.lng) &&
-        Number.isFinite(p.t) &&
-        isConDay(conLocalDate(p.t)),
-    )
-    .sort((a, b) => a.t - b.t || (a.checkInId < b.checkInId ? -1 : 1));
+  const pool = applyAbuseGates(
+    points
+      .filter(
+        (p) =>
+          Number.isFinite(p.lat) &&
+          Number.isFinite(p.lng) &&
+          Number.isFinite(p.t) &&
+          isConDay(conLocalDate(p.t)),
+      )
+      .sort((a, b) => a.t - b.t || (a.checkInId < b.checkInId ? -1 : 1)),
+    cfg,
+    opts,
+  );
 
   // ── Candidate generation ──────────────────────────────────────────────────
   const candidates: { seedId: string; members: ClusterMember[]; slice: ClusterPoint[] }[] = [];
@@ -234,4 +253,60 @@ function countDistinct(points: ClusterPoint[]): number {
   const users = new Set<string>();
   for (const p of points) users.add(p.userId);
   return users.size;
+}
+
+/**
+ * Drop check-ins that must not count toward a cluster. PURE.
+ *
+ * Two independent gates, both of which only ever remove a check-in from
+ * CLUSTERING — the row still exists and still lights the runner's con-day for
+ * their run streak. The worst a false positive costs is one group bonus, and a
+ * re-sweep recomputes it, so nothing here is destructive.
+ *
+ *  1. SYBIL — a userId missing from `opts.established` is dropped. Four
+ *     throwaway accounts created on the spot can otherwise manufacture a valid
+ *     cluster, and with the tiers super-linear that scales badly.
+ *
+ *  2. IMPOSSIBLE TRAVEL — within one runner's own timeline, if the implied
+ *     speed from their previous SURVIVING check-in exceeds `maxSpeedKmh`, the
+ *     later one is dropped. Chaining off the previous surviving point (rather
+ *     than the raw previous one) stops a single spoofed outlier from
+ *     invalidating every genuine check-in after it.
+ *
+ *     This is a tripwire, not a wall: it catches one account used in two places
+ *     at once, and scripted map-hopping. A patient spoofer who only ever
+ *     reports one fake location produces no contradiction and sails through.
+ */
+function applyAbuseGates(
+  sorted: ClusterPoint[],
+  cfg: ClusterConfig,
+  opts: DetectOptions,
+): ClusterPoint[] {
+  const afterSybil = opts.established
+    ? sorted.filter((p) => opts.established!.has(p.userId))
+    : sorted;
+
+  if (cfg.maxSpeedKmh <= 0) return afterSybil;
+
+  const lastKept = new Map<string, ClusterPoint>();
+  const kept: ClusterPoint[] = [];
+
+  // `sorted` is ascending by time, so per-runner order is already correct.
+  for (const p of afterSybil) {
+    const prev = lastKept.get(p.userId);
+    if (prev) {
+      const meters = haversineMeters(prev.lat, prev.lng, p.lat, p.lng);
+      const hours = (p.t - prev.t) / 3_600_000;
+      // Same instant in two places is impossible at any speed; treat a
+      // non-trivial jump with no elapsed time as a violation rather than
+      // dividing by zero.
+      const violates =
+        hours <= 0 ? meters > 1 : meters / 1000 / hours > cfg.maxSpeedKmh;
+      if (violates) continue;
+    }
+    lastKept.set(p.userId, p);
+    kept.push(p);
+  }
+
+  return kept;
 }
