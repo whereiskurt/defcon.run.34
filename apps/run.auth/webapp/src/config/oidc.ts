@@ -1,6 +1,6 @@
 import Provider, { Configuration, errors, ClientMetadata } from "oidc-provider";
 import { OIDCAdapter } from "../entities/oidc-adapter";
-import { getAuthProfile } from "@/entities/auth-profile";
+import { getAuthProfile, normalizePictureUrl } from "@/entities/auth-profile";
 import { config } from "@/config";
 import { makeLoadExistingGrant } from "./load-existing-grant";
 
@@ -392,11 +392,17 @@ const configuration: Configuration = {
                 : profile.strava?.username)
               || profile.linkedin?.name;
 
-            result.picture = profile.picture
-              || profile.discord?.avatarUrl
-              || profile.github?.avatarUrl
-              || profile.strava?.profileMedium
-              || profile.linkedin?.picture;
+            // Each candidate is normalized INDIVIDUALLY, not the result of the
+            // chain: a stored Strava no-photo sentinel is a truthy string, so
+            // normalizing only at the end would let it short-circuit past a
+            // perfectly good Discord/GitHub avatar and then resolve to nothing.
+            // Rows written before normalizePictureUrl existed still hold that
+            // sentinel, which is why the guard belongs on this read path too.
+            result.picture = normalizePictureUrl(profile.picture)
+              || normalizePictureUrl(profile.discord?.avatarUrl)
+              || normalizePictureUrl(profile.github?.avatarUrl)
+              || normalizePictureUrl(profile.strava?.profileMedium)
+              || normalizePictureUrl(profile.linkedin?.picture);
 
             if (profile.updatedAt) {
               result.updated_at = Math.floor(profile.updatedAt / 1000);

@@ -8,7 +8,7 @@ import { createTransport } from "nodemailer";
 
 import NextAuth, { type DefaultSession } from "next-auth";
 import { headers } from "next/headers";
-import { upsertAuthProfile, getAuthProfile, getAuthProfileByEmail, buildStravaLink } from "@/entities/auth-profile";
+import { upsertAuthProfile, getAuthProfile, getAuthProfileByEmail, buildStravaLink, normalizePictureUrl } from "@/entities/auth-profile";
 import { isLockedOut } from "@/lib/lock-enforce";
 import { logEvent } from "@/lib/log-event";
 import { config } from "@/config";
@@ -328,7 +328,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         if (account.provider === "discord") {
           token.name = `${profile.global_name}`;
-          token.picture = `${profile.image_url}`;
+          token.picture = normalizePictureUrl(profile.image_url);
 
           // Persist Discord profile to AuthProfile entity
           if (userId) {
@@ -348,7 +348,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
         } else if (account.provider === "github") {
           token.name = `${profile.login}`;
-          token.picture = `${profile.avatar_url}`;
+          token.picture = normalizePictureUrl(profile.avatar_url);
 
           // Persist GitHub profile to AuthProfile entity
           if (userId) {
@@ -367,7 +367,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
         } else if (account.provider === "strava" && token.email != "") {
           token.name = `${profile.username}`;
-          token.picture = `${profile.profile_medium}`;
+          // NOT `${profile.profile_medium}` — Strava sends the relative sentinel
+          // "avatar/athlete/medium.png" for athletes with no photo, which 404s
+          // once an RP resolves it against its own page URL.
+          token.picture = normalizePictureUrl(profile.profile_medium);
           token.stravaId = `${profile.id}`;
 
           // Persist Strava profile to AuthProfile entity.
@@ -390,7 +393,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
         } else if (account.provider === "linkedin") {
           token.name = `${profile.name}`;
-          token.picture = `${profile.picture}`;
+          token.picture = normalizePictureUrl(profile.picture);
 
           // Persist LinkedIn profile to AuthProfile entity
           if (userId) {
