@@ -941,8 +941,12 @@ export interface RouteSummary {
   downloadUrl?: string;
   // Present when this Route was minted from a GpxFile. Its ABSENCE marks an
   // orphan — a Route from the retired "Create a route" card form — which My
-  // Routes adopts into the single list.
+  // Routes adopts into the single list. Nothing can create new orphans, so the
+  // set only shrinks. Own-routes listing only.
   sourceGpxFileId?: string;
+  // Community listing only: the same fact as a BOOLEAN, because that public
+  // projection must not carry internal ids. Drives the admin delete warning.
+  hasBackingFile?: boolean;
 }
 
 export interface RouteCardInput {
@@ -1124,6 +1128,30 @@ export async function resyncPublishedRoute(fileId: string): Promise<void> {
  * Routes with no backing GpxFile: the leftovers from the retired "Create a
  * route" card form. My Routes adopts them so there is one list, not two.
  */
+/**
+ * Admin moderation: pull a route off the community map. Reversible — the owner
+ * keeps it and can re-publish. 404s for non-admins (non-disclosure).
+ */
+export async function adminUnpublishRoute(routeId: string): Promise<void> {
+  const response = await fetch(
+    `${getApiBase()}/admin/routes/${encodeURIComponent(routeId)}/unpublish`,
+    { method: 'POST', credentials: 'include' }
+  );
+  if (!response.ok) await routeApiError(response, 'Could not unpublish route');
+}
+
+/**
+ * Admin moderation: HARD delete. Removes the Route row and its S3 object.
+ * Destructive — see the warning copy in community-routes.ts before calling.
+ */
+export async function adminDeleteRoute(routeId: string): Promise<void> {
+  const response = await fetch(
+    `${getApiBase()}/admin/routes/${encodeURIComponent(routeId)}`,
+    { method: 'DELETE', credentials: 'include' }
+  );
+  if (!response.ok) await routeApiError(response, 'Could not delete route');
+}
+
 export async function listOrphanRoutes(): Promise<RouteSummary[]> {
   const routes = await listMyRoutes();
   return routes.filter((r) => !r.sourceGpxFileId);
