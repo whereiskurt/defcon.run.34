@@ -172,6 +172,48 @@ export async function logRunFromFile(file: File, conDay: string): Promise<string
     return cloudFileId;
 }
 
+/**
+ * Upload a GPX as a ROUTE: load it onto the map and save it to the cloud with
+ * NO con-day, then register it for auto-save.
+ *
+ * The dateless twin of `logRunFromFile`. Under the unified-routes model a route
+ * is simply a file without a `conDay`, so this is the whole difference: no day
+ * tag, no per-con-day quota, and it can never satisfy the leaderboard's
+ * scored-run predicate. Returns the cloud file id.
+ *
+ * Before this existed the only upload path was "Log a run", which forces a
+ * con-day and consumes quota — so there was no way to bring in a GPX that is a
+ * route rather than a run.
+ */
+export async function uploadRouteFromFile(file: File): Promise<string | null> {
+    const gpx = await loadFile(file);
+    if (!gpx) return null;
+
+    const ids = fileActions.addMultiple([gpx]);
+    const localId = ids[0];
+    selection.selectFileWhenLoaded(localId);
+    boundsManager.fitBoundsOnLoad(ids);
+
+    const gpxContent = buildGPX(gpx, []);
+    const baseName = gpx.metadata?.name || file.name.replace(/\.gpx$/i, '') || 'Route';
+    const fileName = `${baseName}.gpx`;
+    const lastFolder = get(settings.lastSaveFolder);
+    const folderId = lastFolder === 'ROOT' ? null : lastFolder;
+
+    const cloudFileId = await saveToCloud(
+        gpxContent,
+        fileName,
+        {
+            trackCount: gpx.trk?.length || 0,
+            waypointCount: gpx.wpt?.length || 0,
+        },
+        folderId
+    );
+
+    autoSaveManager.registerCloudLinkedFile(localId, cloudFileId, fileName, folderId, false);
+    return cloudFileId;
+}
+
 export function triggerFileInput() {
     const input = document.createElement('input');
     input.type = 'file';

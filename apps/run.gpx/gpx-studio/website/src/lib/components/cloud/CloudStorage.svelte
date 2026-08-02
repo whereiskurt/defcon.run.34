@@ -33,6 +33,7 @@
         Download,
         Map as MapIcon,
         CalendarCheck,
+        Upload,
     } from '@lucide/svelte';
     // Path import form, matching the `ui/` primitives.
     import Ellipsis from '@lucide/svelte/icons/ellipsis';
@@ -66,7 +67,7 @@
     import { cloudStorageOpen, closeCloudStorage } from '$lib/components/cloud/utils.svelte';
     import { auth, isAuthenticated, hasGpxStudioAccess } from '$lib/stores/auth';
     import { settings } from '$lib/logic/settings';
-    import { fileActions } from '$lib/logic/file-actions';
+    import { fileActions, uploadRouteFromFile } from '$lib/logic/file-actions';
     import { boundsManager } from '$lib/logic/bounds';
     import { selection } from '$lib/logic/selection';
     import { parseGPX } from 'gpx';
@@ -135,6 +136,29 @@
             error = e instanceof Error ? e.message : 'Could not update sharing';
         } finally {
             loading = false;
+        }
+    }
+
+    // "Upload route": a GPX that is a route, not a run — dateless, no con-day,
+    // no quota. Before this the only upload path was "Log a run", which forces
+    // a day tag, so there was no way to bring in a plain route.
+    let routeUploadInput: HTMLInputElement | undefined;
+    let uploadingRoute = false;
+
+    async function onRouteUploadPicked(e: Event) {
+        const input = e.currentTarget as HTMLInputElement;
+        const picked = input.files?.[0];
+        input.value = '';
+        if (!picked) return;
+        uploadingRoute = true;
+        error = null;
+        try {
+            await uploadRouteFromFile(picked);
+            await refreshFiles();
+        } catch (e) {
+            error = e instanceof Error ? e.message : 'Could not upload the route';
+        } finally {
+            uploadingRoute = false;
         }
     }
 
@@ -608,6 +632,15 @@
     }
 </script>
 
+<!-- Hidden picker for "Upload route" (dateless — no con-day, no quota). -->
+<input
+    bind:this={routeUploadInput}
+    type="file"
+    accept=".gpx"
+    class="hidden"
+    onchange={onRouteUploadPicked}
+/>
+
 <!-- Footer actions. Declared out here and handed to DialogShell as a PROP rather than
      as an implicit child snippet: DialogShell draws the footer chrome with `{#if footer}`,
      and a snippet is always truthy, so guarding inside the snippet body would still leave
@@ -616,6 +649,14 @@
      "Add run" can never paint on a screen where it would be a dead end. -->
 {#snippet addRunFooter()}
     <span class="text-[11px] text-muted-foreground">GPX up to 10mb</span>
+    <Button
+        variant="outline"
+        onclick={() => routeUploadInput?.click()}
+        disabled={uploadingRoute}
+    >
+        <Upload class="mr-2 h-4 w-4" />
+        {uploadingRoute ? 'Uploading…' : 'Upload route'}
+    </Button>
     <Button class="add-run-glow" onclick={openAddRun}>
         <span class="mr-2 text-[13px] leading-none" aria-hidden="true">👟</span>Add run
     </Button>
