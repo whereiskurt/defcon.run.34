@@ -2,7 +2,7 @@
 sketch: 007
 name: drill-card-stroke
 question: "How much stroke do drill token cards need to read as cards in BOTH themes, and what does a selected row look like?"
-winner: TBD
+winner: "C: Tone rail + visible row separators"
 tags: [leaderboard, drill, borders, light-dark, run.human]
 ---
 
@@ -33,9 +33,10 @@ selected state.
   + tinted heading. The conservative fix; smallest diff.
 - **B: Card edge** — 1.5px border with a darker bottom edge, so cards read as physical
   chips with a light source. Selected = 2px accent frame + soft accent glow.
-- **C: Tone rail** — a 4px left rail colour-keyed to section (green runs / violet social /
-  amber CTF) plus a real border, so a card's *type* is scannable before you read it.
-  Selected = full accent frame + matching rail.
+- **C: Tone rail** ✅ **WINNER** — a 4px left rail colour-keyed to section (green runs /
+  violet social / amber CTF) plus a real border, so a card's *type* is scannable before
+  you read it. Selected = full accent frame + matching rail. Kurt also asked for a
+  visible separator between the *unselected* collapsed rows.
 - **D: HUD bracket** — inset well, corner brackets on the selected row. Continues the
   clearance-frame language from sketches 001/003 rather than inventing a new one.
 
@@ -46,3 +47,19 @@ selected state.
   the most ink — check them at density, not in isolation.
 - Does the covert badge still pop against the heavier border?
 - Dark mode regression check: today's look is fine there. Does the fix make it worse?
+
+
+## Outcome
+**C — Tone rail**, plus a visible separator line between unselected rows.
+
+A bug surfaced during review: `.row:last-child` matched EVERY row (each `.row` is the only
+`.row` inside its own `[data-row]` wrapper), so every separator was suppressed — which is
+why the collapsed rows looked unseparated. Fixed to `[data-row]:last-child .row`. The
+shipped `LeaderboardTable` has the equivalent guard via `last:border-b-0` on the
+AccordionItem, where it is correct; only the sketch was wrong.
+
+Shipped values (`.drill-card` / `.board-row` in `run.human/src/styles/globals.css`):
+- card: 1.5px border, 4px left rail, `#fff` / `#1a1a24` surface, `#c9c9d1` / `#3a3a4e` border
+- rails: success `#16a34a`/`#22c55e`, secondary `#7c3aed`/`#9353d3`, warning `#b45309`/`#f5a524`
+- row separator: 1px `#c9c9d1` / `#3a3a4e`
+- selected row: 2px accent frame with a 6px left rail

@@ -24,7 +24,7 @@ outside the white QR card (white-pupil experiments previously broke jsQR).
 | 003 | hud-glow-leader-rank | HUD ring + pin rail synthesis: how thick/blurry does the glow get, and how does relative RANK (percentile, decays as others overtake) + a LEADER №1 state read? | D: Reactor Tuned | qr, flair, glow, rank |
 | 004 | landing-hero-tiles | What DC33-style photo-tile layout should the run.defcon.run landing use? | B: Hero + Strip | landing, tiles, run.human |
 | 006 | shared-dialog-shell | What section/row treatment for the shared Map Layers + My Maps dialog shell (gpx-studio)? | B: Carded sections (MY FILES first, Add run footer) | gpx-studio, dialog, layers, my-maps |
-| 007 | drill-card-stroke | How much stroke do drill token cards need to read as cards in BOTH themes, and what does a selected row look like? | TBD | leaderboard, drill, borders, light-dark, run.human |
+| 007 | drill-card-stroke | How much stroke do drill token cards need to read as cards in BOTH themes, and what does a selected row look like? | C: Tone rail + row separators | leaderboard, drill, borders, light-dark, run.human |
 
 ## Light-mode debt (from 007 intake)
 Sketch 005's card treatment shipped as `TokenCard` and was tuned in DARK mode only. In

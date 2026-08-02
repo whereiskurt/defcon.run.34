@@ -72,6 +72,15 @@ const TONE_BG: Record<'warning' | 'secondary' | 'success', string> = {
   success: 'bg-success-400/15',
 };
 
+/** Left-rail class per card tone (sketch 007 "tone rail" — see globals.css).
+ *  The rail colour-codes a card's section so its TYPE is scannable before the
+ *  name is read: runs green, social violet, CTF amber. */
+const TONE_RAIL: Record<'warning' | 'secondary' | 'success', string> = {
+  warning: 'rail-warning',
+  secondary: 'rail-secondary',
+  success: 'rail-success',
+};
+
 /** Drill section header: bold label + hairline rule + optional totals chip. */
 export function SectionHeading({ label, chip }: { label: string; chip?: React.ReactNode }) {
   return (
@@ -107,7 +116,7 @@ export function TokenCard({
   thumb?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg bg-default-100 border border-default-200 px-3 py-2">
+    <div className={`drill-card ${TONE_RAIL[tone]} rounded-lg px-3 py-2`}>
       <div className="flex items-center gap-3">
         <div
           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[15px] ${TONE_BG[tone]}`}
