@@ -34,7 +34,8 @@ import { Camera } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { apiUrl } from '@/lib/api';
 
-import DCJackIcon from '@public/header/dcjack.svg';
+import BunnyHeadIcon from '@public/header/bunny-head-alpha.png';
+import { resolveAvatarSrc } from '@/lib/avatar-src';
 
 const iconClasses =
   'text-2xl text-default-500 pointer-events-none flex-shrink-0';
@@ -185,8 +186,8 @@ const UserDropDown = (params: any) => {
       >
         <DropdownTrigger>
           <Avatar
-            src={session.user.image ?? DCJackIcon.src}
-            ignoreFallback={true}
+            src={resolveAvatarSrc(session.user.image, BunnyHeadIcon.src)}
+            alt="Your avatar"
             size="lg"
             isBordered
             color="primary"
@@ -208,9 +209,8 @@ const UserDropDown = (params: any) => {
                 </div>
               }
               avatarProps={{
-                ignoreFallback: true,
                 size: 'lg',
-                src: session.user.image ?? DCJackIcon.src,
+                src: resolveAvatarSrc(session.user.image, BunnyHeadIcon.src),
               }}
               className="pt-2 pb-2"
             />

@@ -274,6 +274,29 @@ export type StravaProfile = {
 };
 
 /**
+ * Reduce a provider-supplied avatar value to a usable absolute URL, or undefined.
+ *
+ * Strava returns the RELATIVE sentinel "avatar/athlete/medium.png" (and its
+ * large/small siblings) in profile_medium for any athlete who never uploaded a
+ * profile photo. That path is only meaningful joined against Strava's own CDN
+ * base — handed to a relying party it resolves against whatever page is being
+ * rendered (e.g. https://run.defcon.run/use1/avatar/athlete/medium.png) and
+ * 404s. It is a non-empty string, so a downstream `?? fallback` never fires.
+ *
+ * This also catches the `${maybeUndefined}` stringification the provider
+ * callbacks do, which turns a missing field into the literal "undefined".
+ *
+ * Anything that is not an absolute http(s) URL is treated as "no picture" so
+ * each app's own avatar fallback can take over.
+ */
+export function normalizePictureUrl(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const value = raw.trim();
+  if (!value || value === "undefined" || value === "null") return undefined;
+  return /^https?:\/\//i.test(value) ? value : undefined;
+}
+
+/**
  * Build the minimum-viable Strava link map from a raw Strava /athlete profile.
  *
  * The athlete `id` is the ONLY field required to record a link — it is what
@@ -312,7 +335,7 @@ export function buildStravaLink(raw: Record<string, unknown>): StravaProfile {
     username: str(raw.username),
     firstName: str(raw.firstname),
     lastName: str(raw.lastname),
-    profileMedium: str(raw.profile_medium),
+    profileMedium: normalizePictureUrl(raw.profile_medium),
     city: str(raw.city),
     state: str(raw.state),
     country: str(raw.country),
@@ -373,10 +396,20 @@ export async function upsertAuthProfile(
     picture = data.linkedin.picture;
   }
 
-  // Use existing values if new ones aren't available
+  // Never let an unusable provider value (Strava's relative no-photo sentinel,
+  // a stringified "undefined") reach the stored picture / OIDC claim.
+  picture = normalizePictureUrl(picture);
+
+  // Use existing values if new ones aren't available. The stored picture is
+  // normalized too: rows written before this guard hold the raw sentinel, and
+  // carrying it forward would let a legacy value outrank a now-valid one.
+  //
+  // NOTE: when this resolves to undefined the payload below simply omits
+  // `picture`, so a legacy sentinel stays at rest in DDB — it is neutralized on
+  // the read side (oidc.ts claims) rather than rewritten here.
   if (existing.data) {
     name = name || existing.data.name;
-    picture = picture || existing.data.picture;
+    picture = picture || normalizePictureUrl(existing.data.picture);
   }
 
   const now = Date.now();

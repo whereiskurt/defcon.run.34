@@ -30,7 +30,69 @@ vi.mock("./client", () => ({
   ELECTRO_TABLE: "run-auth-electro-test",
 }));
 
-import { upsertAuthProfile, buildStravaLink } from "./auth-profile";
+import {
+  upsertAuthProfile,
+  buildStravaLink,
+  normalizePictureUrl,
+} from "./auth-profile";
+
+/**
+ * Regression tests for the Strava "no profile photo" avatar sentinel.
+ *
+ * Strava returns the RELATIVE string "avatar/athlete/medium.png" in
+ * profile_medium for athletes who never uploaded a photo. Passed through to an
+ * RP it resolves against that app's own page and 404s — the reported
+ * https://run.defcon.run/use1/avatar/athlete/medium.png. Because it is a
+ * non-empty string it slips past every `?? fallback` downstream, so it has to
+ * be rejected on SHAPE (not-an-absolute-URL), not on presence.
+ */
+describe("normalizePictureUrl", () => {
+  it("drops Strava's relative no-photo sentinel", () => {
+    expect(normalizePictureUrl("avatar/athlete/medium.png")).toBeUndefined();
+    expect(normalizePictureUrl("avatar/athlete/large.png")).toBeUndefined();
+  });
+
+  it("keeps a real absolute avatar URL", () => {
+    const url = "https://dgalywyr863hv.cloudfront.net/pictures/athletes/1.jpg";
+    expect(normalizePictureUrl(url)).toBe(url);
+  });
+
+  it("drops stringified nullish values from `${...}` template literals", () => {
+    expect(normalizePictureUrl("undefined")).toBeUndefined();
+    expect(normalizePictureUrl("null")).toBeUndefined();
+  });
+
+  it("drops non-strings, empty and whitespace-only values", () => {
+    expect(normalizePictureUrl(null)).toBeUndefined();
+    expect(normalizePictureUrl(undefined)).toBeUndefined();
+    expect(normalizePictureUrl(42)).toBeUndefined();
+    expect(normalizePictureUrl("")).toBeUndefined();
+    expect(normalizePictureUrl("   ")).toBeUndefined();
+  });
+});
+
+describe("buildStravaLink avatar handling", () => {
+  it("omits profileMedium entirely when Strava sends the sentinel", () => {
+    const link = buildStravaLink({
+      id: 12345678,
+      username: "jesse",
+      profile_medium: "avatar/athlete/medium.png",
+    });
+    expect(link.profileMedium).toBeUndefined();
+    // The link itself must still be recorded — the avatar is best-effort only.
+    expect(link.id).toBe(12345678);
+  });
+
+  it("still records a genuine Strava avatar", () => {
+    const link = buildStravaLink({
+      id: 1,
+      profile_medium: "https://dgalywyr863hv.cloudfront.net/p/1-medium.jpg",
+    });
+    expect(link.profileMedium).toBe(
+      "https://dgalywyr863hv.cloudfront.net/p/1-medium.jpg"
+    );
+  });
+});
 
 /** The Strava athlete payload for a user with no location set (Jesse's case). */
 function nullLocationAthlete() {
