@@ -3,6 +3,7 @@ import { auth } from "@/config/auth";
 import { Route } from "@/entities/route";
 import { assertNotLockedLive } from "@/lib/live-lockout";
 import { logEvent } from "@/lib/log-event";
+import { isGpxAdmin } from "@/lib/gpx-admin";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -20,7 +21,7 @@ export async function POST(request: Request, { params }: RouteParams) {
   }
 
   const services = (session.user as { services?: string[] }).services ?? [];
-  if (!services.includes("admin")) {
+  if (!isGpxAdmin(services)) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

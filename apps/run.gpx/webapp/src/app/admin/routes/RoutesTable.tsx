@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { adminApiUrl } from "@/lib/admin-api-base";
 
 type AdminRoute = {
   routeId: string;
@@ -12,6 +13,7 @@ type AdminRoute = {
   totalDistance?: number;
   copyCount?: number;
   publishedAt?: number;
+  hasBackingFile?: boolean;
 };
 
 /**
@@ -28,7 +30,7 @@ export default function RoutesTable() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/gpx/admin/routes", {
+      const res = await fetch(adminApiUrl("/api/gpx/admin/routes"), {
         credentials: "include",
       });
       if (!res.ok) throw new Error(`Failed to load (${res.status})`);
@@ -50,13 +52,36 @@ export default function RoutesTable() {
     setBusy(routeId);
     try {
       const res = await fetch(
-        `/api/gpx/admin/routes/${encodeURIComponent(routeId)}/unpublish`,
+        adminApiUrl(`/api/gpx/admin/routes/${encodeURIComponent(routeId)}/unpublish`),
         { method: "POST", credentials: "include" }
       );
       if (!res.ok) throw new Error(`Unpublish failed (${res.status})`);
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unpublish failed");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function hardDelete(r: AdminRoute) {
+    // An orphan Route IS the owner's route — there is no file behind it — so
+    // say that plainly rather than hiding it behind a generic confirm.
+    const warning =
+      r.hasBackingFile === false
+        ? `Delete "${r.name}" permanently?\n\nThis route has no backing file, so this removes the owner's ONLY copy. Unpublish is reversible — use that unless you mean to destroy it.`
+        : `Delete "${r.name}" permanently?\n\nRemoves it from the community map for good. The owner keeps their own file, and copies other runners already saved are unaffected.`;
+    if (!window.confirm(warning)) return;
+    setBusy(r.routeId);
+    try {
+      const res = await fetch(
+        adminApiUrl(`/api/gpx/admin/routes/${encodeURIComponent(r.routeId)}`),
+        { method: "DELETE", credentials: "include" }
+      );
+      if (!res.ok) throw new Error(`Delete failed (${res.status})`);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Delete failed");
     } finally {
       setBusy(null);
     }
@@ -103,7 +128,7 @@ export default function RoutesTable() {
                 ? new Date(r.publishedAt).toLocaleString()
                 : "—"}
             </td>
-            <td style={{ padding: "0.4rem" }}>
+            <td style={{ padding: "0.4rem", whiteSpace: "nowrap" }}>
               <button
                 onClick={() => void unpublish(r.routeId)}
                 disabled={busy === r.routeId}
@@ -114,6 +139,26 @@ export default function RoutesTable() {
                 }}
               >
                 {busy === r.routeId ? "…" : "Unpublish"}
+              </button>
+              <button
+                onClick={() => void hardDelete(r)}
+                disabled={busy === r.routeId}
+                title={
+                  r.hasBackingFile === false
+                    ? "No backing file — deleting removes the owner's only copy"
+                    : "Removes the public copy; the owner keeps their file"
+                }
+                style={{
+                  padding: "0.25rem 0.6rem",
+                  marginLeft: "0.35rem",
+                  cursor: "pointer",
+                  color: "#fff",
+                  background: "#b00",
+                  border: "1px solid #900",
+                  borderRadius: "4px",
+                }}
+              >
+                {busy === r.routeId ? "…" : "Delete"}
               </button>
             </td>
           </tr>

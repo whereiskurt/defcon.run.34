@@ -24,6 +24,14 @@ outside the white QR card (white-pupil experiments previously broke jsQR).
 | 003 | hud-glow-leader-rank | HUD ring + pin rail synthesis: how thick/blurry does the glow get, and how does relative RANK (percentile, decays as others overtake) + a LEADER №1 state read? | D: Reactor Tuned | qr, flair, glow, rank |
 | 004 | landing-hero-tiles | What DC33-style photo-tile layout should the run.defcon.run landing use? | B: Hero + Strip | landing, tiles, run.human |
 | 006 | shared-dialog-shell | What section/row treatment for the shared Map Layers + My Maps dialog shell (gpx-studio)? | B: Carded sections (MY FILES first, Add run footer) | gpx-studio, dialog, layers, my-maps |
+| 008 | expanded-row-boundary | How do two EXPANDED runner rows read as separate blocks when the board sits on the map? | A: Framed expanded row | leaderboard, rows, accordion, borders, run.human |
+| 007 | drill-card-stroke | How much stroke do drill token cards need to read as cards in BOTH themes, and what does a selected row look like? | C: Tone rail + row separators | leaderboard, drill, borders, light-dark, run.human |
+
+## Light-mode debt (from 007 intake)
+Sketch 005's card treatment shipped as `TokenCard` and was tuned in DARK mode only. In
+LIGHT mode the cards are near-white on near-white behind a 1px #e0e0e0 hairline and read
+as one undifferentiated block. Any future card/row sketch should be judged in BOTH themes
+before it ships — 007 renders every variant in both for exactly this reason.
 
 ## Model shift (from 003 intake)
 Tiers are RELATIVE, not absolute: flair is driven by your rank/percentile among all

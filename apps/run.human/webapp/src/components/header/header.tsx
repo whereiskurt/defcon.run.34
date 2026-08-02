@@ -19,6 +19,7 @@ import { PiPersonSimpleRun } from 'react-icons/pi';
 import { FiShield } from 'react-icons/fi';
 import { DonateModal } from '../DonateModal';
 import { useCopy } from '../CopyProvider';
+import { gpxMapUrl } from '@/lib/gpx-map';
 
 const UserDropDown = dynamic(() => import('./dropdown-user'), {
   ssr: false,
@@ -57,8 +58,11 @@ const APP_VERSION_TOOLTIP = `DC34 ${process.env.NEXT_PUBLIC_VERSION_APP || 'dev'
 const BIB_ORIGIN = 'https://bib.defcon.run';
 const BIB_REGION_PREFIX = process.env.NEXT_PUBLIC_REGION_SHORT || 'use1';
 
+// "Maps" goes straight to the gpx map with the official routes layer on. The
+// bare gpx.defcon.run origin only reaches it via an interstitial that drops the
+// query string, so the URL has to be spelled out — see lib/gpx-map.
 const navItems = [
-  { href: 'https://gpx.defcon.run', label: 'Maps', labelKey: 'common.header.maps', icon: GrMapLocation, external: true },
+  { href: gpxMapUrl(), label: 'Maps', labelKey: 'common.header.maps', icon: GrMapLocation, external: true },
   { href: '/meshtastic', label: 'Meshtastic', labelKey: 'common.header.meshtastic', icon: FaRadio, external: false },
   { href: 'https://bib.defcon.run', label: 'Bib', labelKey: 'common.header.bib', icon: PiPersonSimpleRun, external: true },
 ] as const;

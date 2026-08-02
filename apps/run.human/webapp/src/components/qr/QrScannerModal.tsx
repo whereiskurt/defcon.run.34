@@ -165,7 +165,14 @@ export default function QrScannerModal({
         body: JSON.stringify(qr.kind === 'token' ? { p: qr.value } : { h: qr.value }),
       });
       const data = await res.json().catch(() => ({}));
-      if (res.ok) {
+      // Bib pickup answers 200 like an ordinary pair, so it MUST be checked
+      // before the generic res.ok branch or it would flash "PAIRED". The full
+      // bib render lives on /r — a camera overlay is the wrong place for it.
+      if (res.ok && data.code === 'bib_pickup') {
+        setTally((t) => ({ ...t, ok: t.ok + 1 }));
+        if (soundRef.current) playBeep(audioCtxRef, 'ok');
+        flashNow('ok', `BIB PICKUP! · ${data.bib?.runnerCode ?? ''}`.trim());
+      } else if (res.ok) {
         setTally((t) => ({ ...t, ok: t.ok + 1 }));
         if (soundRef.current) playBeep(audioCtxRef, 'ok');
         flashNow('ok', `PAIRED · ${data.ownerName ?? 'runner'}`);

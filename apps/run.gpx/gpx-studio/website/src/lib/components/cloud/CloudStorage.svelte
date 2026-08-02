@@ -1,11 +1,17 @@
 <script lang="ts">
-    // Phase 62 — "My Maps": the unified cloud dialog. No more SAVE / OPEN / BROWSE
-    // modes (the old CloudStorageMode). It is one view — your DEF CON run folder,
-    // your runs grouped by con-day. Opening a map is just clicking it (auto-save
-    // persists edits, so there is no Save button). Per-row share / rename / delete
-    // / version-history survive; GLOBAL folders show read-only with a globe marker.
-    import { onMount } from 'svelte';
-    import * as Dialog from '$lib/components/ui/dialog/index.js';
+    // "My Routes" — the unified cloud dialog. No more SAVE / OPEN / BROWSE modes
+    // (the old CloudStorageMode). It is one view — your DEF CON run folder, your
+    // runs grouped by con-day. Opening a route is just clicking it (auto-save
+    // persists edits, so there is no Save button). Per-row share / rename /
+    // delete / version-history survive; GLOBAL folders show read-only with a
+    // globe marker.
+    //
+    // 2026-08-01 unified-routes spec: this list also ADOPTS orphan Route rows —
+    // routes minted by the retired "Create a route" card form, which have no
+    // backing GpxFile. They render as ordinary rows so there is one list and one
+    // Share vocabulary, not two. "Save as Route" is gone: every row already is a
+    // route, and Share → Public is what publishes it.
+    import { onMount, onDestroy } from 'svelte';
     import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
     import { Button } from '$lib/components/ui/button';
     import { DialogShell, Section } from '$lib/components/dialog-shell/index.js';
@@ -23,18 +29,16 @@
         ChevronRight,
         Globe,
         Share2,
-        Send,
         History,
         Download,
         Map as MapIcon,
         CalendarCheck,
-        Route as RouteIcon,
+        Upload,
     } from '@lucide/svelte';
     // Path import form, matching the `ui/` primitives.
     import Ellipsis from '@lucide/svelte/icons/ellipsis';
     import ShareDialog from './ShareDialog.svelte';
     import ConDaySaveDialog from './ConDaySaveDialog.svelte';
-    import RouteCardForm from './RouteCardForm.svelte';
     import {
         cloudFiles,
         cloudFolders,
@@ -53,15 +57,21 @@
         refreshCurrentFolder,
         getApiBase,
         getConDayUsage,
-        createRouteFromFile,
+        listOrphanRoutes,
+        deleteRoute,
         type CloudFile,
         type CloudFolder,
         type FileVersion,
+        type RouteSummary,
     } from '$lib/cloud-sync';
     import { cloudStorageOpen, closeCloudStorage } from '$lib/components/cloud/utils.svelte';
     import { auth, isAuthenticated, hasGpxStudioAccess } from '$lib/stores/auth';
     import { settings } from '$lib/logic/settings';
-    import { fileActions } from '$lib/logic/file-actions';
+    import {
+        fileActions,
+        uploadRouteFromFile,
+        openCloudFileOnMap,
+    } from '$lib/logic/file-actions';
     import { boundsManager } from '$lib/logic/bounds';
     import { selection } from '$lib/logic/selection';
     import { parseGPX } from 'gpx';
@@ -76,30 +86,83 @@
     let editingFileId: string | null = null;
     let editFileName: string = '';
 
-    // "Save as route" (routes-vs-runs spec): convert a file/run into a
-    // shareable DATELESS route template. Server copies the GPX; the original
-    // file (and its con-day/accomplishment, if any) is untouched.
+    // Orphan routes: minted by the retired "Create a route" card form, so they
+    // have no backing GpxFile. Adopted into this list so there is one list, not
+    // two. They keep using the standalone /routes/{id}/publish|unpublish
+    // endpoints — the unified /files/{id}/visibility route needs a file to
+    // address, which these do not have.
     // (legacy-mode component — plain lets are reactive here, no runes)
-    let routeDialogFile: CloudFile | null = null;
-    let routeConvertBusy = false;
-    let routeConvertMsg: string | null = null;
-    let routeConvertErr: string | null = null;
+    let orphanRoutes: RouteSummary[] = [];
 
-    async function onSaveAsRoute(card: {
-        name: string;
-        description?: string;
-        routeType?: string;
-    }) {
-        if (!routeDialogFile) return;
-        routeConvertBusy = true;
-        routeConvertErr = null;
+    async function refreshOrphanRoutes() {
         try {
-            await createRouteFromFile(routeDialogFile.fileId, card);
-            routeConvertMsg = `Route "${card.name}" created — find it under "Create a route" in the Add run hub, and share it from there.`;
+            orphanRoutes = await listOrphanRoutes();
+        } catch {
+            // The list simply stays empty; the files above are the main event.
+            orphanRoutes = [];
+        }
+    }
+
+    // Orphan routes have no backing file, so deleting the row IS deleting the
+    // route — there is nothing left behind. Copies other runners already made
+    // are independent GpxFiles and survive (the DELETE /routes/{id} contract).
+    async function removeOrphanRoute(route: RouteSummary) {
+        if (
+            !confirm(
+                `Delete "${route.name}"? This removes it for good. Copies other runners already saved are not affected.`
+            )
+        )
+            return;
+        loading = true;
+        error = null;
+        try {
+            await deleteRoute(route.routeId);
+            await refreshOrphanRoutes();
         } catch (e) {
-            routeConvertErr = e instanceof Error ? e.message : 'Could not create the route';
+            error = e instanceof Error ? e.message : 'Could not delete the route';
         } finally {
-            routeConvertBusy = false;
+            loading = false;
+        }
+    }
+
+    async function toggleOrphanPublic(route: RouteSummary) {
+        loading = true;
+        error = null;
+        try {
+            const endpoint = route.visibility === 'published' ? 'unpublish' : 'publish';
+            const response = await fetch(
+                `${getApiBase()}/routes/${encodeURIComponent(route.routeId)}/${endpoint}`,
+                { method: 'POST', credentials: 'include' }
+            );
+            if (!response.ok) throw new Error('Could not update sharing');
+            await refreshOrphanRoutes();
+        } catch (e) {
+            error = e instanceof Error ? e.message : 'Could not update sharing';
+        } finally {
+            loading = false;
+        }
+    }
+
+    // "Upload route": a GPX that is a route, not a run — dateless, no con-day,
+    // no quota. Before this the only upload path was "Log a run", which forces
+    // a day tag, so there was no way to bring in a plain route.
+    let routeUploadInput: HTMLInputElement | undefined;
+    let uploadingRoute = false;
+
+    async function onRouteUploadPicked(e: Event) {
+        const input = e.currentTarget as HTMLInputElement;
+        const picked = input.files?.[0];
+        input.value = '';
+        if (!picked) return;
+        uploadingRoute = true;
+        error = null;
+        try {
+            await uploadRouteFromFile(picked);
+            await refreshFiles();
+        } catch (e) {
+            error = e instanceof Error ? e.message : 'Could not upload the route';
+        } finally {
+            uploadingRoute = false;
         }
     }
 
@@ -118,9 +181,6 @@
     let versionHistoryCurrent: Record<string, number> = {};
     let loadingVersions = false;
     let loadingVersionsFileId: string | null = null;
-
-    // Track which files have shares (for colored icon)
-    let filesWithShares: Set<string> = new Set();
 
     // Folder state
     let creatingFolder = false;
@@ -194,6 +254,24 @@
         }
     });
 
+    // Refresh every time the dialog OPENS, not just at mount.
+    //
+    // This component is mounted ONCE (by Menu.svelte) and merely hidden and
+    // shown, so onMount alone made the list a snapshot from page load. Anything
+    // that changed the server state afterwards — accepting a share link,
+    // uploading a route, another tab — left the dialog showing stale contents,
+    // and on a fresh load with nothing cached it simply looked empty.
+    let wasCloudStorageOpen = false;
+    const unsubscribeOpen = cloudStorageOpen.subscribe((isOpen) => {
+        if (isOpen && !wasCloudStorageOpen && get(isAuthenticated) && get(hasGpxStudioAccess)) {
+            void refreshFiles();
+            void refreshConDayLabels();
+        }
+        wasCloudStorageOpen = isOpen;
+    });
+
+    onDestroy(unsubscribeOpen);
+
     async function refreshConDayLabels() {
         try {
             const usage = await getConDayUsage();
@@ -215,8 +293,8 @@
         error = null;
         try {
             await refreshCurrentFolder();
-            // Check which files have shares (in background, don't block UI)
-            checkFilesForShares();
+            // Orphan routes load alongside the files — one list, one refresh.
+            void refreshOrphanRoutes();
         } catch (e) {
             error = e instanceof Error ? e.message : 'Failed to load files';
         } finally {
@@ -333,27 +411,7 @@
         loading = true;
         error = null;
         try {
-            const { content } = await loadFromCloud(file.fileId);
-            const gpx = parseGPX(content);
-            if (gpx.metadata === undefined) {
-                gpx.metadata = {};
-            }
-            // Use the current fileName from the cloud file list (reflects any renames)
-            gpx.metadata.name = file.fileName.replace(/\.gpx$/i, '');
-            fileActions.add(gpx);
-            selection.selectFileWhenLoaded(gpx._data.id);
-
-            // Center map on the loaded file's bounds
-            boundsManager.fitBoundsOnLoad([gpx._data.id]);
-
-            // Register file with auto-save manager (file is now cloud-linked)
-            autoSaveManager.registerCloudLinkedFile(
-                gpx._data.id,
-                file.fileId,
-                file.fileName,
-                file.folderId ?? null
-            );
-
+            await openCloudFileOnMap(file.fileId, file.fileName, file.folderId ?? null);
             closeCloudStorage();
         } catch (e) {
             error = e instanceof Error ? e.message : 'Failed to load file';
@@ -361,6 +419,7 @@
             loading = false;
         }
     }
+
 
     // Per-file GPX download. Deliberately reuses loadFromCloud — the same
     // authenticated endpoint the row click already takes — so no presigned URL or
@@ -412,25 +471,12 @@
         }
     }
 
-    // Check if files have shares (called after loading files)
-    async function checkFilesForShares() {
-        const newFilesWithShares = new Set<string>();
-        for (const file of $cloudFiles) {
-            try {
-                const response = await fetch(`${getApiBase()}/shares?fileId=${file.fileId}`, {
-                    credentials: 'include',
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.shares && data.shares.length > 0) {
-                        newFilesWithShares.add(file.fileId);
-                    }
-                }
-            } catch {
-                // Ignore errors, just won't show colored icon
-            }
-        }
-        filesWithShares = newFilesWithShares;
+    // The row badge is DERIVED from the file itself — `publishedRouteId` now
+    // travels on the list payload. This replaced an N+1 probe that fired one
+    // /shares request per row just to colour an icon. Link state is deliberately
+    // not shown here; the Share dialog is where it is inspected.
+    function shareBadge(file: CloudFile): string {
+        return file.publishedRouteId ? 'Public' : 'Private';
     }
 
     // Format date for version history dropdown (smart relative dates)
@@ -589,6 +635,15 @@
     }
 </script>
 
+<!-- Hidden picker for "Upload route" (dateless — no con-day, no quota). -->
+<input
+    bind:this={routeUploadInput}
+    type="file"
+    accept=".gpx"
+    class="hidden"
+    onchange={onRouteUploadPicked}
+/>
+
 <!-- Footer actions. Declared out here and handed to DialogShell as a PROP rather than
      as an implicit child snippet: DialogShell draws the footer chrome with `{#if footer}`,
      and a snippet is always truthy, so guarding inside the snippet body would still leave
@@ -597,7 +652,15 @@
      "Add run" can never paint on a screen where it would be a dead end. -->
 {#snippet addRunFooter()}
     <span class="text-[11px] text-muted-foreground">GPX up to 10mb</span>
-    <Button onclick={openAddRun}>
+    <Button
+        variant="outline"
+        onclick={() => routeUploadInput?.click()}
+        disabled={uploadingRoute}
+    >
+        <Upload class="mr-2 h-4 w-4" />
+        {uploadingRoute ? 'Uploading…' : 'Upload route'}
+    </Button>
+    <Button class="add-run-glow" onclick={openAddRun}>
         <span class="mr-2 text-[13px] leading-none" aria-hidden="true">👟</span>Add run
     </Button>
 {/snippet}
@@ -606,7 +669,7 @@
     open={$cloudStorageOpen}
     onOpenChange={(isOpen) => !isOpen && closeCloudStorage()}
     dialogId="mymaps"
-    heading="My Maps"
+    heading="My Routes"
     subheading={$breadcrumbs.length > 1 ? $breadcrumbs[$breadcrumbs.length - 1].name : 'Your DEF CON run folder'}
     footer={$isAuthenticated && $hasGpxStudioAccess ? addRunFooter : undefined}
 >
@@ -849,20 +912,19 @@
                                 <div class="min-w-0 flex-1">
                                     <div class="flex items-center gap-1.5 text-sm font-semibold">
                                         <span class="truncate min-w-0">{file.fileName}</span>
-                                        {#if file.shareRequested}
-                                            <!-- Verb ②: at-a-glance "submitted to DEF CON run" state.
-                                                 Data-only flag (no link); pending admin review. -->
+                                        {#if file.publishedRouteId}
                                             <span
                                                 class="inline-flex flex-shrink-0 text-emerald-600"
-                                                data-hint="Submitted to DEF CON run — pending review."
-                                                aria-label="Submitted to DEF CON run — pending review."
+                                                data-hint="Public — on the community map."
+                                                aria-label="Public — on the community map."
                                             >
-                                                <Send class="h-3.5 w-3.5" />
+                                                <Globe class="h-3.5 w-3.5" />
                                             </span>
                                         {/if}
                                     </div>
                                     <div class="mt-0.5 flex gap-2 text-[11px] text-muted-foreground">
-                                        <span>v{file.version || 1}</span>
+                                        <span>{shareBadge(file)}</span>
+                                        <span>· v{file.version || 1}</span>
                                         {#if file.trackCount}
                                             <span>· {file.trackCount} track{file.trackCount !== 1 ? 's' : ''}</span>
                                         {/if}
@@ -897,25 +959,11 @@
                                                 onclick={() => { fileToShare = file; shareDialogOpen = true; }}
                                             >
                                                 <Share2 class="h-4 w-4" />
-                                                {#if filesWithShares.has(file.fileId)}
-                                                    <span>Manage sharing</span>
-                                                {:else}
-                                                    <span>Share</span>
-                                                {/if}
+                                                <span>Share</span>
                                             </DropdownMenu.Item>
                                             <DropdownMenu.Item onclick={() => (conDayDialogFile = file)}>
                                                 <CalendarCheck class="h-4 w-4" />
                                                 <span>Assign day</span>
-                                            </DropdownMenu.Item>
-                                            <DropdownMenu.Item
-                                                onclick={() => {
-                                                    routeConvertMsg = null;
-                                                    routeConvertErr = null;
-                                                    routeDialogFile = file;
-                                                }}
-                                            >
-                                                <RouteIcon class="h-4 w-4" />
-                                                <span>Save as Route</span>
                                             </DropdownMenu.Item>
                                             <DropdownMenu.Item onclick={() => handleExportFile(file)}>
                                                 <Download class="h-4 w-4" />
@@ -992,6 +1040,59 @@
             {/if}
         </Section>
 
+        <!-- Adopted orphan routes (2026-08-01 unified-routes spec): Route rows
+             with no backing GpxFile, left over from the retired "Create a route"
+             card form. Rendered as ordinary rows so the runner sees ONE list.
+             They cannot be opened in the editor (there is no local file behind
+             them) — the action available is the same Private/Public choice. -->
+        {#if orphanRoutes.length > 0}
+            <Section
+                label="Routes"
+                count={orphanRoutes.length}
+                collapsed={false}
+                ontoggle={() => {}}
+            >
+                {#each orphanRoutes as route (route.routeId)}
+                    <div class="flex items-center gap-3 px-3 py-2 hover:bg-foreground/5">
+                        <MapIcon class="h-[17px] w-[17px] flex-shrink-0 text-primary" />
+                        <div class="min-w-0 flex-1">
+                            <div class="truncate text-sm font-semibold">{route.name}</div>
+                            <div class="mt-0.5 flex gap-2 text-[11px] text-muted-foreground">
+                                <span>
+                                    {route.visibility === 'published' ? 'Public' : 'Private'}
+                                </span>
+                                {#if route.totalDistance}
+                                    <span>· {(route.totalDistance / 1000).toFixed(1)} km</span>
+                                {/if}
+                            </div>
+                        </div>
+                        <div class="flex flex-shrink-0 items-center gap-1.5">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                class="h-7 px-2.5 text-xs"
+                                disabled={loading || route.status !== 'active'}
+                                onclick={() => toggleOrphanPublic(route)}
+                            >
+                                {route.visibility === 'published' ? 'Make private' : 'Make public'}
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                class="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                                aria-label={'Delete ' + route.name}
+                                data-hint={'Delete ' + route.name}
+                                disabled={loading}
+                                onclick={() => removeOrphanRoute(route)}
+                            >
+                                <Trash2 class="h-3.5 w-3.5" />
+                            </Button>
+                        </div>
+                    </div>
+                {/each}
+            </Section>
+        {/if}
+
         <!-- Global (shared) folders — read-only, globe marker -->
         {#if $globalFolders.length > 0}
             <Section
@@ -1025,7 +1126,7 @@
     {/if}
 </DialogShell>
 
-<ShareDialog bind:open={shareDialogOpen} file={fileToShare} onSubmitChange={refreshFiles} />
+<ShareDialog bind:open={shareDialogOpen} file={fileToShare} onStateChange={refreshFiles} />
 
 {#if conDayDialogFile}
     <ConDaySaveDialog
@@ -1038,41 +1139,3 @@
         }}
     />
 {/if}
-
-<!-- "Save as route" card dialog (routes-vs-runs spec) -->
-<Dialog.Root
-    open={routeDialogFile !== null}
-    onOpenChange={(o) => {
-        if (!o) routeDialogFile = null;
-    }}
->
-    <Dialog.Content class="sm:max-w-md">
-        <Dialog.Header>
-            <Dialog.Title class="flex items-center gap-2">
-                <RouteIcon class="h-4 w-4" /> Save as route
-            </Dialog.Title>
-            <Dialog.Description>
-                Make a shareable, dateless route template from
-                "{routeDialogFile?.fileName}". The original file stays exactly as
-                it is.
-            </Dialog.Description>
-        </Dialog.Header>
-        {#if routeConvertMsg}
-            <p class="text-sm font-medium text-green-600 dark:text-green-400">
-                {routeConvertMsg}
-            </p>
-            <Button onclick={() => (routeDialogFile = null)}>Done</Button>
-        {:else}
-            <RouteCardForm
-                initial={{ name: routeDialogFile?.fileName?.replace(/\.gpx$/i, '') ?? '' }}
-                submitLabel={routeConvertBusy ? 'Creating…' : 'Create route'}
-                busy={routeConvertBusy}
-                onsubmit={onSaveAsRoute}
-                oncancel={() => (routeDialogFile = null)}
-            />
-            {#if routeConvertErr}
-                <p class="text-sm text-destructive">{routeConvertErr}</p>
-            {/if}
-        {/if}
-    </Dialog.Content>
-</Dialog.Root>

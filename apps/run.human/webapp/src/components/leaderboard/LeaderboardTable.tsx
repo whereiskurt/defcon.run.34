@@ -14,10 +14,9 @@ import {
   Pagination,
   Spinner,
 } from '@heroui/react';
-import { Activity, Search, X } from 'lucide-react';
-import PolylineRenderer from './PolylineRenderer';
+import { Search, X } from 'lucide-react';
+import RunnerDrill, { EMPTY_SOCIAL, type Drill } from './RunnerDrill';
 import { deriveCountChips, runnerClassEmoji } from '@/lib/leaderboard-ui';
-import type { CtfLine, SocialDayLine } from '@/lib/leaderboard-drill';
 
 /**
  * LeaderboardTable — the interactive heart of the (hidden) admin board (LDBR-10,
@@ -50,39 +49,8 @@ type LeaderboardRow = {
   ctfSolves: number;
 };
 
-/** One accomplishment — the exact shape from GET /api/leaderboard/[userId]/accomplishments. */
-type Accomplishment = {
-  type: string;
-  source: 'checkin' | 'gpx' | 'strava';
-  name: string;
-  description?: string;
-  completedAt: number;
-  year: number;
-  metadata?: {
-    polyline?: { lat: number; lng: number }[];
-    distance?: number;
-    elevation?: number;
-    stravaActivityId?: string;
-    gpxFileId?: string;
-    checkInId?: string;
-    [k: string]: unknown;
-  };
-};
-
-/** `social` shape from the drill response — a runner's social-scan rollup + jack-egg. */
-type SocialSummary = {
-  days: SocialDayLine[];
-  egg: { points: number; at?: string } | null;
-};
-
-/** The full per-user drill payload (Task 5): runs + social + CTF. */
-type Drill = {
-  accomplishments: Accomplishment[];
-  social: SocialSummary;
-  ctf: CtfLine[];
-};
-
-const EMPTY_SOCIAL: SocialSummary = { days: [], egg: null };
+/* Accomplishment / SocialSummary / Drill / EMPTY_SOCIAL now live in
+   ./RunnerDrill, shared with the profile's "Your standing" modal. */
 
 type LeaderboardTableProps = {
   /** The current admin's session.user.id — used to highlight their own row. */
@@ -103,90 +71,6 @@ const itemClasses = {
   // full-bleed row fills can reach the group border.
   trigger: 'px-3',
   content: 'text-lg px-1',
-};
-
-/** Drill section header: bold label + hairline rule + optional totals chip. */
-function SectionHeading({ label, chip }: { label: string; chip?: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-2 pt-1">
-      <h5 className="text-xs font-semibold uppercase tracking-widest text-default-600">
-        {label}
-      </h5>
-      {chip}
-      <div className="h-px flex-1 bg-default-300" aria-hidden="true" />
-    </div>
-  );
-}
-
-/** Icon-square tints per card tone. */
-const TONE_BG: Record<'warning' | 'secondary' | 'success', string> = {
-  warning: 'bg-warning-400/15',
-  secondary: 'bg-secondary-400/15',
-  success: 'bg-success-400/15',
-};
-
-/** One token card: type icon square, name (+badges), date/time meta under it,
- *  points pill right; optional full-width thumb (run map) below the header. */
-function TokenCard({
-  icon,
-  tone,
-  name,
-  meta,
-  points,
-  covert,
-  badge,
-  thumb,
-}: {
-  icon: string;
-  tone: 'warning' | 'secondary' | 'success';
-  name: string;
-  meta?: string;
-  points: number;
-  covert?: boolean;
-  badge?: React.ReactNode;
-  thumb?: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-lg bg-default-100 border border-default-200 px-3 py-2">
-      <div className="flex items-center gap-3">
-        <div
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[15px] ${TONE_BG[tone]}`}
-        >
-          {icon}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <span className="truncate">{name}</span>
-            {badge}
-            {covert && (
-              <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border border-warning-500/60 text-warning-600 dark:text-warning-400">
-                covert
-              </span>
-            )}
-          </div>
-          {meta && <div className="text-xs text-default-500">{meta}</div>}
-        </div>
-        <Chip color={tone} variant="flat" size="sm" className="shrink-0">
-          +{points} 🥕
-        </Chip>
-      </div>
-      {thumb && <div className="mt-2 pl-11">{thumb}</div>}
-    </div>
-  );
-}
-
-/** epoch-ms → `YYYY-MM-DD HH:MM` (DC33 formatDate, minus seconds). */
-function formatDate(timestamp: number): string {
-  const d = new Date(timestamp);
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
-}
-
-/** Semantic color for a run source badge. */
-const SOURCE_STYLE: Record<string, string> = {
-  strava: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300',
-  gpx: 'bg-primary/10 text-primary',
-  checkin: 'bg-success/10 text-success',
 };
 
 export default function LeaderboardTable({ currentUserId, apiBase }: LeaderboardTableProps) {
@@ -252,11 +136,7 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
         if (!res.ok) throw new Error(String(res.status));
         // Back-compat: older/partial cached responses may omit `social`/`ctf` —
         // treat missing sections as empty rather than throwing.
-        const data: {
-          accomplishments?: Accomplishment[];
-          social?: SocialSummary;
-          ctf?: CtfLine[];
-        } = await res.json();
+        const data: Partial<Drill> = await res.json();
         setDrills((prev) => ({
           ...prev,
           [userId]: {
@@ -420,13 +300,13 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
       ) : (
         <Accordion
           selectionMode="multiple"
-          variant="bordered"
+          // `light` (not `bordered`): the group no longer draws one shared
+          // frame around every row — each ROW is its own framed card now
+          // (sketch 008 A), separated by real gap rather than a shared edge.
+          variant="light"
           isCompact
           itemClasses={itemClasses}
-          // px-0 kills the bordered variant's px-4 channel so rows run flush to
-          // the group border; overflow-hidden clips full-bleed row fills to the
-          // group's rounded corners (UAT: own-row green spans the whole card).
-          className="gap-0 px-0 overflow-hidden"
+          className="flex flex-col gap-2.5 px-0"
           onSelectionChange={(keys) => {
             Array.from(keys).forEach((key) => fetchUserAccomplishments(String(key)));
           }}
@@ -438,45 +318,29 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
             }`;
             const chips = deriveCountChips(row);
             const drill = drills[row.userId];
-            const runs = drill?.accomplishments;
-            const social = drill?.social ?? EMPTY_SOCIAL;
-            const ctf = drill?.ctf ?? [];
-            const hasRuns = !!runs && runs.length > 0;
-            const hasSocial = social.days.length > 0 || !!social.egg;
-            const hasCtf = ctf.length > 0;
-
-            // Section totals (each entry carries its own full date+time).
-            const ctfTotal = ctf.reduce((s, c) => s + c.points, 0);
-            const socialPts =
-              social.days.reduce((s, d) => s + d.points, 0) + (social.egg?.points ?? 0);
-            const socialScans = social.days.reduce((s, d) => s + d.count, 0);
-            const runsPts = (runs ?? []).reduce(
-              (s, r) =>
-                s + (typeof r.metadata?.points === 'number' ? r.metadata.points : 1),
-              0
-            );
 
             return (
               <AccordionItem
                 key={row.userId}
                 className={
-                  // Full-bleed own-row with a complete green perimeter; every
-                  // other row gets an explicit bottom hairline so runners stay
-                  // visibly separated in BOTH themes (UAT: "no separators").
-                  isCurrentUser
-                    ? 'border border-green-500/50'
-                    : 'border-b border-default-200 last:border-b-0'
+                  // EVERY row is its own bounded card (sketch 008 A) — a frame
+                  // plus a faint fill, so two EXPANDED runners can never run
+                  // together and the map stops showing through as their shared
+                  // background. The current runner swaps the neutral frame for
+                  // the green selection one, keeping the 6px left rail that
+                  // echoes the drill cards' tone rail (sketch 007).
+                  `board-row ${isCurrentUser ? 'board-row-own' : ''}`
                 }
-                classNames={
-                  // Own-row highlight tints the HEADER ROW ONLY - the expanded
-                  // drill content stays on the default surface so its muted
-                  // greys/rails/thumbnails keep their contrast (UAT 2026-07-24).
-                  // Tint the full-width `heading` slot (not the inset trigger)
-                  // so the fill meets the item border with no dark gap.
-                  isCurrentUser
-                    ? { heading: 'bg-green-400/20 dark:bg-green-500/30' }
-                    : undefined
-                }
+                classNames={{
+                  // The header band marks where each runner starts inside their
+                  // own card. Tint the full-width `heading` slot (not the inset
+                  // trigger) so the fill meets the item border with no gap. The
+                  // expanded drill content stays on the default surface so its
+                  // muted greys/rails/thumbnails keep contrast (UAT 2026-07-24).
+                  heading: isCurrentUser
+                    ? 'bg-green-400/20 dark:bg-green-500/30'
+                    : 'board-row-head',
+                }}
                 textValue={`${displayName} accomplishments`}
                 title={
                   <div className="flex items-center flex-wrap w-full py-0.5 px-1 gap-2">
@@ -518,134 +382,7 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
                       <span className="text-sm text-default-500">Loading runs…</span>
                     </div>
                   ) : drill ? (
-                    <>
-                      {hasRuns && (
-                        <div className="space-y-1.5">
-                          <SectionHeading
-                            label="Runs"
-                            chip={
-                              <Chip color="success" variant="flat" size="sm" className="shrink-0">
-                                +{runsPts} 🥕 · {runs!.length === 1 ? '1 run' : `${runs!.length} runs`}
-                              </Chip>
-                            }
-                          />
-                          {/* Fill wide screens: cards flow into columns; single
-                              column on mobile (UAT: don't waste horizontal space). */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 items-start">
-                          {[...runs!]
-                            .sort((a, b) => b.completedAt - a.completedAt)
-                            .map((run, idx) => {
-                              const polyline = run.metadata?.polyline;
-                              // >= 1: a single point is a public check-in pin
-                              // (PolylineRenderer draws a dot-on-tile for it).
-                              const hasPolyline = Array.isArray(polyline) && polyline.length >= 1;
-                              return (
-                                <TokenCard
-                                  key={idx}
-                                  icon={run.source === 'checkin' ? '📍' : '🏃'}
-                                  tone="success"
-                                  name={run.name}
-                                  meta={formatDate(run.completedAt)}
-                                  points={
-                                    typeof run.metadata?.points === 'number'
-                                      ? run.metadata.points
-                                      : 1
-                                  }
-                                  badge={
-                                    <span
-                                      className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium ${
-                                        SOURCE_STYLE[run.source] ?? 'bg-default-100 text-default-600'
-                                      }`}
-                                    >
-                                      {run.source === 'strava' && <Activity className="h-3 w-3" />}
-                                      {run.source.toUpperCase()}
-                                    </span>
-                                  }
-                                  thumb={
-                                    hasPolyline ? (
-                                      <PolylineRenderer
-                                        points={polyline!}
-                                        theme={theme}
-                                        width={200}
-                                        height={120}
-                                      />
-                                    ) : undefined
-                                  }
-                                />
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {hasSocial && (
-                        <div className="space-y-1.5">
-                          <SectionHeading
-                            label="Social"
-                            chip={
-                              <Chip color="secondary" variant="flat" size="sm" className="shrink-0">
-                                +{socialPts} 🥕 · {socialScans === 1 ? '1 scan' : `${socialScans} scans`}
-                              </Chip>
-                            }
-                          />
-                          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-1.5 items-start">
-                          {social.days.map((d) => (
-                            <TokenCard
-                              key={d.day}
-                              icon="📇"
-                              tone="secondary"
-                              name={`Social scans ×${d.count}`}
-                              meta={d.day}
-                              points={d.points}
-                            />
-                          ))}
-                          {social.egg && (
-                            <TokenCard
-                              icon="🔌"
-                              tone="secondary"
-                              name="DC Jack egg"
-                              meta={
-                                social.egg.at
-                                  ? formatDate(Date.parse(social.egg.at))
-                                  : undefined
-                              }
-                              points={social.egg.points}
-                            />
-                          )}
-                          </div>
-                        </div>
-                      )}
-
-                      {hasCtf && (
-                        <div className="space-y-1.5">
-                          <SectionHeading
-                            label="CTF"
-                            chip={
-                              <Chip color="warning" variant="flat" size="sm" className="shrink-0">
-                                +{ctfTotal} 🥕 · {ctf.length === 1 ? '1 solve' : `${ctf.length} solves`}
-                              </Chip>
-                            }
-                          />
-                          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-1.5 items-start">
-                          {ctf.map((c, idx) => (
-                            <TokenCard
-                              key={`${c.challenge}-${idx}`}
-                              icon="🚩"
-                              tone="warning"
-                              name={c.name}
-                              meta={c.at ? formatDate(Date.parse(c.at)) : undefined}
-                              points={c.points}
-                              covert={c.channel === 'covert'}
-                            />
-                          ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {!hasRuns && !hasSocial && !hasCtf && (
-                        <p className="text-default-500 text-sm p-2">No runs yet.</p>
-                      )}
-                    </>
+                    <RunnerDrill drill={drill} theme={theme} />
                   ) : (
                     <p className="text-default-500 text-sm p-2">Expand to load runs…</p>
                   )}

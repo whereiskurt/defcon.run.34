@@ -31,6 +31,14 @@ const OIDC_PROVIDER = "run.defcon.run";
  * - Re-flashing the same radio updates the private key (idempotent)
  * - Re-flashing a radio owned by ANOTHER user is an explicit, audited ownership
  *   transfer (see transferMeshRadioOwner) — never a silent key overwrite
+ *
+ * ⚠️ nodeId is NOT stable across a re-flash on 2.8 firmware. The node number is
+ * crc32(public_key), recomputed at boot whenever a keypair exists, so a re-flash
+ * that regenerates keys produces a DIFFERENT nodeId and lands on the create path
+ * (new row + one radio-slot charge) rather than the idempotent update below. The
+ * caller derives the post-boot ID before POSTing — see run.flash's
+ * src/lib/node-id.ts. Only a re-flash that preserves the keypair still updates
+ * in place.
  */
 export async function POST(req: NextRequest) {
   // Verify internal secret
@@ -152,9 +160,9 @@ export async function POST(req: NextRequest) {
     const existing = await getMeshRadio(canonicalNodeId);
 
     if (existing && existing.userId !== adapterUserId) {
-      // TRANSFER: this radio is registered to a DIFFERENT account. Meshtastic
-      // derives myNodeNum from the ESP32 MAC, so a re-flashed radio keeps its
-      // "!id" -- a radio that changed hands lands here. Handle it EXPLICITLY:
+      // TRANSFER: this radio is registered to a DIFFERENT account -- a radio
+      // that changed hands, re-flashed by its new owner while KEEPING its node
+      // ID. Handle it EXPLICITLY:
       // flashing proves physical USB possession (stronger than the manual-add
       // OTP), so move ownership and audit it. This branch previously fell into
       // the UPDATE patch below, which overwrote the other user's keys, flipped

@@ -2,7 +2,15 @@ import { writable } from 'svelte/store';
 import { parseGPX } from 'gpx';
 import mapboxgl from 'mapbox-gl';
 import { routeColor } from '$lib/dc34-palette';
-import { listCommunityRoutes, copyRouteToMyMaps, type RouteSummary } from '$lib/cloud-sync';
+import {
+    listCommunityRoutes,
+    copyRouteToMyMaps,
+    adminUnpublishRoute,
+    adminDeleteRoute,
+    type RouteSummary,
+} from '$lib/cloud-sync';
+import { get } from 'svelte/store';
+import { isAdmin } from '$lib/stores/auth';
 import { escapeHtml } from './escape-html';
 import {
     PREFIX,
@@ -22,7 +30,7 @@ import { requestedLayers } from '$lib/stores/layer-url';
  *
  * Security: every card value (name/description/attribution) is user-controlled
  * text from OTHER users and is escapeHtml'd before entering popup innerHTML.
- * The "Add to My Maps" button copies the route server-side (fresh dateless
+ * The "Add to My Routes" button copies the route server-side (fresh dateless
  * GpxFile — never scores).
  */
 
@@ -57,8 +65,18 @@ const ROUTE_TYPE_LABEL: Record<string, string> = {
     'point-to-point': 'Point to point',
 };
 
-/** Popup card for a community route. EVERY interpolated value is escaped. */
-export function communityPopupHtml(r: RouteSummary, color: string): string {
+/**
+ * Popup card for a community route. EVERY interpolated value is escaped.
+ *
+ * `asAdmin` adds the moderation row — "Make private" (reversible; the owner can
+ * re-publish) and "Delete" (destructive). Rendering it is a convenience only:
+ * both endpoints 404 for non-admins server-side, so a spoofed flag buys nothing.
+ */
+export function communityPopupHtml(
+    r: RouteSummary,
+    color: string,
+    asAdmin = false
+): string {
     const distStr = formatDistance(r.totalDistance);
     const typeLabel = r.routeType ? ROUTE_TYPE_LABEL[r.routeType] : undefined;
     const desc = (r.description ?? '').slice(0, 200);
@@ -78,11 +96,40 @@ export function communityPopupHtml(r: RouteSummary, color: string): string {
                     style="display:block;width:100%;margin-top:10px;padding:5px 8px;border-radius:8px;
                            font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;
                            background:rgba(0,212,170,.12);color:#00d4aa;border:1px solid rgba(0,212,170,.55)">
-                ➕ Add to My Maps</button>
+                ➕ Add to My Routes</button>
+            ${asAdmin ? adminRowHtml(r) : ''}
         </div>`;
 }
 
-/** Wire the popup's "Add to My Maps" button. Idempotent per popup open. */
+/**
+ * Admin moderation row. `data-admin-orphan` carries whether the route has a
+ * backing file so the click handler can warn before a delete that would destroy
+ * the owner's only copy — the community listing sends `hasBackingFile` as a
+ * boolean precisely so no internal id has to travel here.
+ */
+function adminRowHtml(r: RouteSummary): string {
+    const id = escapeHtml(r.routeId);
+    const orphan = r.hasBackingFile === false ? '1' : '0';
+    return `
+        <div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.14)">
+            <div style="font-size:9px;letter-spacing:.08em;text-transform:uppercase;opacity:.5;margin-bottom:6px">Admin</div>
+            <div style="display:flex;gap:6px">
+                <button data-admin-unpublish="${id}"
+                        style="flex:1;padding:5px 8px;border-radius:8px;font-size:11px;font-weight:600;
+                               font-family:inherit;cursor:pointer;background:rgba(255,255,255,.06);
+                               color:#e4e4ef;border:1px solid rgba(255,255,255,.25)">
+                    Make private</button>
+                <button data-admin-delete="${id}" data-admin-orphan="${orphan}"
+                        data-admin-name="${escapeHtml(r.name)}"
+                        style="flex:1;padding:5px 8px;border-radius:8px;font-size:11px;font-weight:600;
+                               font-family:inherit;cursor:pointer;background:rgba(248,113,113,.12);
+                               color:#f87171;border:1px solid rgba(248,113,113,.5)">
+                    Delete</button>
+            </div>
+        </div>`;
+}
+
+/** Wire the popup's "Add to My Routes" button. Idempotent per popup open. */
 export function wireCommunityPopupCopy(
     container: HTMLElement | undefined,
     onCopied?: () => void
@@ -96,7 +143,7 @@ export function wireCommunityPopupCopy(
         btn.textContent = 'Copying…';
         copyRouteToMyMaps(routeId)
             .then(() => {
-                btn.textContent = '✓ Copied to My Maps';
+                btn.textContent = '✓ Copied to My Routes';
                 onCopied?.();
             })
             .catch(() => {
@@ -104,6 +151,61 @@ export function wireCommunityPopupCopy(
                 btn.textContent = 'Copy failed — try again';
             });
     });
+}
+
+/**
+ * Wire the admin moderation buttons. No-op when the popup has no admin row.
+ * `onChanged` lets the layer drop the route it just moderated.
+ */
+export function wireCommunityPopupAdmin(
+    container: HTMLElement | undefined,
+    onChanged?: (routeId: string) => void
+): void {
+    const unpublishBtn = container?.querySelector<HTMLButtonElement>('[data-admin-unpublish]');
+    if (unpublishBtn) {
+        unpublishBtn.addEventListener('click', () => {
+            const routeId = unpublishBtn.dataset.adminUnpublish;
+            if (!routeId) return;
+            unpublishBtn.disabled = true;
+            unpublishBtn.textContent = 'Working…';
+            adminUnpublishRoute(routeId)
+                .then(() => {
+                    unpublishBtn.textContent = '✓ Private';
+                    onChanged?.(routeId);
+                })
+                .catch(() => {
+                    unpublishBtn.disabled = false;
+                    unpublishBtn.textContent = 'Failed — retry';
+                });
+        });
+    }
+
+    const deleteBtn = container?.querySelector<HTMLButtonElement>('[data-admin-delete]');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', () => {
+            const routeId = deleteBtn.dataset.adminDelete;
+            if (!routeId) return;
+            const name = deleteBtn.dataset.adminName ?? 'this route';
+            // An orphan has no backing file, so deleting is the owner's ONLY
+            // copy gone. Say so plainly rather than behind a generic confirm.
+            const warning =
+                deleteBtn.dataset.adminOrphan === '1'
+                    ? `Delete "${name}"?\n\nThis route has no backing file, so this removes the owner's ONLY copy permanently. "Make private" is reversible — use that unless you mean to destroy it.`
+                    : `Delete "${name}"?\n\nRemoves it from the community map for good. The owner keeps their own file, and copies other runners already saved are unaffected.`;
+            if (!confirm(warning)) return;
+            deleteBtn.disabled = true;
+            deleteBtn.textContent = 'Deleting…';
+            adminDeleteRoute(routeId)
+                .then(() => {
+                    deleteBtn.textContent = '✓ Deleted';
+                    onChanged?.(routeId);
+                })
+                .catch(() => {
+                    deleteBtn.disabled = false;
+                    deleteBtn.textContent = 'Failed — retry';
+                });
+        });
+    }
 }
 
 export class CommunityRoutesLayer {
@@ -267,9 +369,16 @@ export class CommunityRoutesLayer {
                     if (!meta) return;
                     this.popup
                         .setLngLat(e.lngLat)
-                        .setHTML(communityPopupHtml(meta, color))
+                        .setHTML(communityPopupHtml(meta, color, get(isAdmin)))
                         .addTo(this.map);
                     wireCommunityPopupCopy(this.popup.getElement());
+                    // Moderating a route removes it from the map immediately —
+                    // whether it was unpublished or deleted, it is no longer a
+                    // community route and should stop being drawn as one.
+                    wireCommunityPopupAdmin(this.popup.getElement(), (routeId) => {
+                        this.removeRouteLayer(routeId);
+                        this.popup.remove();
+                    });
                 };
                 const onEnter = () => (this.map.getCanvas().style.cursor = 'pointer');
                 const onLeave = () => (this.map.getCanvas().style.cursor = '');
@@ -328,6 +437,27 @@ export class CommunityRoutesLayer {
         );
         // One write for the whole cascade (the section master is derived from the rows).
         setLayersVisible(ids, visible);
+    }
+
+    /**
+     * Drop a single route from the map after an admin moderated it. Mirrors the
+     * per-route half of teardownMapLayers, and also prunes the layer-control
+     * entry so the section count stays honest without a full reload.
+     */
+    private removeRouteLayer(routeId: string) {
+        try {
+            for (const id of [coreLayerId(routeId), glowLayerId(routeId)]) {
+                if (this.map.getLayer(id)) this.map.removeLayer(id);
+            }
+            if (this.map.getSource(coreLayerId(routeId)))
+                this.map.removeSource(coreLayerId(routeId));
+        } catch {
+            // map not ready — the row still leaves the store below
+        }
+        this.routeBounds.delete(routeId);
+        this.routeMeta.delete(routeId);
+        this.colorByRoute.delete(routeId);
+        communityRoutes.update((routes) => routes.filter((r) => r.routeId !== routeId));
     }
 
     private teardownMapLayers() {

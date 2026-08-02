@@ -1,25 +1,25 @@
 /**
- * "My Maps" (cloud storage) dialog state.
+ * "My Routes" (cloud storage) dialog state.
  *
  * Phase 62: the dialog no longer shape-shifts between SAVE / OPEN / BROWSE (the
- * old `CloudStorageMode` enum). "My Maps" is ONE view — your DEF CON run folder —
+ * old `CloudStorageMode` enum). "My Routes" is ONE view — your DEF CON run folder —
  * so its visibility is a single boolean. Opening a map is just clicking it;
  * saving is automatic (auto-save), so the Save-As / Save-All entry points and
  * their mode plumbing are gone.
  */
 import { writable } from 'svelte/store';
 
-/** Whether the unified "My Maps" dialog is open. */
+/** Whether the unified "My Routes" dialog is open. */
 export const cloudStorageOpen = writable(false);
 
-/** Open the unified "My Maps" dialog. */
+/** Open the unified "My Routes" dialog. */
 export function openMyMaps(): void {
     cloudStorageOpen.set(true);
 }
 
 /**
  * Backwards-compatible alias: ShareAcceptDialog (and any external caller) that
- * imported the old `openCloudStorage()` still lands on "My Maps".
+ * imported the old `openCloudStorage()` still lands on "My Routes".
  */
 export const openCloudStorage = openMyMaps;
 

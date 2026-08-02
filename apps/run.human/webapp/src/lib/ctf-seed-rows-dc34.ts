@@ -91,5 +91,16 @@ export function buildDc34SeedRows(): Dc34SeedRow[] {
       challenge: "exceptional-run", answerType: "static", answerHash: ZERO_HASH,
       ...flat(1000), perPlayerIntervalHours: 24, enabled: true, ...ANTI_SPAM,
     },
+    // Bib pickup — grant-only, 200. Awarded server-side the FIRST time a runner
+    // scans their OWN QR at the pickup table (lib/bib-pickup.ts), which is what
+    // proves the bib in their hand is theirs. Flat and NOT repeatable: no
+    // perPlayerIntervalHours, and the caller additionally refuses to re-award
+    // (judgeSolve alone would replay solved:true — see bib-pickup.ts).
+    // ⚠️ Until this row is seeded the feature is INERT: a self-scan just shows
+    // the ordinary "that's your own QR code" and nobody can ever pick up.
+    {
+      challenge: "bib-pickup", answerType: "static", answerHash: ZERO_HASH,
+      ...flat(200), enabled: true, ...ANTI_SPAM,
+    },
   ];
 }

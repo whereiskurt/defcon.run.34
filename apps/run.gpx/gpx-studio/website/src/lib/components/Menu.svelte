@@ -38,14 +38,17 @@
         ChartArea,
         Maximize,
         Cloud,
-        RefreshCw,
         Footprints,
         Upload,
+        ShieldCheck,
+        Route,
+        Flame,
     } from '@lucide/svelte';
+    import { base } from '$app/paths';
     import RefreshCueOverlay from '$lib/components/map/RefreshCueOverlay.svelte';
     import { quickStartOpen } from '$lib/stores/quickstart';
     import { stravaStripExpanded, stravaStripHidden } from '$lib/stores/strava-strip';
-    import { isAuthenticated, hasGpxStudioAccess } from '$lib/stores/auth';
+    import { isAuthenticated, hasGpxStudioAccess, canModerate } from '$lib/stores/auth';
     import { map } from '$lib/components/map/map';
     import { editMetadata } from '$lib/components/file-list/metadata/utils.svelte';
     import { editStyle } from '$lib/components/file-list/style/utils.svelte';
@@ -59,7 +62,6 @@
     import BulkUpload from '$lib/components/cloud/BulkUpload.svelte';
     import ShareAcceptDialog from '$lib/components/cloud/ShareAcceptDialog.svelte';
     import { openMyMaps } from '$lib/components/cloud/utils.svelte';
-    import { autoSaveManager } from '$lib/auto-save';
     import { mode, setMode } from 'mode-watcher';
     import { i18n } from '$lib/i18n.svelte';
     import { languages } from '$lib/languages';
@@ -93,7 +95,6 @@
         directionMarkers,
         streetViewSource,
         routing,
-        autoSaveEnabled,
     } = settings;
 
     const canUndo = fileActionManager.canUndo;
@@ -109,6 +110,12 @@
         } else {
             [$currentOverlays, $previousOverlays] = [$previousOverlays, defaultOverlays];
         }
+    }
+
+    /** "/use1/studio" -> "/use1" (empty in dev). The admin pages are Next.js
+     *  routes outside the studio base, so they need the region prefix only. */
+    function adminBase(): string {
+        return base.replace('/studio', '');
     }
 
     let layerSettingsOpen = $state(false);
@@ -136,12 +143,8 @@
                     </Menubar.Item>
                     <Menubar.Item onclick={openMyMaps}>
                         <Cloud size="16" />
-                        My Maps...
+                        My Routes...
                         <Shortcut key="O" ctrl={true} />
-                    </Menubar.Item>
-                    <Menubar.Item onclick={() => quickStartOpen.set(true)}>
-                        <Footprints size="16" />
-                        Add run...
                     </Menubar.Item>
                     <Menubar.Separator />
                     <Menubar.Sub>
@@ -163,11 +166,6 @@
                             </Menubar.Item>
                         </Menubar.SubContent>
                     </Menubar.Sub>
-                    <Menubar.Separator />
-                    <Menubar.CheckboxItem bind:checked={$autoSaveEnabled}>
-                        <RefreshCw size="16" />
-                        Auto-Save
-                    </Menubar.CheckboxItem>
                     <Menubar.Separator />
                     <Menubar.Item
                         onclick={() => tick().then(fileActions.deleteSelectedFiles)}
@@ -508,6 +506,29 @@
                     </Menubar.Item>
                 </Menubar.Content>
             </Menubar.Menu>
+            <!-- Manage: moderation surfaces, admin/runadmin only. Rendering is a
+                 convenience — both pages and every endpoint behind them are
+                 server-gated and 404 for anyone else, so hiding the menu is not
+                 the control. Links carry the region prefix: SvelteKit's `base`
+                 is "/use1/studio", and the admin pages live off "/use1". -->
+            {#if $canModerate}
+                <Menubar.Menu>
+                    <Menubar.Trigger aria-label="Manage">
+                        <ShieldCheck size="18" class="md:hidden" />
+                        <span class="hidden md:block">Manage</span>
+                    </Menubar.Trigger>
+                    <Menubar.Content class="border-none">
+                        <Menubar.Item onclick={() => (window.location.href = `${adminBase()}/admin/routes`)}>
+                            <Route size="16" />
+                            Routes
+                        </Menubar.Item>
+                        <Menubar.Item onclick={() => (window.location.href = `${adminBase()}/admin/heatmap`)}>
+                            <Flame size="16" />
+                            Heat map
+                        </Menubar.Item>
+                    </Menubar.Content>
+                </Menubar.Menu>
+            {/if}
         </Menubar.Root>
         <!-- Meshtastic (official mark, icon only) → the DEF CON mesh flasher app. -->
         <a
@@ -601,7 +622,7 @@
             createFile();
             e.preventDefault();
         } else if (e.key === 'o' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
-            // Ctrl/Cmd+O: open My Maps (the unified cloud folder view)
+            // Ctrl/Cmd+O: open My Routes (the unified cloud folder view)
             openMyMaps();
             e.preventDefault();
         } else if (e.key === 'd' && (e.metaKey || e.ctrlKey)) {
@@ -718,31 +739,4 @@
         @apply py-0.5;
     }
 
-    /* "Add run" — the primary call-to-action: a bright, softly-glowing pill
-       so runners immediately see where to log a run. */
-    .add-run-glow {
-        background: #22c55e; /* brand green-500 (matches the /\ + heart marks) */
-        color: #fff;
-        animation: add-run-pulse 2.1s ease-in-out infinite;
-    }
-    /* win over the generic `div button:hover { bg-accent }` rule above */
-    .add-run-glow:hover {
-        background: #16a34a; /* green-600 */
-        filter: brightness(1.05);
-    }
-    @keyframes add-run-pulse {
-        0%,
-        100% {
-            box-shadow: 0 0 6px 1px rgb(34 197 94 / 0.6);
-        }
-        50% {
-            box-shadow: 0 0 18px 5px rgb(34 197 94 / 0.95);
-        }
-    }
-    @media (prefers-reduced-motion: reduce) {
-        .add-run-glow {
-            animation: none;
-            box-shadow: 0 0 10px 2px rgb(34 197 94 / 0.8);
-        }
-    }
 </style>

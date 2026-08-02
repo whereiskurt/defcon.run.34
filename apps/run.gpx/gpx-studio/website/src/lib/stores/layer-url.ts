@@ -22,6 +22,11 @@ import { LAYER } from './layer-visibility';
  * would bake CMS-generated ids into printed/QR'd links that then break the moment a
  * route is re-uploaded.
  *
+ * A LINK THAT NAMES ROUTES ALSO FRAMES THEM: `public-overlays.ts` fits the map to the
+ * union of whatever the link turned on, so the visitor lands looking at them rather than
+ * at the default view with the answer somewhere off-screen. Nothing is fitted when the
+ * parameter is absent, or when it names only layers that carry no route geometry.
+ *
  * OUT OF SCOPE, DELIBERATELY: ghost mode (`stores/ghost.ts`) and the always-on rabbit
  * live-pin layer are not in `layer-visibility.ts`, are not URL-addressable, and keep
  * their own defaults. Nothing here touches them.

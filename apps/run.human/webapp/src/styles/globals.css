@@ -218,9 +218,11 @@ html.dark .leaflet-popup-close-button:hover {
    Reduce Motion on (the documented prod cash-rain regression). The burst +
    fall stay on for everyone. */
 
-/* whoami CTA button bar — one segmented pill: Add Run (gpx green), the
-   Strava pair (orange), Signal (blue). The bar pulses a soft neutral glow
-   (per-segment colored glows bleed into their neighbours when joined). */
+/* whoami "Add Run" pill — the ONE loud primary in the profile action bar
+   (gpx green). Its neighbours (Scan, Leaderboard) are brand-teal HeroUI
+   outline buttons, so the only bespoke colour left here is this green.
+   The soft neutral pulse rides the button itself now that the bar is no
+   longer a joined segmented pill. */
 .cta-bar {
   animation: cta-bar-pulse 2.6s ease-in-out infinite;
 }
@@ -246,17 +248,96 @@ html.dark .leaflet-popup-close-button:hover {
 .seg-addrun:hover {
   background: #16a34a;
 }
-.seg-strava {
-  background: #fc4c02;
-  color: #fff;
+
+/* ============================================================================
+   Leaderboard drill token card - sketch 007 variant C, the tone rail.
+
+   LIGHT MODE WAS THE BUG. The Phase-52 card (bg-default-100 + a 1px #e0e0e0
+   hairline) was tuned in dark mode; in light it is near-white on near-white and
+   a stack of them reads as one undifferentiated block. So the values below are
+   written per-theme by hand rather than leaning on semantic default-* tokens,
+   whose LIGHT ramp is the untuned HeroUI fallback (this theme only overrides
+   background, foreground, primary, secondary, content1-4 and divider for light).
+
+   Anatomy: a real 1.5px border for separation + a 4px left rail colour-keyed to
+   the section, so the TYPE of a card is scannable before you read a word.
+   ============================================================================ */
+.drill-card {
+  background: #ffffff;
+  border: 1.5px solid #c9c9d1;
+  border-left-width: 4px;
+  transition: border-color 0.14s ease;
 }
-.seg-strava:hover {
-  background: #e04502;
+html.dark .drill-card {
+  background: #1a1a24;
+  border-color: #3a3a4e;
 }
-.seg-signal {
-  background: #3a76f0;
-  color: #fff;
+.drill-card:hover {
+  border-top-color: #a9a9b6;
+  border-right-color: #a9a9b6;
+  border-bottom-color: #a9a9b6;
 }
-.seg-signal:hover {
-  background: #2f63d4;
+html.dark .drill-card:hover {
+  border-top-color: #4a4a62;
+  border-right-color: #4a4a62;
+  border-bottom-color: #4a4a62;
+}
+/* Rails match the section chip colours: runs green, social violet, CTF amber.
+   Set AFTER the base rule so the left edge always wins over the border
+   shorthand above — and after :hover, which deliberately leaves it alone. */
+.drill-card.rail-success { border-left-color: #16a34a; }
+.drill-card.rail-secondary { border-left-color: #7c3aed; }
+.drill-card.rail-warning { border-left-color: #b45309; }
+html.dark .drill-card.rail-success { border-left-color: #22c55e; }
+html.dark .drill-card.rail-secondary { border-left-color: #9353d3; }
+html.dark .drill-card.rail-warning { border-left-color: #f5a524; }
+
+/* ============================================================================
+   Board rows as BOUNDED BLOCKS (sketch 008 variant A).
+
+   A separator line was not enough. Two EXPANDED runners are tall blocks, and
+   the board sits on the live map background, so a 1px rule between them just
+   disappeared and one runner's drill ran straight into the next runner's
+   header (Kurt, 2026-08-01). Each row is now its own framed card with a faint
+   fill — the fill matters as much as the border, because it is what stops the
+   map reading as the shared background of two adjacent rows.
+
+   The group is a flex column with a real gap, so rows are separated by air and
+   frame rather than by a shared edge. Colours are per-theme by hand for the
+   same reason as .drill-card above.
+   ============================================================================ */
+.board-row {
+  border: 1.5px solid #c9c9d1;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  overflow: hidden;
+}
+html.dark .board-row {
+  border-color: #3a3a4e;
+  background: rgba(17, 17, 24, 0.55);
+}
+/* The current runner keeps the green selection frame, now on a bounded card. */
+.board-row-own {
+  border: 2px solid #16a34a;
+  border-left-width: 6px;
+}
+html.dark .board-row-own {
+  border-color: #22c55e;
+}
+/* Header band — marks where each runner starts inside their own card. */
+.board-row-head {
+  background: rgba(16, 16, 24, 0.05);
+}
+html.dark .board-row-head {
+  background: rgba(255, 255, 255, 0.05);
+}
+/* Rule under the header ONLY while the row is open; collapsed, it would double
+   up with the card border one pixel below. Keyed off the trigger button's
+   aria-expanded, which the accordion owns. If :has() is unavailable the rule is
+   simply absent — the band and frame still separate everything. */
+.board-row:has([aria-expanded="true"]) .board-row-head {
+  border-bottom: 1px solid #c9c9d1;
+}
+html.dark .board-row:has([aria-expanded="true"]) .board-row-head {
+  border-bottom-color: #3a3a4e;
 }

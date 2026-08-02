@@ -529,6 +529,21 @@ export class PublicOverlaysLayer {
                 );
             }
         }
+        // ...and then put them on screen. This is the ONE camera move the seeding path
+        // makes, and it is deliberate: the "a restore must not move the camera" rule in
+        // layer-visibility.ts exists to protect a runner who is already looking at
+        // something, and nobody arriving on a `?layers=` link is — the link's whole job is
+        // to choose what they see first. Absent the parameter nothing fits here, so an
+        // ordinary page load is byte-identical to before. `fitToRoutes` unions the cached
+        // per-route bounds and no-ops when it has none, so a link that names only
+        // `checkins`/`heat:*` (no route geometry) correctly leaves the camera alone.
+        if (requested) {
+            this.fitToRoutes(
+                groups.flatMap((g) =>
+                    requested.folders.has(g.folderName) ? g.maps.map((m) => m.fileId) : []
+                )
+            );
+        }
         // Authoritative manifest in hand — forget stored ids whose route is gone.
         pruneLayerVisibility(
             PREFIX.publicRoute,

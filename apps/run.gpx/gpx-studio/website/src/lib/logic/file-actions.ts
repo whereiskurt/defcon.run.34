@@ -4,7 +4,7 @@ import { applyToOrderedItemsFromFile, copied, cut, selection } from '$lib/logic/
 import { currentTool, Tool } from '$lib/components/toolbar/tools';
 import { SplitType } from '$lib/components/toolbar/tools/scissors/scissors';
 import { autoSaveManager } from '$lib/auto-save';
-import { saveToCloud } from '$lib/cloud-sync';
+import { saveToCloud, loadFromCloud } from '$lib/cloud-sync';
 import { isAuthenticated, hasGpxStudioAccess } from '$lib/stores/auth';
 import {
     ListFileItem,
@@ -69,6 +69,61 @@ export function newGPXFile() {
     return file;
 }
 
+/**
+ * Persist a brand-new LOCAL file to the cloud and register it for auto-save.
+ *
+ * Shared by every path that mints a file locally: `createFile()` (File → New
+ * route) and the draw tool's implicit create-on-first-point in
+ * toolbar/tools/routing/Routing.svelte. That second path used to add the file
+ * to the map and nothing else, so "New file 1" existed only in the browser and
+ * was silently never saved — the route looked live, and auto-save skipped it
+ * forever because auto-save only tracks files registered here.
+ *
+ * Takes the GPXFile directly rather than looking it up, because the caller has
+ * just built it and the state collection may not have observed it yet.
+ *
+ * Silent-fail by design: a failed initial save must never block drawing.
+ */
+export async function persistNewLocalFile(
+    localFileId: string,
+    file: ReturnType<typeof newGPXFile>
+): Promise<string | null> {
+    if (!get(isAuthenticated) || !get(hasGpxStudioAccess)) return null;
+    // Already cloud-linked (e.g. a second point on an existing draw) — no-op.
+    if (autoSaveManager.getCloudInfo(localFileId)) return null;
+
+    try {
+        const gpxContent = buildGPX(file, []);
+        const fileName = `${file.metadata?.name || 'New File'}.gpx`;
+        const lastFolder = get(settings.lastSaveFolder);
+        const folderId = lastFolder === 'ROOT' ? null : lastFolder;
+
+        const cloudFileId = await saveToCloud(
+            gpxContent,
+            fileName,
+            {
+                trackCount: file.trk?.length || 0,
+                waypointCount: file.wpt?.length || 0,
+            },
+            folderId
+        );
+
+        // wasDefaultName=true: renaming an auto-named file renames the cloud row
+        // in place rather than minting a second one.
+        autoSaveManager.registerCloudLinkedFile(
+            localFileId,
+            cloudFileId,
+            fileName,
+            folderId,
+            true
+        );
+        return cloudFileId;
+    } catch (error) {
+        console.warn('Initial cloud save failed:', error);
+        return null;
+    }
+}
+
 export async function createFile() {
     let file = newGPXFile();
 
@@ -76,36 +131,7 @@ export async function createFile() {
     selection.selectFileWhenLoaded(file._data.id);
     currentTool.set(Tool.ROUTING);
 
-    // If auto-save is enabled and user is authenticated, immediately save to cloud
-    const autoSaveEnabled = get(settings.autoSaveEnabled);
-    const authenticated = get(isAuthenticated);
-    const hasAccess = get(hasGpxStudioAccess);
-
-    if (autoSaveEnabled && authenticated && hasAccess) {
-        try {
-            const gpxContent = buildGPX(file, []);
-            const fileName = `${file.metadata?.name || 'New File'}.gpx`;
-            const lastFolder = get(settings.lastSaveFolder);
-            const folderId = lastFolder === 'ROOT' ? null : lastFolder;
-
-            const cloudFileId = await saveToCloud(gpxContent, fileName, {
-                trackCount: file.trk?.length || 0,
-                waypointCount: file.wpt?.length || 0,
-            }, folderId);
-
-            // Register with auto-save manager (wasDefaultName=true since this is a new file)
-            autoSaveManager.registerCloudLinkedFile(
-                file._data.id,
-                cloudFileId,
-                fileName,
-                folderId,
-                true  // wasDefaultName - file created with auto-generated name
-            );
-        } catch (error) {
-            // Silent fail - user can still manually save later
-            console.warn('Auto-save initial save failed:', error);
-        }
-    }
+    await persistNewLocalFile(file._data.id, file);
 }
 
 /**
@@ -144,6 +170,75 @@ export async function logRunFromFile(file: File, conDay: string): Promise<string
 
     autoSaveManager.registerCloudLinkedFile(localId, cloudFileId, fileName, folderId, false);
     return cloudFileId;
+}
+
+/**
+ * Upload a GPX as a ROUTE: load it onto the map and save it to the cloud with
+ * NO con-day, then register it for auto-save.
+ *
+ * The dateless twin of `logRunFromFile`. Under the unified-routes model a route
+ * is simply a file without a `conDay`, so this is the whole difference: no day
+ * tag, no per-con-day quota, and it can never satisfy the leaderboard's
+ * scored-run predicate. Returns the cloud file id.
+ *
+ * Before this existed the only upload path was "Log a run", which forces a
+ * con-day and consumes quota — so there was no way to bring in a GPX that is a
+ * route rather than a run.
+ */
+export async function uploadRouteFromFile(file: File): Promise<string | null> {
+    const gpx = await loadFile(file);
+    if (!gpx) return null;
+
+    const ids = fileActions.addMultiple([gpx]);
+    const localId = ids[0];
+    selection.selectFileWhenLoaded(localId);
+    boundsManager.fitBoundsOnLoad(ids);
+
+    const gpxContent = buildGPX(gpx, []);
+    const baseName = gpx.metadata?.name || file.name.replace(/\.gpx$/i, '') || 'Route';
+    const fileName = `${baseName}.gpx`;
+    const lastFolder = get(settings.lastSaveFolder);
+    const folderId = lastFolder === 'ROOT' ? null : lastFolder;
+
+    const cloudFileId = await saveToCloud(
+        gpxContent,
+        fileName,
+        {
+            trackCount: gpx.trk?.length || 0,
+            waypointCount: gpx.wpt?.length || 0,
+        },
+        folderId
+    );
+
+    autoSaveManager.registerCloudLinkedFile(localId, cloudFileId, fileName, folderId, false);
+    return cloudFileId;
+}
+
+/**
+ * Open a cloud file on the map: fetch → parse → add → select → fit bounds →
+ * register for auto-save.
+ *
+ * `loadFromCloud` only FETCHES; every one of the steps after it is required for
+ * the route to actually appear and stay synced. Extracted because two callers
+ * need the whole sequence (the My Routes list, and accepting a share link) and
+ * a partial copy silently downloads a file and shows nothing.
+ */
+export async function openCloudFileOnMap(
+    fileId: string,
+    fileName: string,
+    folderId: string | null = null
+): Promise<void> {
+    const { content } = await loadFromCloud(fileId);
+    const gpx = parseGPX(content);
+    if (gpx.metadata === undefined) {
+        gpx.metadata = {};
+    }
+    // Prefer the passed name: it reflects renames the GPX body does not.
+    gpx.metadata.name = fileName.replace(/\.gpx$/i, '');
+    fileActions.add(gpx);
+    selection.selectFileWhenLoaded(gpx._data.id);
+    boundsManager.fitBoundsOnLoad([gpx._data.id]);
+    autoSaveManager.registerCloudLinkedFile(gpx._data.id, fileId, fileName, folderId);
 }
 
 export function triggerFileInput() {

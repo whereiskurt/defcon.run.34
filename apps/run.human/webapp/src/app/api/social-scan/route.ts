@@ -4,6 +4,7 @@ import { assertNotLockedLive } from "@/lib/live-lockout";
 import { isQrAdmin } from "@/lib/admin-gate";
 import { judgeScan, defaultScanStore } from "@/lib/social-scan";
 import { rescoreBestEffort } from "@/lib/rescore";
+import { judgeBibPickup } from "@/lib/bib-pickup";
 
 /**
  * POST /api/social-scan — mutual scan award.
@@ -46,6 +47,20 @@ export async function POST(req: NextRequest) {
     ]);
     return NextResponse.json(result);
   }
+  // ── Bib pickup: the FIRST self-scan is the identity check ─────────────────
+  // A runner scanning their own QR at the pickup table proves the bib in their
+  // hand is theirs. Only the first one — every later self-scan falls through to
+  // the ordinary "that's your own QR" below, which is what makes the pickup
+  // screen meaningful. Returns 200 (a success), unlike every other self outcome,
+  // so both clients MUST branch on `code === "bib_pickup"` before `res.ok`.
+  if (result.code === "self") {
+    const pickup = await judgeBibPickup(session.user.id);
+    if (pickup) {
+      await rescoreBestEffort(session.user.id);
+      return NextResponse.json({ code: "bib_pickup", ...pickup });
+    }
+  }
+
   const responses: Record<string, { status: number; message: string }> = {
     bad_token: { status: 400, message: "That QR code didn't parse." },
     not_found: { status: 404, message: "No runner matches that QR code." },

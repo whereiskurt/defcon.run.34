@@ -889,10 +889,13 @@ test.describe('3. Cloud Storage E2E', () => {
     const shareDialog = page.locator('[role="dialog"]').filter({ hasText: /Share/i });
     await expect(shareDialog).toBeVisible({ timeout: 10000 });
 
-    // Click Create Share Link button
-    const createShareButton = shareDialog.locator('button').filter({ hasText: /Create Share/i });
-    await expect(createShareButton).toBeVisible();
-    await createShareButton.click();
+    // 2026-08-01 unified-routes spec: sharing is one exclusive tri-state radio
+    // (Private / Anyone with the link / Public on the map) rather than a
+    // "Create Share Link" button. Picking "Anyone with the link" mints the
+    // token and reveals its URL.
+    const linkOption = shareDialog.getByLabel(/Anyone with the link/i);
+    await expect(linkOption).toBeVisible();
+    await linkOption.click();
 
     // Wait for share URL to appear
     await page.waitForTimeout(2000);

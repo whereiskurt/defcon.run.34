@@ -409,3 +409,30 @@ describe("compareRunRows — comparator consistency (IN-01)", () => {
     expect(Math.sign(compareRunRows(early, late))).toBe(-1);
   });
 });
+
+describe("admin moderation pull (2026-08-01)", () => {
+  it("excludes a run an admin hid, and keeps every other con-day run", async () => {
+    const { puts, deps } = harness([
+      row({ fileId: "keep-1", key: "k1" }),
+      row({ fileId: "hidden-1", key: "k2", heatmapHidden: true }),
+      row({ fileId: "keep-2", key: "k3", heatmapHidden: false }),
+    ]);
+
+    const result = await buildDc34Heatmap(deps);
+
+    expect(result.runCount).toBe(2);
+    expect(features(puts[0])).toHaveLength(2);
+  });
+
+  it("hiding every run yields an empty artifact rather than throwing", async () => {
+    const { puts, deps } = harness([
+      row({ fileId: "a", key: "k1", heatmapHidden: true }),
+      row({ fileId: "b", key: "k2", heatmapHidden: true }),
+    ]);
+
+    const result = await buildDc34Heatmap(deps);
+
+    expect(result.runCount).toBe(0);
+    expect(features(puts[0])).toHaveLength(0);
+  });
+});

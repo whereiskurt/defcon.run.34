@@ -196,6 +196,26 @@ export const GpxFile = new Entity(
         type: "string",
         required: false,
       },
+      // Links this route to its published public face (entities/route.ts), set
+      // when the owner picks "Public on the map" and cleared when they take it
+      // back to Private. Schema-on-write: absent on every pre-existing row, so
+      // there is no migration. Route.sourceGpxFileId points the other way, and
+      // a Route WITHOUT that back-pointer is an "orphan" — a leftover from the
+      // retired card form, which My Routes adopts into the one list.
+      publishedRouteId: {
+        type: "string",
+        required: false,
+      },
+      // ADMIN MODERATION ONLY (2026-08-01). Set by /api/gpx/admin/heatmap to
+      // pull a run out of the public heat map — the abuse case is a track drawn
+      // to spell something. Deliberately NOT an owner-facing opt-out: the heat
+      // map covers all con-day runs with no owner gate (Kurt, 2026-07-30), and
+      // this flag does not reopen that decision. Reversible; the run itself is
+      // untouched.
+      heatmapHidden: {
+        type: "boolean",
+        required: false,
+      },
     },
     indexes: {
       primary: {

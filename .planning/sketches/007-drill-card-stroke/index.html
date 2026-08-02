@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>007 — Drill card stroke + row selected</title>
+<style>
+/* ── Tokens mirrored from run.human's HeroUI themes (tailwind.config.js) ───── */
+[data-theme="light"]{
+  --bg:#fafafa; --panel:#ffffff; --card:#f5f5f5; --card-2:#eeeeee;
+  --line:#e0e0e0; --line-hard:#c9c9d1; --line-harder:#a9a9b6;
+  --ink:#18181b; --mut:#6b6b78; --dim:#8e8e9c;
+  --primary:#00a888; --primary-soft:rgba(0,168,136,.10);
+  --grn:#16a34a; --grn-soft:rgba(34,197,94,.16);
+  --violet:#7c3aed; --violet-soft:rgba(147,83,211,.16);
+  --amber:#b45309; --amber-soft:rgba(245,165,36,.20);
+  --sel:#16a34a; --sel-soft:rgba(34,197,94,.12);
+  --shadow:0 1px 2px rgba(16,16,24,.06);
+  --shadow-card:0 1px 0 rgba(16,16,24,.09), 0 1px 3px rgba(16,16,24,.07);
+}
+[data-theme="dark"]{
+  --bg:#0a0a0f; --panel:#111118; --card:#1a1a24; --card-2:#222230;
+  --line:#2a2a3a; --line-hard:#3a3a4e; --line-harder:#4a4a62;
+  --ink:#e4e4ef; --mut:#8888a0; --dim:#666680;
+  --primary:#00d4aa; --primary-soft:rgba(0,212,170,.12);
+  --grn:#22c55e; --grn-soft:rgba(34,197,94,.16);
+  --violet:#9353d3; --violet-soft:rgba(147,83,211,.20);
+  --amber:#f5a524; --amber-soft:rgba(245,165,36,.16);
+  --sel:#22c55e; --sel-soft:rgba(34,197,94,.16);
+  --shadow:0 1px 2px rgba(0,0,0,.3);
+  --shadow-card:0 1px 0 rgba(0,0,0,.45), 0 1px 3px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);
+  font:15px/1.45 -apple-system,"Segoe UI",Roboto,sans-serif;
+  padding:24px 16px 80px;transition:background .18s,color .18s}
+h1{font-size:20px;margin-bottom:3px}
+.sub{color:var(--mut);font-size:13px;max-width:720px;margin-bottom:8px}
+.note{color:var(--dim);font-size:12.5px;max-width:720px;margin-bottom:22px}
+
+/* theme toggle */
+.bar{position:sticky;top:0;z-index:20;display:flex;gap:8px;align-items:center;
+  justify-content:flex-end;padding:8px 0 14px;background:linear-gradient(var(--bg) 70%,transparent)}
+.tgl{cursor:pointer;border:1.5px solid var(--line-hard);background:var(--panel);color:var(--ink);
+  border-radius:999px;padding:7px 14px;font-size:13px;font-weight:600}
+.tgl:hover{border-color:var(--primary)}
+.both{font-size:12.5px;color:var(--mut);margin-right:auto}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(520px,1fr));gap:26px;
+  align-items:start;max-width:1240px}
+.col{width:100%;min-width:0}
+.tag{display:block;font-weight:800;font-size:12.5px;letter-spacing:.14em;color:var(--primary);margin-bottom:3px}
+.why{color:var(--mut);font-size:12.5px;margin-bottom:10px;min-height:50px}
+
+/* the board panel that holds rows */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  padding:8px 0 10px}
+.D .panel{padding:12px 0 14px}
+[data-theme="light"] .panel{box-shadow:var(--shadow)}
+
+/* collapsed leaderboard row */
+.row{display:flex;align-items:center;gap:9px;padding:9px 12px;cursor:pointer;
+  border-bottom:1px solid var(--line)}
+[data-row]:last-child .row{border-bottom:0}
+/* Separator between unselected rows — visible in BOTH themes (Kurt, 007). */
+.row{border-bottom:1px solid var(--line-hard)}
+.rank{font-weight:800;color:var(--mut);font-variant-numeric:tabular-nums;font-size:15px}
+.score{background:var(--ink);color:var(--panel);border-radius:999px;padding:2px 10px;
+  font-size:12.5px;font-weight:700;white-space:nowrap}
+.who{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chips{display:flex;gap:4px}
+.chip{width:24px;height:22px;border-radius:999px;display:grid;place-items:center;
+  font-size:11.5px;font-weight:700}
+.chip.g{background:var(--grn-soft);color:var(--grn)}
+.chip.v{background:var(--violet-soft);color:var(--violet)}
+.chip.a{background:var(--amber-soft);color:var(--amber)}
+.chev{color:var(--dim);font-size:15px;transition:transform .15s}
+.open .chev{transform:rotate(90deg)}
+
+/* section heading inside the drill */
+.sect{display:flex;align-items:center;gap:8px;padding:9px 12px 6px}
+.sect b{font-size:10.5px;letter-spacing:.2em;color:var(--mut);font-weight:800}
+.sect i{flex:1;height:1px;background:var(--line);display:block}
+.total{font-size:11.5px;font-weight:700;border-radius:999px;padding:2px 8px}
+.total.g{background:var(--grn-soft);color:var(--grn)}
+.total.v{background:var(--violet-soft);color:var(--violet)}
+.total.a{background:var(--amber-soft);color:var(--amber)}
+
+/* the token card — per-variant borders override .tc */
+.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;padding:0 12px 6px}
+.tc{background:var(--card);border:1px solid var(--line);border-radius:10px;min-width:0;
+  padding:8px 10px;display:flex;align-items:center;gap:9px;transition:border-color .14s,transform .14s}
+.ico{width:29px;height:29px;border-radius:8px;display:grid;place-items:center;font-size:14px;flex:0 0 auto}
+.ico.g{background:var(--grn-soft)} .ico.v{background:var(--violet-soft)} .ico.a{background:var(--amber-soft)}
+.tcm{flex:1;min-width:0}
+.tcn{font-weight:650;font-size:13.5px;display:flex;align-items:center;gap:6px;min-width:0}
+.tcn>:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tcd{color:var(--dim);font-size:11.5px;font-variant-numeric:tabular-nums}
+.pts{background:var(--amber-soft);color:var(--amber);font-weight:700;border-radius:999px;
+  padding:2px 8px;font-size:12px;white-space:nowrap}
+.pts.g{background:var(--grn-soft);color:var(--grn)}
+.pts.v{background:var(--violet-soft);color:var(--violet)}
+.cov{font-size:8.5px;font-weight:800;letter-spacing:.11em;color:var(--amber);
+  border:1px solid var(--amber);border-radius:4px;padding:1px 4px;flex:0 0 auto}
+.thumb{height:44px;border-radius:6px;margin-top:6px;
+  background:repeating-linear-gradient(45deg,var(--card-2),var(--card-2) 6px,transparent 6px,transparent 12px);
+  border:1px solid var(--line)}
+
+/* ════════ A — WEIGHTED HAIRLINE ════════ */
+.A .tc{border-color:var(--line-hard);background:var(--card)}
+[data-theme="light"] .A .tc{background:#fff;border-color:var(--line-hard)}
+.A .tc:hover{border-color:var(--line-harder)}
+.A .selected{border:2px solid var(--sel);border-radius:12px;margin:0 6px 6px;overflow:hidden}
+.A .selected .row{background:var(--sel-soft);border-bottom:1px solid var(--sel);
+  border-radius:10px 10px 0 0}
+
+/* ════════ B — CARD EDGE ════════ */
+.B .tc{border:1.5px solid var(--line-hard);box-shadow:var(--shadow-card);background:var(--panel)}
+[data-theme="dark"] .B .tc{background:var(--card)}
+.B .tc:hover{border-color:var(--primary);transform:translateY(-1px)}
+.B .selected{border:2px solid var(--sel);border-radius:12px;margin:0 6px 6px;overflow:hidden;
+  box-shadow:0 0 0 4px var(--sel-soft)}
+.B .selected .row{background:var(--sel-soft);border-bottom:1.5px solid var(--sel)}
+
+/* ════════ C — TONE RAIL ════════ */
+.C .tc{border:1.5px solid var(--line-hard);border-left-width:4px;background:var(--panel)}
+[data-theme="dark"] .C .tc{background:var(--card)}
+.C .tc.g{border-left-color:var(--grn)}
+.C .tc.v{border-left-color:var(--violet)}
+.C .tc.a{border-left-color:var(--amber)}
+.C .tc:hover{border-top-color:var(--line-harder);border-right-color:var(--line-harder);border-bottom-color:var(--line-harder)}
+.C .selected{border:2px solid var(--sel);border-left-width:6px;border-radius:12px;
+  margin:0 6px 6px;overflow:hidden}
+.C .selected .row{background:var(--sel-soft);border-bottom:1.5px solid var(--sel)}
+
+/* ════════ D — HUD BRACKET ════════ */
+.D .tc{border:1px solid var(--line-hard);background:var(--card);border-radius:8px}
+[data-theme="light"] .D .tc{background:#fff}
+.D .well{background:var(--bg);border:1px solid var(--line-hard);border-radius:10px;
+  margin:0 8px 8px;padding:6px 0 2px}
+.D .well .cards{padding:0 8px 6px}
+.D .well .sect{padding:7px 10px 6px}
+.D .selected{position:relative;margin:0 6px 6px;border-radius:12px;
+  border:1.5px solid var(--sel);overflow:visible}
+.D .selected .row{background:var(--sel-soft);border-bottom:1.5px solid var(--sel)}
+.D .selected::before,.D .selected::after{content:"";position:absolute;width:22px;height:22px;
+  border:3px solid var(--sel);pointer-events:none}
+.D .selected::before{top:-5px;left:-5px;border-right:0;border-bottom:0;border-radius:6px 0 0 0}
+.D .selected::after{bottom:-5px;right:-5px;border-left:0;border-top:0;border-radius:0 0 6px 0}
+
+.legend{margin:26px 0 6px;font-size:12.5px;color:var(--mut)}
+.legend b{color:var(--ink)}
+</style>
+</head>
+<body>
+
+<h1>007 — Drill card stroke + row selected</h1>
+<p class="sub">Today's cards were tuned in dark mode. In <b>light mode they nearly
+disappear</b> — near-white on near-white behind a 1px&nbsp;#e0e0e0 hairline. Four stroke
+languages, each shown with a <b>selected row</b>. Flip the theme: light is the broken
+case, dark is the regression check.</p>
+<p class="note">Click any collapsed row to move the selection. Hover a card to see its
+hover state.</p>
+
+<div class="bar">
+  <span class="both">Same four variants render in both themes →</span>
+  <button class="tgl" id="t">☾ Dark</button>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<p class="legend"><b>Reading order:</b> check light mode first (the complaint), then flip
+to dark and confirm nothing got heavier than it should. Then judge the selected row on
+its own: does it read as <i>selected</i>, or merely <i>outlined</i>?</p>
+
+<script>
+const VARIANTS = [
+  {k:'A', name:'A — WEIGHTED HAIRLINE',
+   why:'Same anatomy, harder-working values: a real-contrast 1px border and a surface step so the card sits ON the panel. Selected = 2px accent frame + tinted heading. Smallest diff; nothing new to learn.'},
+  {k:'B', name:'B — CARD EDGE',
+   why:'1.5px border with a darker bottom edge and a soft drop — cards read as physical chips with a light source. Selected = 2px frame plus an accent halo so the block is unmistakably picked.'},
+  {k:'C', name:'C — TONE RAIL',
+   why:'A 4px left rail keyed to section (green runs / violet social / amber CTF) on top of a real border. A card’s TYPE is scannable before you read a word. Most ink of the four.'},
+  {k:'D', name:'D — HUD BRACKET',
+   why:'Cards drop into an inset well; the selected row grows corner brackets. Continues the clearance-frame language of sketches 001/003 instead of inventing a new one.'},
+];
+
+const RUNS = [
+  {ico:'🏃', tone:'g', name:'Morning 5k', date:'2026-07-21 07:14', pts:'+5', thumb:true},
+  {ico:'📍', tone:'g', name:'Contest stage', date:'2026-07-21 11:02', pts:'+1'},
+];
+const SOCIAL = [
+  {ico:'📇', tone:'v', name:'Social scans ×4', date:'2026-07-21', pts:'+40'},
+  {ico:'🔌', tone:'v', name:'DC Jack egg', date:'2026-07-18 14:49', pts:'+25'},
+];
+const CTF = [
+  {ico:'🚩', tone:'a', name:'sao-egg', date:'2026-07-21 23:13', pts:'+1', cov:true},
+  {ico:'🚩', tone:'a', name:'didhtp1', date:'2026-07-21 21:22', pts:'+100'},
+  {ico:'🚩', tone:'a', name:'coffee-egg', date:'2026-07-18 14:49', pts:'+1', cov:true},
+  {ico:'🚩', tone:'a', name:'rainbow-egg', date:'2026-07-18 07:15', pts:'+1', cov:true},
+];
+
+const card = (c) => `
+  <div class="tc ${c.tone}">
+    <div class="ico ${c.tone}">${c.ico}</div>
+    <div class="tcm">
+      <div class="tcn"><span>${c.name}</span>${c.cov?'<span class="cov">COVERT</span>':''}</div>
+      <div class="tcd">${c.date}</div>
+    </div>
+    <span class="pts ${c.tone==='a'?'':c.tone}">${c.pts} 🥕</span>
+  </div>`;
+
+const section = (label, total, tone, items, v) => `
+  <div class="sect"><b>${label}</b><span class="total ${tone}">${total}</span><i></i></div>
+  <div class="cards">${items.map(card).join('')}</div>`;
+
+const drill = (v) => {
+  const body = `
+    ${section('RUNS','+6 🥕 · 2 runs','g',RUNS,v)}
+    ${section('SOCIAL','+65 🥕 · 4 scans','v',SOCIAL,v)}
+    ${section('CTF','+103 🥕 · 4 solves','a',CTF,v)}`;
+  return v === 'D' ? `<div class="well">${body}</div>` : body;
+};
+
+const row = (r, open, v) => `
+  <div class="${open?'selected open':''}" data-row>
+    <div class="row">
+      <span class="rank">#${r.rank}</span>
+      <span class="score">${r.score} 🥕</span>
+      <span class="who">${r.who} 🐇</span>
+      <span class="chips">
+        <span class="chip g">${r.c[0]}</span>
+        <span class="chip v">${r.c[1]}</span>
+        <span class="chip a">${r.c[2]}</span>
+      </span>
+      <span class="chev">›</span>
+    </div>
+    ${open ? drill(v) : ''}
+  </div>`;
+
+const ROWS = [
+  {rank:1,  score:174, who:'KPHKPH2',  c:[2,4,4]},
+  {rank:2,  score:145, who:'runlevel3',c:[1,0,5]},
+  {rank:3,  score:120, who:'Agent X',  c:[0,1,5]},
+  {rank:4,  score:20,  who:'dc.run',   c:[0,0,3]},
+];
+
+function render(){
+  document.getElementById('grid').innerHTML = VARIANTS.map(v => `
+    <div class="col ${v.k}">
+      <span class="tag">${v.name}</span>
+      <p class="why">${v.why}</p>
+      <div class="panel" data-panel="${v.k}">
+        ${ROWS.map((r,i) => row(r, i===0, v.k)).join('')}
+      </div>
+    </div>`).join('');
+
+  // Click a row to move the selection within that variant's panel.
+  document.querySelectorAll('[data-panel]').forEach(panel => {
+    const k = panel.getAttribute('data-panel');
+    panel.querySelectorAll('[data-row]').forEach((el, idx) => {
+      el.addEventListener('click', () => {
+        panel.innerHTML = ROWS.map((r,i) => row(r, i===idx, k)).join('');
+        bind(panel, k);
+      });
+    });
+  });
+}
+function bind(panel, k){
+  panel.querySelectorAll('[data-row]').forEach((el, idx) => {
+    el.addEventListener('click', () => {
+      panel.innerHTML = ROWS.map((r,i) => row(r, i===idx, k)).join('');
+      bind(panel, k);
+    });
+  });
+}
+
+const t = document.getElementById('t');
+t.addEventListener('click', () => {
+  const root = document.documentElement;
+  const dark = root.getAttribute('data-theme') === 'dark';
+  root.setAttribute('data-theme', dark ? 'light' : 'dark');
+  t.textContent = dark ? '☾ Dark' : '☀ Light';
+});
+
+render();
+</script>
+</body>
+</html>

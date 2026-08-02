@@ -41,6 +41,14 @@ export const Bib = new Entity(
       runnerCode: {
         type: "string",
       },
+      // Read by the bib-pickup screen so run.human can render the runner's
+      // ACTUAL bib. Still read-only here — run.bib owns every write to these.
+      nameOnBib: {
+        type: "string",
+      },
+      paidAmount: {
+        type: "number",
+      },
     },
     indexes: {
       primary: {
@@ -81,6 +89,38 @@ export async function getRunnerCode(adapterUserId: string): Promise<string | nul
   if (!ownerSub) return null;
   const result = await Bib.get({ ownerSub }).go();
   return result.data?.runnerCode ?? null;
+}
+
+/** What the bib-pickup screen needs to render a runner's actual bib. */
+export type BibForPickup = {
+  runnerCode: string;
+  nameOnBib: string;
+  /** paidAmount > 0 — drives BibPreview's sponsor charm. */
+  hasSponsored: boolean;
+};
+
+/**
+ * Read the caller's bib for the bib-pickup screen (first self-scan), or null
+ * when they have no bib / no linked account.
+ *
+ * Same adapter-id → OIDC-sub bridge as getRunnerCode above — bibs are keyed by
+ * the OIDC sub, NOT the Auth.js adapter id. A row with no `runnerCode` is
+ * treated as "no bib": there is nothing to hand over, so the caller falls back
+ * to the ordinary self-scan message.
+ */
+export async function getBibForPickup(
+  adapterUserId: string
+): Promise<BibForPickup | null> {
+  const ownerSub = await resolveOidcSub(adapterUserId);
+  if (!ownerSub) return null;
+  const result = await Bib.get({ ownerSub }).go();
+  const row = result.data;
+  if (!row?.runnerCode) return null;
+  return {
+    runnerCode: row.runnerCode,
+    nameOnBib: row.nameOnBib ?? "",
+    hasSponsored: (row.paidAmount ?? 0) > 0,
+  };
 }
 
 /**
