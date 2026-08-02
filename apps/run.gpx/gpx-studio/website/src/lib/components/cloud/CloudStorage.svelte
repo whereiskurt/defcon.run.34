@@ -11,7 +11,7 @@
     // backing GpxFile. They render as ordinary rows so there is one list and one
     // Share vocabulary, not two. "Save as Route" is gone: every row already is a
     // route, and Share → Public is what publishes it.
-    import { onMount } from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
     import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
     import { Button } from '$lib/components/ui/button';
     import { DialogShell, Section } from '$lib/components/dialog-shell/index.js';
@@ -253,6 +253,24 @@
             void refreshConDayLabels();
         }
     });
+
+    // Refresh every time the dialog OPENS, not just at mount.
+    //
+    // This component is mounted ONCE (by Menu.svelte) and merely hidden and
+    // shown, so onMount alone made the list a snapshot from page load. Anything
+    // that changed the server state afterwards — accepting a share link,
+    // uploading a route, another tab — left the dialog showing stale contents,
+    // and on a fresh load with nothing cached it simply looked empty.
+    let wasCloudStorageOpen = false;
+    const unsubscribeOpen = cloudStorageOpen.subscribe((isOpen) => {
+        if (isOpen && !wasCloudStorageOpen && get(isAuthenticated) && get(hasGpxStudioAccess)) {
+            void refreshFiles();
+            void refreshConDayLabels();
+        }
+        wasCloudStorageOpen = isOpen;
+    });
+
+    onDestroy(unsubscribeOpen);
 
     async function refreshConDayLabels() {
         try {
