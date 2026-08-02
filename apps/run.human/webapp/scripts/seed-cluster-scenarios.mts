@@ -27,7 +27,7 @@ import {
   buildDemoCheckIns,
   demoRoster,
   DEMO_SCENARIOS,
-} from "../src/lib/cluster-demo-data.js";
+} from "../src/lib/cluster-demo-data";
 
 const TABLE = process.env.RUN_ELECTRO_DBNAME || "run-human-electro";
 const ENDPOINT = process.env.RUN_ELECTRO_ENDPOINT ?? "http://localhost:8888";
