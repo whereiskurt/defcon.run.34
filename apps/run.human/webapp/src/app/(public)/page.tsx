@@ -18,6 +18,7 @@ import { EggTrigger } from "@/components/EggTrigger";
 import SocialQRRow from "@/components/profile/SocialQRRow";
 import { useCopy } from "@/components/CopyProvider";
 import { DEFAULT_STRAVA_GROUP_URL, DEFAULT_SIGNAL_GROUP_URL } from "@/lib/social-groups";
+import { gpxMapUrl } from "@/lib/gpx-map";
 
 const isDev = process.env.NODE_ENV !== "production";
 const region = process.env.NEXT_PUBLIC_REGION_SHORT || "use1";
@@ -33,12 +34,13 @@ const routesUrl = "https://gpx.defcon.run/";
 // prefixed by hand — same reason as the raw-anchor hrefs above.
 const asset = (p: string) => (isDev ? p : `/${region}${p}`);
 
-// DC33 rally point at LVCC West — same OpenStreetMap pin as last year's card.
-const meetupMapUrl =
-  "https://www.openstreetmap.org/directions?route=36.135189%2C-115.158541%3B#map=19/36.134813/-115.158776";
+// Map pins. These coordinates are the real payload now — the tiles used to hand
+// them to OpenStreetMap / Google Maps, and now centre the gpx map instead (see
+// lib/gpx-map for why the URL has to be spelled the way it is).
+// Rally point at LVCC West — meet here at 0600 daily.
+const RALLY_POINT = { lat: 36.135189, lon: -115.158541 };
 // ReBAR, 1225 S Main St (Arts District) — same pin as the gpx payphone beacon.
-const rebarMapUrl =
-  "https://www.google.com/maps/search/?api=1&query=36.1565826,-115.1535043";
+const REBAR = { lat: 36.1565826, lon: -115.1535043 };
 
 function LoginContent() {
   const [mounted, setMounted] = useState(false);
@@ -233,7 +235,7 @@ function WelcomeContent({ userName }: { userName: string }) {
           footTitle="🚨 Rally Point 🚨"
           footSub="Meet here at 0600 daily - LVCC West"
           ctaLabel="Map"
-          ctaHref={meetupMapUrl}
+          ctaHref={gpxMapUrl(RALLY_POINT)}
         />
         <PhotoTile
           eyebrow="Routes"
@@ -242,8 +244,8 @@ function WelcomeContent({ userName }: { userName: string }) {
           imgAlt="Las Vegas run map"
           footTitle="gpx.defcon.run"
           footSub="Official routes + editor"
-          ctaLabel="Open ↗"
-          ctaHref={routesUrl}
+          ctaLabel="Map"
+          ctaHref={gpxMapUrl()}
         />
         <PhotoTile
           eyebrow="Social Run"
@@ -252,8 +254,8 @@ function WelcomeContent({ userName }: { userName: string }) {
           imgAlt="Payphone kiosk like the one at ReBAR"
           footTitle="Bar + Antique Store"
           footSub="Arts District hangout - say hi at the payphone"
-          ctaLabel="Map ↗"
-          ctaHref={rebarMapUrl}
+          ctaLabel="Map"
+          ctaHref={gpxMapUrl(REBAR)}
         />
       </div>
 

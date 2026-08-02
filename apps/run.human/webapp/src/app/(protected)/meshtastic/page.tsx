@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { auth } from '@/config/auth';
+import { gpxMapUrl } from '@/lib/gpx-map';
 
 export const metadata: Metadata = {
   title: 'Meshtastic',
@@ -18,11 +19,11 @@ const tiles = [
     art: <BoardArt />,
   },
   {
-    href: 'https://mqtt.defcon.run',
+    href: gpxMapUrl(),
     kicker: 'or That',
     title: 'Network',
-    body: 'Bots and realtime visualization of the participants on the MQTT mesh - see the network come alive.',
-    cta: 'mqtt.defcon.run',
+    body: 'Bots and realtime visualization of the participants on the mesh, live on the map - see the network come alive.',
+    cta: 'gpx.defcon.run',
     art: <MeshArt />,
   },
 ];
