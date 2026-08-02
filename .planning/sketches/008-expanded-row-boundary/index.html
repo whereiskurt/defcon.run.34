@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>008 — Expanded row boundary</title>
+<style>
+[data-theme="dark"]{
+  --bg:#0a0a0f; --panel:transparent; --card:#1a1a24; --card-2:#222230;
+  --line:#2a2a3a; --line-hard:#3a3a4e; --line-harder:#4a4a62;
+  --ink:#e4e4ef; --mut:#8888a0; --dim:#666680;
+  --grn:#22c55e; --grn-soft:rgba(34,197,94,.16);
+  --violet:#9353d3; --violet-soft:rgba(147,83,211,.20);
+  --amber:#f5a524; --amber-soft:rgba(245,165,36,.16);
+  --sel:#22c55e; --sel-soft:rgba(34,197,94,.16);
+  --band:rgba(255,255,255,.05);
+  --rowbg:rgba(17,17,24,.55);
+}
+[data-theme="light"]{
+  --bg:#fafafa; --panel:transparent; --card:#ffffff; --card-2:#eeeeee;
+  --line:#e0e0e0; --line-hard:#c9c9d1; --line-harder:#a9a9b6;
+  --ink:#18181b; --mut:#6b6b78; --dim:#8e8e9c;
+  --grn:#16a34a; --grn-soft:rgba(34,197,94,.16);
+  --violet:#7c3aed; --violet-soft:rgba(147,83,211,.16);
+  --amber:#b45309; --amber-soft:rgba(245,165,36,.20);
+  --sel:#16a34a; --sel-soft:rgba(34,197,94,.12);
+  --band:rgba(16,16,24,.05);
+  --rowbg:rgba(255,255,255,.72);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+/* Faux map backdrop — the live board sits ON the map, which is exactly why a
+   1px hairline between two tall expanded blocks disappears. */
+body{
+  background:
+    repeating-linear-gradient(64deg,transparent,transparent 46px,rgba(140,140,170,.10) 46px,rgba(140,140,170,.10) 48px),
+    repeating-linear-gradient(-28deg,transparent,transparent 70px,rgba(140,140,170,.08) 70px,rgba(140,140,170,.08) 72px),
+    var(--bg);
+  color:var(--ink);font:15px/1.45 -apple-system,"Segoe UI",Roboto,sans-serif;padding:22px 16px 70px}
+h1{font-size:20px;margin-bottom:3px}
+.sub{color:var(--mut);font-size:13px;max-width:760px;margin-bottom:18px}
+.bar{position:sticky;top:0;z-index:20;display:flex;justify-content:flex-end;padding:6px 0 12px}
+.tgl{cursor:pointer;border:1.5px solid var(--line-hard);background:var(--card);color:var(--ink);
+  border-radius:999px;padding:7px 14px;font-size:13px;font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(520px,1fr));gap:26px;align-items:start;max-width:1240px}
+.tag{display:block;font-weight:800;font-size:12.5px;letter-spacing:.14em;color:var(--grn);margin-bottom:3px}
+.why{color:var(--mut);font-size:12.5px;margin-bottom:10px;min-height:50px}
+
+.board{border:1px solid var(--line-hard);border-radius:14px;overflow:hidden}
+.row{display:flex;align-items:center;gap:9px;padding:10px 12px}
+.rank{font-weight:800;color:var(--mut);font-variant-numeric:tabular-nums}
+.score{background:var(--ink);color:var(--bg);border-radius:999px;padding:2px 10px;font-size:12.5px;font-weight:700}
+.who{font-weight:600;flex:1;min-width:0}
+.chips{display:flex;gap:4px}
+.chip{width:24px;height:22px;border-radius:999px;display:grid;place-items:center;font-size:11.5px;font-weight:700}
+.chip.g{background:var(--grn-soft);color:var(--grn)}
+.chip.v{background:var(--violet-soft);color:var(--violet)}
+.chip.a{background:var(--amber-soft);color:var(--amber)}
+.chev{color:var(--dim)}
+.sect{display:flex;align-items:center;gap:8px;padding:8px 12px 5px}
+.sect b{font-size:10.5px;letter-spacing:.2em;color:var(--mut);font-weight:800}
+.sect i{flex:1;height:1px;background:var(--line);display:block}
+.total{font-size:11.5px;font-weight:700;border-radius:999px;padding:2px 8px;background:var(--amber-soft);color:var(--amber)}
+.total.v{background:var(--violet-soft);color:var(--violet)}
+.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;padding:0 12px 9px}
+.tc{background:var(--card);border:1.5px solid var(--line-hard);border-left-width:4px;border-radius:10px;
+  min-width:0;padding:8px 10px;display:flex;align-items:center;gap:9px}
+.tc.a{border-left-color:var(--amber)} .tc.v{border-left-color:var(--violet)}
+.ico{width:29px;height:29px;border-radius:8px;display:grid;place-items:center;font-size:14px;flex:0 0 auto;background:var(--amber-soft)}
+.ico.v{background:var(--violet-soft)}
+.tcm{flex:1;min-width:0}
+.tcn{font-weight:650;font-size:13.5px;display:flex;align-items:center;gap:6px;min-width:0}
+.tcn>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tcd{color:var(--dim);font-size:11.5px}
+.pts{background:var(--amber-soft);color:var(--amber);font-weight:700;border-radius:999px;padding:2px 8px;font-size:12px;white-space:nowrap}
+.pts.v{background:var(--violet-soft);color:var(--violet)}
+.cov{font-size:8.5px;font-weight:800;letter-spacing:.11em;color:var(--amber);border:1px solid var(--amber);border-radius:4px;padding:1px 4px;flex:0 0 auto}
+
+/* ══ TODAY (the complaint) — hairline only, no bounding ══ */
+.now .item{border-bottom:1px solid var(--line-hard)}
+.now .item:last-child{border-bottom:0}
+.now .item.own{border:2px solid var(--sel);border-left-width:6px;border-radius:12px}
+
+/* ══ A — FRAMED EXPANDED ROW ══ */
+.A .board{border:0;display:flex;flex-direction:column;gap:10px}
+.A .item{border:1.5px solid var(--line-hard);border-radius:12px;background:var(--rowbg);overflow:hidden}
+.A .item.own{border:2px solid var(--sel);border-left-width:6px}
+.A .item > .row{background:var(--band);border-bottom:1px solid var(--line-hard)}
+.A .item.own > .row{background:var(--sel-soft);border-bottom-color:var(--sel)}
+.A .item.collapsed > .row{border-bottom:0}
+
+/* ══ B — GAP + HEADER BAND (no frame) ══ */
+.B .board{border:0;display:flex;flex-direction:column;gap:16px}
+.B .item{background:var(--rowbg);border-radius:12px;overflow:hidden}
+.B .item > .row{background:var(--band);border-bottom:2px solid var(--line-hard)}
+.B .item.own{outline:2px solid var(--sel);outline-offset:0;border-radius:12px}
+.B .item.own > .row{background:var(--sel-soft);border-bottom-color:var(--sel)}
+.B .item.collapsed > .row{border-bottom:0}
+
+/* ══ C — HEAVY RULE + BAND (keeps the flat single-panel board) ══ */
+.C .item{border-bottom:3px solid var(--line-harder)}
+.C .item:last-child{border-bottom:0}
+.C .item > .row{background:var(--band)}
+.C .item.own{border:2px solid var(--sel);border-left-width:6px;border-radius:12px}
+.C .item.own > .row{background:var(--sel-soft)}
+</style>
+</head>
+<body>
+<h1>008 — Telling #2 and #3 apart when both are expanded</h1>
+<p class="sub">On the live board a runner's drill flows straight into the next runner's
+header with only a 1px rule between them — and the map shows through behind it all. The
+fix is to make an expanded row a <b>bounded block</b>, not an underlined one. Backdrop
+below is faked map lines so the comparison is honest.</p>
+<div class="bar"><button class="tgl" id="t">☀ Light</button></div>
+<div class="grid" id="grid"></div>
+
+<script>
+const V=[
+ {k:'now',n:'TODAY — hairline only',w:'What is live now: rows separated by a single 1px rule. Two tall expanded blocks run together, which is the complaint.'},
+ {k:'A',n:'A — FRAMED EXPANDED ROW',w:'Every row becomes its own bounded card: 1.5px frame, rounded, faint fill so the map stops bleeding through, header band on top. Own row keeps green.'},
+ {k:'B',n:'B — GAP + HEADER BAND',w:'No frame — real vertical space (16px) between runners does the separating, plus a header band and a solid row fill. Lightest ink, most air.'},
+ {k:'C',n:'C — HEAVY RULE + BAND',w:'Keeps the flat single-panel board exactly as-is; just a 3px divider between runners and a tinted header band. Smallest diff of the three.'},
+];
+const CTF=[
+ ['goldstein-otp','2026-08-01 19:59','+25',0],['goldstein-otp','2026-07-31 16:46','+25',0],
+ ['goldstein','2026-07-31 16:45','+100',0],['coffee-e…','2026-07-25 10:46','+1',1],
+ ['sao-egg','2026-07-22 07:57','+1',1],['dc34-e…','2026-07-16 15:11','+10',1],
+];
+const CTF3=[
+ ['goldstein','2026-07-26 22:43','+100',0],['deuce-egg','2026-07-26 14:50','+1',1],
+ ['sao-egg','2026-07-21 23:06','+1',1],['coffee-e…','2026-07-18 23:12','+1',1],
+];
+const card=(c,tone)=>`<div class="tc ${tone}"><div class="ico ${tone==='v'?'v':''}">${tone==='v'?'📇':'🚩'}</div>
+ <div class="tcm"><div class="tcn"><span>${c[0]}</span>${c[3]?'<span class="cov">COVERT</span>':''}</div>
+ <div class="tcd">${c[1]}</div></div><span class="pts ${tone==='v'?'v':''}">${c[2]} 🥕</span></div>`;
+const head=(r,s,w,c)=>`<div class="row"><span class="rank">#${r}</span><span class="score">${s} 🥕</span>
+ <span class="who">${w} 🐇</span><span class="chips"><span class="chip g">${c[0]}</span>
+ <span class="chip v">${c[1]}</span><span class="chip a">${c[2]}</span></span><span class="chev">⌄</span></div>`;
+const sect=(l,t,v)=>`<div class="sect"><b>${l}</b><span class="total ${v?'v':''}">${t}</span><i></i></div>`;
+
+const board=()=>`
+ <div class="item own">${head(1,174,'KPHKPH2',[2,4,4])}
+  ${sect('CTF','+212 🥕 · 7 solves')}
+  <div class="cards">${CTF.slice(0,4).map(c=>card(c,'a')).join('')}</div></div>
+ <div class="item">${head(2,170,'runlevel3',[0,0,6])}
+  ${sect('CTF','+162 🥕 · 6 solves')}
+  <div class="cards">${CTF.map(c=>card(c,'a')).join('')}</div></div>
+ <div class="item">${head(3,120,'Agent X',[0,1,5])}
+  ${sect('SOCIAL','+1 🥕 · 1 scan',1)}
+  <div class="cards">${[['Social scans ×1','2026-07-28','+1',0]].map(c=>card(c,'v')).join('')}</div>
+  ${sect('CTF','+104 🥕 · 5 solves')}
+  <div class="cards">${CTF3.map(c=>card(c,'a')).join('')}</div></div>
+ <div class="item collapsed">${head(4,20,'dc.run',[0,0,3])}</div>`;
+
+document.getElementById('grid').innerHTML=V.map(v=>`
+ <div class="col ${v.k}"><span class="tag">${v.n}</span><p class="why">${v.w}</p>
+ <div class="board">${board()}</div></div>`).join('');
+
+const t=document.getElementById('t');
+t.onclick=()=>{const r=document.documentElement,d=r.getAttribute('data-theme')==='dark';
+ r.setAttribute('data-theme',d?'light':'dark');t.textContent=d?'☾ Dark':'☀ Light';};
+</script>
+</body>
+</html>
