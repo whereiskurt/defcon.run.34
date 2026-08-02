@@ -248,3 +248,56 @@ html.dark .leaflet-popup-close-button:hover {
 .seg-addrun:hover {
   background: #16a34a;
 }
+
+/* ============================================================================
+   Leaderboard drill token card - sketch 007 variant C, the tone rail.
+
+   LIGHT MODE WAS THE BUG. The Phase-52 card (bg-default-100 + a 1px #e0e0e0
+   hairline) was tuned in dark mode; in light it is near-white on near-white and
+   a stack of them reads as one undifferentiated block. So the values below are
+   written per-theme by hand rather than leaning on semantic default-* tokens,
+   whose LIGHT ramp is the untuned HeroUI fallback (this theme only overrides
+   background, foreground, primary, secondary, content1-4 and divider for light).
+
+   Anatomy: a real 1.5px border for separation + a 4px left rail colour-keyed to
+   the section, so the TYPE of a card is scannable before you read a word.
+   ============================================================================ */
+.drill-card {
+  background: #ffffff;
+  border: 1.5px solid #c9c9d1;
+  border-left-width: 4px;
+  transition: border-color 0.14s ease;
+}
+html.dark .drill-card {
+  background: #1a1a24;
+  border-color: #3a3a4e;
+}
+.drill-card:hover {
+  border-top-color: #a9a9b6;
+  border-right-color: #a9a9b6;
+  border-bottom-color: #a9a9b6;
+}
+html.dark .drill-card:hover {
+  border-top-color: #4a4a62;
+  border-right-color: #4a4a62;
+  border-bottom-color: #4a4a62;
+}
+/* Rails match the section chip colours: runs green, social violet, CTF amber.
+   Set AFTER the base rule so the left edge always wins over the border
+   shorthand above — and after :hover, which deliberately leaves it alone. */
+.drill-card.rail-success { border-left-color: #16a34a; }
+.drill-card.rail-secondary { border-left-color: #7c3aed; }
+.drill-card.rail-warning { border-left-color: #b45309; }
+html.dark .drill-card.rail-success { border-left-color: #22c55e; }
+html.dark .drill-card.rail-secondary { border-left-color: #9353d3; }
+html.dark .drill-card.rail-warning { border-left-color: #f5a524; }
+
+/* Separator between UNSELECTED board rows (Kurt, sketch 007) — the shipped
+   border-default-200 is invisible in light. `last:border-b-0` still suppresses
+   the trailing one; this only changes the colour/weight. */
+.board-row-sep {
+  border-bottom: 1px solid #c9c9d1;
+}
+html.dark .board-row-sep {
+  border-bottom-color: #3a3a4e;
+}

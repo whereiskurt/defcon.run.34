@@ -128,7 +128,9 @@ export default function YourStandingModal({ isOpen, onClose, displayName }: Prop
             <>
               {/* The runner's own row — same anatomy as a board row, minus the
                   accordion (there is only ever one row here). */}
-              <div className="flex items-center flex-wrap gap-2 rounded-lg border border-primary/40 bg-primary/10 px-3 py-2.5">
+              {/* Matches the board's selected row: 2px frame + 6px left rail
+                  (sketch 007), so "your row" looks the same in both places. */}
+              <div className="flex items-center flex-wrap gap-2 rounded-lg border-2 border-l-[6px] border-primary bg-primary/10 px-3 py-2.5">
                 <span className="text-lg font-bold text-default-500 shrink-0">
                   #{row.globalRank}
                 </span>

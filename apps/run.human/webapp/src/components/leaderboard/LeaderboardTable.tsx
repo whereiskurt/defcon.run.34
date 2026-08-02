@@ -323,12 +323,15 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
               <AccordionItem
                 key={row.userId}
                 className={
-                  // Full-bleed own-row with a complete green perimeter; every
-                  // other row gets an explicit bottom hairline so runners stay
-                  // visibly separated in BOTH themes (UAT: "no separators").
+                  // Own row: a 2px green perimeter with a 6px left rail, so the
+                  // selection reads as SELECTED rather than merely outlined and
+                  // echoes the drill cards' tone rail (sketch 007).
+                  // Every other row gets an explicit bottom separator that is
+                  // visible in BOTH themes — `border-default-200` was invisible
+                  // against a light surface (Kurt, 2026-08-01).
                   isCurrentUser
-                    ? 'border border-green-500/50'
-                    : 'border-b border-default-200 last:border-b-0'
+                    ? 'border-2 border-l-[6px] border-green-500'
+                    : 'board-row-sep last:border-b-0'
                 }
                 classNames={
                   // Own-row highlight tints the HEADER ROW ONLY - the expanded
