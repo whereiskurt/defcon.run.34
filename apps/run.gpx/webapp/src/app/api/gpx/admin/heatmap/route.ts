@@ -5,6 +5,7 @@ import { GpxFile } from "@/entities/gpx-file";
 import { s3Client, BUCKET } from "@/lib/s3-client";
 import { CON_DAYS } from "@/lib/con-days";
 import { heatmapArtifactKey } from "@/lib/heatmap-artifact";
+import { isGpxAdmin } from "@/lib/gpx-admin";
 
 const CON_DAY_DATES = new Set(CON_DAYS.map((d) => d.date));
 
@@ -30,7 +31,7 @@ export async function GET() {
   }
 
   const services = (session.user as { services?: string[] }).services ?? [];
-  if (!services.includes("admin")) {
+  if (!isGpxAdmin(services)) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

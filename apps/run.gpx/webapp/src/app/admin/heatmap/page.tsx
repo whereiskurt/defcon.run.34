@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { auth } from "@/config/auth";
 import HeatmapTable from "./HeatmapTable";
+import { isGpxAdmin } from "@/lib/gpx-admin";
 
 /**
  * /admin/heatmap — moderation for the public anonymous heat map.
@@ -11,7 +12,7 @@ export default async function AdminHeatmapPage() {
   const session = await auth();
   const services =
     (session?.user as { services?: string[] } | undefined)?.services ?? [];
-  if (!session?.user?.id || !services.includes("admin")) {
+  if (!session?.user?.id || !isGpxAdmin(services)) {
     notFound();
   }
 

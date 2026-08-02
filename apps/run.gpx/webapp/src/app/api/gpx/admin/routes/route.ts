@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/config/auth";
 import { Route } from "@/entities/route";
+import { isGpxAdmin } from "@/lib/gpx-admin";
 
 /**
  * GET /api/gpx/admin/routes — moderation list of published community routes.
@@ -16,7 +17,7 @@ export async function GET() {
   }
 
   const services = (session.user as { services?: string[] }).services ?? [];
-  if (!services.includes("admin")) {
+  if (!isGpxAdmin(services)) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

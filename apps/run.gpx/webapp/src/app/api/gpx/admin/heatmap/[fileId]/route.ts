@@ -7,6 +7,7 @@ import { s3Client } from "@/lib/s3-client";
 import { assertNotLockedLive } from "@/lib/live-lockout";
 import { reconcileBestEffort } from "@/lib/gpx-reconcile";
 import { logEvent } from "@/lib/log-event";
+import { isGpxAdmin } from "@/lib/gpx-admin";
 
 interface RouteParams {
   params: Promise<{ fileId: string }>;
@@ -123,7 +124,7 @@ async function adminGate(): Promise<NextResponse | null> {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const services = (session.user as { services?: string[] }).services ?? [];
-  if (!services.includes("admin")) {
+  if (!isGpxAdmin(services)) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   if (await assertNotLockedLive(session.user.id)) {

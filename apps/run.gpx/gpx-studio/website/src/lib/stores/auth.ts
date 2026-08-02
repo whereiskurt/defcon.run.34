@@ -209,6 +209,20 @@ export const hasGpxStudioAccess = derived(auth, $auth => $auth.hasGpxStudioAcces
 export const hasStrava = derived(auth, $auth => $auth.hasStrava);
 /** Admin can override the con-day picker with any calendar date (log/test any day). */
 export const isAdmin = derived(auth, $auth => ($auth.user?.services ?? []).includes('admin'));
+
+/**
+ * MODERATION access — mirrors run.auth's ADMIN_GROUPS and the webapp's
+ * `lib/gpx-admin.ts`, which run.bib already honours: `admin` AND `runadmin` are
+ * both administrative groups.
+ *
+ * Separate from `isAdmin` on purpose. `isAdmin` still gates resource
+ * exemptions (the any-date con-day picker, quota tiers), which are a different
+ * grant; only moderation surfaces widened to runadmin.
+ */
+export const canModerate = derived(auth, $auth => {
+    const services = $auth.user?.services ?? [];
+    return services.includes('admin') || services.includes('runadmin');
+});
 export const authError = derived(auth, $auth => $auth.error);
 
 // Get user's mapbox token (or undefined to use default)

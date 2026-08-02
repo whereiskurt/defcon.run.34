@@ -40,11 +40,15 @@
         Cloud,
         Footprints,
         Upload,
+        ShieldCheck,
+        Route,
+        Flame,
     } from '@lucide/svelte';
+    import { base } from '$app/paths';
     import RefreshCueOverlay from '$lib/components/map/RefreshCueOverlay.svelte';
     import { quickStartOpen } from '$lib/stores/quickstart';
     import { stravaStripExpanded, stravaStripHidden } from '$lib/stores/strava-strip';
-    import { isAuthenticated, hasGpxStudioAccess } from '$lib/stores/auth';
+    import { isAuthenticated, hasGpxStudioAccess, canModerate } from '$lib/stores/auth';
     import { map } from '$lib/components/map/map';
     import { editMetadata } from '$lib/components/file-list/metadata/utils.svelte';
     import { editStyle } from '$lib/components/file-list/style/utils.svelte';
@@ -106,6 +110,12 @@
         } else {
             [$currentOverlays, $previousOverlays] = [$previousOverlays, defaultOverlays];
         }
+    }
+
+    /** "/use1/studio" -> "/use1" (empty in dev). The admin pages are Next.js
+     *  routes outside the studio base, so they need the region prefix only. */
+    function adminBase(): string {
+        return base.replace('/studio', '');
     }
 
     let layerSettingsOpen = $state(false);
@@ -496,6 +506,29 @@
                     </Menubar.Item>
                 </Menubar.Content>
             </Menubar.Menu>
+            <!-- Manage: moderation surfaces, admin/runadmin only. Rendering is a
+                 convenience — both pages and every endpoint behind them are
+                 server-gated and 404 for anyone else, so hiding the menu is not
+                 the control. Links carry the region prefix: SvelteKit's `base`
+                 is "/use1/studio", and the admin pages live off "/use1". -->
+            {#if $canModerate}
+                <Menubar.Menu>
+                    <Menubar.Trigger aria-label="Manage">
+                        <ShieldCheck size="18" class="md:hidden" />
+                        <span class="hidden md:block">Manage</span>
+                    </Menubar.Trigger>
+                    <Menubar.Content class="border-none">
+                        <Menubar.Item onclick={() => (window.location.href = `${adminBase()}/admin/routes`)}>
+                            <Route size="16" />
+                            Routes
+                        </Menubar.Item>
+                        <Menubar.Item onclick={() => (window.location.href = `${adminBase()}/admin/heatmap`)}>
+                            <Flame size="16" />
+                            Heat map
+                        </Menubar.Item>
+                    </Menubar.Content>
+                </Menubar.Menu>
+            {/if}
         </Menubar.Root>
         <!-- Meshtastic (official mark, icon only) → the DEF CON mesh flasher app. -->
         <a

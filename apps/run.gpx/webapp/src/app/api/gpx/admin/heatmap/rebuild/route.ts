@@ -3,6 +3,7 @@ import { auth } from "@/config/auth";
 import { assertNotLockedLive } from "@/lib/live-lockout";
 import { buildDc34Heatmap } from "@/lib/heatmap-build";
 import { logEvent } from "@/lib/log-event";
+import { isGpxAdmin } from "@/lib/gpx-admin";
 
 /**
  * POST /api/gpx/admin/heatmap/rebuild — regenerate the public heat-map artifact
@@ -25,7 +26,7 @@ export async function POST(request: Request) {
   }
 
   const services = (session.user as { services?: string[] }).services ?? [];
-  if (!services.includes("admin")) {
+  if (!isGpxAdmin(services)) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
