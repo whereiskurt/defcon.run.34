@@ -233,6 +233,65 @@ the data can be reloaded or cleared without a terminal.
 - Every member of a cluster receives the **same** award — no proximity or arrival-order
   weighting.
 
+## Abuse gates (added 2026-08-02, after review)
+
+Both gates only ever remove a check-in from **clustering**. The row still saves
+and still lights the runner's con-day for their run streak, so a false positive
+costs one group bonus and is recovered on the next sweep. Neither is destructive.
+
+### 1. Anti-sybil — `minAccountAgeHours` (default 24)
+
+Clustering counts distinct *accounts*, not distinct *humans*, so four throwaway
+accounts on one phone can manufacture a cluster. Because the tiers are
+super-linear and the cap allows 3 awards/day across 6 con days, a ring of 25
+accounts nets 3,600 points each — more than all three streak tracks combined
+(1,500). That made the cluster bonus the most attractive thing on the board to
+attack.
+
+A runner counts toward a cluster if **any** of: the account is older than the
+threshold, they have a run or Strava import, or they have solved a flag. A
+permissive OR — a real attendee hits one; a throwaway created minutes ago hits
+none. Check-ins are deliberately **not** an establishing signal, or the gate
+would be circular.
+
+Every signal is denormalized onto the RunUser row (`createdAt`,
+`activityCounts`, `ctfSolves`), so the whole set is **one batch get per 100
+runners** — no per-runner queries. Deliberately not gated on owning a bib: that
+would make the bonus a bib-holder perk and exclude most social attendees, and
+`Bib` is keyed by `ownerSub` (the OIDC sub), which is the id-namespace mismatch
+that silently joins to null.
+
+**Fail closed:** a runner whose row cannot be read is absent from the set and
+does not count. A read failure must not become a bypass.
+
+### 2. Impossible travel — `maxSpeedKmh` (default 21)
+
+Within one runner's own timeline, if the implied speed from their previous
+*surviving* check-in exceeds the threshold, the later one is ignored for
+clustering. Chaining off the last surviving point (not the raw previous one)
+stops a single bad GPS fix invalidating every genuine check-in after it.
+
+The default is a fast running pace, because clusters are gatherings of runners.
+This does also catch a runner who **drove** between two check-ins made close
+together — hence the knob, tunable live from `/admin/clusters` toward ~50 if
+honest runners get caught.
+
+**This is a tripwire, not a wall.** It catches one account used in two places at
+once, and scripted map-hopping. A patient spoofer who only ever reports one fake
+location produces no contradiction and passes cleanly. The anti-sybil gate does
+most of the real work.
+
+### Not gated
+
+- **Griefing by deletion.** A cluster sitting exactly at `minRunners` dissolves
+  if one member deletes their check-in, removing the others' awards. Low yield,
+  and every fix conflicts with the recompute model.
+- **Proximity without participation.** At 200 m someone in the lobby scores like
+  someone who ran. Inherent to check-in scoring; tightening trades against GPS
+  drift.
+- **The map layer.** The gates are scoring defences. The map shows what happened
+  and is already a different view (public check-ins only), so it stays ungated.
+
 ## Out of scope
 
 - Named venues / geofences. The detector finds crowds wherever they are; naming them adds

@@ -200,6 +200,44 @@ export default function ClusterAdmin({ initial }: { initial: ClusterConfig }) {
           </div>
         </div>
 
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 pt-3 border-t border-divider">
+          <div>
+            <label className={cls.label}>Min account age (hrs)</label>
+            <input
+              className={cls.input}
+              type="number"
+              value={cfg.minAccountAgeHours}
+              onChange={(e) => num("minAccountAgeHours")(e.target.value)}
+            />
+            <p className="text-[11px] text-default-400 mt-1 leading-snug">
+              Anti-sybil. A newer account still counts if it has a run, a Strava
+              import, or a flag. 0 disables.
+            </p>
+          </div>
+          <div>
+            <label className={cls.label}>Max speed (km/h)</label>
+            <input
+              className={cls.input}
+              type="number"
+              value={cfg.maxSpeedKmh}
+              onChange={(e) => num("maxSpeedKmh")(e.target.value)}
+            />
+            <p className="text-[11px] text-default-400 mt-1 leading-snug">
+              Impossible-travel gate between a runner&apos;s consecutive
+              check-ins. 21 = running pace; raise toward 50 if runners who drove
+              between venues get caught. 0 disables.
+            </p>
+          </div>
+          <div className="md:col-span-2 self-end">
+            <p className="text-[11px] text-default-400 leading-snug">
+              Both gates only ever remove a check-in from <em>clustering</em>.
+              The check-in still saves and still lights the runner&apos;s con-day
+              for their run streak, so a false positive costs one group bonus and
+              is recovered on the next sweep.
+            </p>
+          </div>
+        </div>
+
         <div className="mt-4">
           <label className={cls.label}>Tier table — points each member earns</label>
           <div className="flex flex-col gap-2">

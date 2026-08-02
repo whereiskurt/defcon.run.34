@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { detectClusters, haversineMeters, type ClusterPoint } from "../cluster-detect";
-import { DEFAULT_CLUSTER_CONFIG, tierPoints, normalizeClusterConfig } from "../cluster-config";
+import {
+  DEFAULT_CLUSTER_CONFIG,
+  tierPoints,
+  normalizeClusterConfig,
+  isEstablishedRunner,
+} from "../cluster-config";
 
 /**
  * Fixtures are built around the real scenarios the feature exists for:
@@ -322,5 +327,148 @@ describe("normalizeClusterConfig", () => {
 
   it("accepts an explicitly empty tier table", () => {
     expect(normalizeClusterConfig({ tiers: [] }).tiers).toEqual([]);
+  });
+});
+
+describe("detectClusters — anti-sybil gate", () => {
+  const centre = offset(0, 0);
+  const T = conDay(5, 9, 0);
+
+  it("counts everyone when no established set is supplied", () => {
+    const pts = group("open", 6, T, 10, centre, 40);
+    expect(detectClusters(pts, CFG)[0].size).toBe(6);
+  });
+
+  it("refuses to build a cluster out of unestablished accounts", () => {
+    const pts = group("fake", 6, T, 10, centre, 40);
+    // A ring of throwaways: none of them are in the established set.
+    expect(detectClusters(pts, CFG, { established: new Set() })).toEqual([]);
+  });
+
+  it("drops the padding accounts but keeps a genuine cluster", () => {
+    const real = group("real", 5, T, 10, centre, 40);
+    const fake = group("fake", 6, T, 10, centre, 40);
+    const established = new Set(real.map((p) => p.userId));
+
+    const clusters = detectClusters([...real, ...fake], CFG, { established });
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0].size).toBe(5);
+    expect(clusters[0].members.every((m) => m.userId.startsWith("real"))).toBe(true);
+  });
+
+  it("drops a real cluster below the threshold when padding is removed", () => {
+    // 3 genuine + 3 throwaways would be 6; only the 3 real ones survive.
+    const real = group("real", 3, T, 10, centre, 40);
+    const fake = group("fake", 3, T, 10, centre, 40);
+    const established = new Set(real.map((p) => p.userId));
+
+    expect(detectClusters([...real, ...fake], CFG, { established })).toEqual([]);
+  });
+
+  it("fails closed — a runner missing from the set does not count", () => {
+    const pts = group("some", 8, T, 10, centre, 40);
+    // Only half resolved (e.g. a failed batch-get chunk).
+    const established = new Set(pts.slice(0, 4).map((p) => p.userId));
+    const clusters = detectClusters(pts, CFG, { established });
+    expect(clusters[0].size).toBe(4);
+  });
+});
+
+describe("detectClusters — impossible-travel gate", () => {
+  const centre = offset(0, 0);
+  const T = conDay(5, 9, 0);
+
+  it("ignores a check-in that teleports across the city", () => {
+    const pts = group("crew", 5, T, 10, centre, 40);
+    // A sixth runner appears at the gathering 2 minutes after checking in 20km away.
+    const far = point("ghost", T, offset(0, 20_000));
+    const here = point("ghost", T + 2 * 60_000, centre);
+
+    const clusters = detectClusters([...pts, far, here], CFG);
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0].size).toBe(5);
+    expect(clusters[0].members.some((m) => m.userId === "ghost")).toBe(false);
+  });
+
+  it("allows a plausible running pace between check-ins", () => {
+    const pts = group("crew", 5, T, 10, centre, 40);
+    // 2km in 10 minutes = 12 km/h — a real runner.
+    const start = point("runner", T, offset(0, 2000));
+    const finish = point("runner", T + 10 * 60_000, centre);
+
+    const clusters = detectClusters([...pts, start, finish], CFG);
+    expect(clusters[0].size).toBe(6);
+  });
+
+  it("rejects two places at the same instant", () => {
+    const pts = group("crew", 5, T, 10, centre, 40);
+    const a = point("shared", T, centre);
+    const b = point("shared", T, offset(0, 5000));
+
+    const clusters = detectClusters([...pts, a, b], CFG);
+    // The first survives and joins; the impossible twin is dropped.
+    expect(clusters[0].size).toBe(6);
+    expect(clusters).toHaveLength(1);
+  });
+
+  it("does not let one bad fix invalidate every later check-in", () => {
+    // Chain off the last SURVIVING point: the outlier is dropped, and the
+    // genuine check-in after it is still measured against the good one.
+    const pts = group("crew", 5, T, 10, centre, 40);
+    const good1 = point("solid", T, centre);
+    const spike = point("solid", T + 60_000, offset(0, 50_000)); // bad fix
+    const good2 = point("solid", T + 5 * 60_000, centre);
+
+    const clusters = detectClusters([...pts, good1, spike, good2], CFG);
+    expect(clusters[0].size).toBe(6);
+    expect(clusters[0].members.some((m) => m.userId === "solid")).toBe(true);
+  });
+
+  it("is disabled by maxSpeedKmh = 0", () => {
+    const pts = group("crew", 5, T, 10, centre, 40);
+    const far = point("ghost", T, offset(0, 20_000));
+    const here = point("ghost", T + 2 * 60_000, centre);
+
+    const off = detectClusters([...pts, far, here], { ...CFG, maxSpeedKmh: 0 });
+    expect(off[0].size).toBe(6);
+  });
+});
+
+describe("isEstablishedRunner", () => {
+  const cfg = { minAccountAgeHours: 24 };
+  const now = Date.parse("2026-08-05T20:00:00Z");
+  const hoursAgo = (h: number) => now - h * 3_600_000;
+
+  it("admits an account older than the threshold", () => {
+    expect(isEstablishedRunner({ createdAt: hoursAgo(48) }, cfg, now)).toBe(true);
+  });
+
+  it("rejects a fresh account with no other signal", () => {
+    expect(isEstablishedRunner({ createdAt: hoursAgo(1) }, cfg, now)).toBe(false);
+  });
+
+  it("admits a fresh account that has actually done something", () => {
+    const fresh = { createdAt: hoursAgo(1) };
+    expect(isEstablishedRunner({ ...fresh, activityCounts: { gpx: 1 } }, cfg, now)).toBe(true);
+    expect(isEstablishedRunner({ ...fresh, activityCounts: { strava: 2 } }, cfg, now)).toBe(true);
+    expect(isEstablishedRunner({ ...fresh, ctfSolves: 1 }, cfg, now)).toBe(true);
+  });
+
+  it("does NOT treat check-ins as an establishing signal", () => {
+    // Otherwise the gate is circular: checking in would qualify you to cluster.
+    const fresh = { createdAt: hoursAgo(1), activityCounts: { gpx: 0, strava: 0 } };
+    expect(isEstablishedRunner(fresh, cfg, now)).toBe(false);
+  });
+
+  it("fails closed on a missing row", () => {
+    expect(isEstablishedRunner(undefined, cfg, now)).toBe(false);
+  });
+
+  it("treats a row with no createdAt as pre-dating the gate", () => {
+    expect(isEstablishedRunner({}, cfg, now)).toBe(true);
+  });
+
+  it("is disabled by minAccountAgeHours = 0", () => {
+    expect(isEstablishedRunner({ createdAt: now }, { minAccountAgeHours: 0 }, now)).toBe(true);
   });
 });
