@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { adminApiUrl } from "@/lib/admin-api-base";
 
 type AdminRoute = {
   routeId: string;
@@ -29,7 +30,7 @@ export default function RoutesTable() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/gpx/admin/routes", {
+      const res = await fetch(adminApiUrl("/api/gpx/admin/routes"), {
         credentials: "include",
       });
       if (!res.ok) throw new Error(`Failed to load (${res.status})`);
@@ -51,7 +52,7 @@ export default function RoutesTable() {
     setBusy(routeId);
     try {
       const res = await fetch(
-        `/api/gpx/admin/routes/${encodeURIComponent(routeId)}/unpublish`,
+        adminApiUrl(`/api/gpx/admin/routes/${encodeURIComponent(routeId)}/unpublish`),
         { method: "POST", credentials: "include" }
       );
       if (!res.ok) throw new Error(`Unpublish failed (${res.status})`);
@@ -74,7 +75,7 @@ export default function RoutesTable() {
     setBusy(r.routeId);
     try {
       const res = await fetch(
-        `/api/gpx/admin/routes/${encodeURIComponent(r.routeId)}`,
+        adminApiUrl(`/api/gpx/admin/routes/${encodeURIComponent(r.routeId)}`),
         { method: "DELETE", credentials: "include" }
       );
       if (!res.ok) throw new Error(`Delete failed (${res.status})`);

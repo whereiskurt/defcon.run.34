@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { adminApiUrl } from "@/lib/admin-api-base";
 
 type HeatmapRun = {
   fileId: string;
@@ -38,7 +39,7 @@ export default function HeatmapTable() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/gpx/admin/heatmap", {
+      const res = await fetch(adminApiUrl("/api/gpx/admin/heatmap"), {
         credentials: "include",
       });
       if (!res.ok) throw new Error(`Failed to load (${res.status})`);
@@ -62,7 +63,7 @@ export default function HeatmapTable() {
     setError(null);
     try {
       const res = await fetch(
-        `/api/gpx/admin/heatmap/${encodeURIComponent(r.fileId)}`,
+        adminApiUrl(`/api/gpx/admin/heatmap/${encodeURIComponent(r.fileId)}`),
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -91,7 +92,7 @@ export default function HeatmapTable() {
     setError(null);
     try {
       const res = await fetch(
-        `/api/gpx/admin/heatmap/${encodeURIComponent(r.fileId)}?userId=${encodeURIComponent(r.userId)}`,
+        adminApiUrl(`/api/gpx/admin/heatmap/${encodeURIComponent(r.fileId)}?userId=${encodeURIComponent(r.userId)}`),
         { method: "DELETE", credentials: "include" }
       );
       if (!res.ok) throw new Error(`Delete failed (${res.status})`);
@@ -109,7 +110,7 @@ export default function HeatmapTable() {
     setError(null);
     setRebuildMsg(null);
     try {
-      const res = await fetch("/api/gpx/admin/heatmap/rebuild", {
+      const res = await fetch(adminApiUrl("/api/gpx/admin/heatmap/rebuild"), {
         method: "POST",
         credentials: "include",
       });
