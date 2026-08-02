@@ -206,6 +206,16 @@ export const GpxFile = new Entity(
         type: "string",
         required: false,
       },
+      // ADMIN MODERATION ONLY (2026-08-01). Set by /api/gpx/admin/heatmap to
+      // pull a run out of the public heat map — the abuse case is a track drawn
+      // to spell something. Deliberately NOT an owner-facing opt-out: the heat
+      // map covers all con-day runs with no owner gate (Kurt, 2026-07-30), and
+      // this flag does not reopen that decision. Reversible; the run itself is
+      // untouched.
+      heatmapHidden: {
+        type: "boolean",
+        required: false,
+      },
     },
     indexes: {
       primary: {
