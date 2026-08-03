@@ -1,19 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 /**
- * LDBR-07 (SC #1 + SC #2 + SC #3): the main admin-gated board route,
- * GET /api/leaderboard.
+ * The main board route, GET /api/leaderboard.
  *
- * Mocks `@/config/auth` (`auth` + `revalidateAdmin`, the latter re-exported by
- * `@/lib/admin-gate` so the real pure `requireAdmin` still runs),
- * `@/entities/run-user` (`scanAllRunUsers`), and `@/lib/leaderboard-cache`
- * (`getCachedScan` passes straight through to the injected scan; the real pure
- * `buildLeaderboard` runs) — then drives the gate + ranking + paging branches:
- *   (a) non-admin -> BARE 404, empty body, and scanAllRunUsers is NEVER called
- *       (T-51-06 elevation gate + T-51-07 non-disclosure),
- *   (b) stale-admin (fresh-claims deny) -> 404 (T-51-07 fail-closed),
- *   (c) admin happy path -> 200 `{ rows, total, page, limit }` with globalRank
- *       over the full sorted set and a CTF-inclusive globalScore (SC #1/#2),
+ * ⚠️ LAUNCHED 2026-08-03 (Kurt): this was admin-only and is now open to EVERY
+ * SIGNED-IN runner, alongside the /leaderboard page and the header nav entry.
+ * The elevation checks (`requireAdmin` + the `revalidateAdmin` fresh-claims
+ * round-trip) are gone from this route. They still govern every OTHER admin
+ * route — do not copy this file's simpler gate into one.
+ *
+ * Mocks `@/config/auth`, `@/entities/run-user` (`scanAllRunUsers`), and
+ * `@/lib/leaderboard-cache` (`getCachedScan` passes straight through to the
+ * injected scan; the real pure `buildLeaderboard` runs) — then drives the gate +
+ * ranking + paging branches:
+ *   (a) anonymous / id-less session -> BARE 404, empty body, and scanAllRunUsers
+ *       is NEVER called (non-disclosure survives the launch),
+ *   (b) ordinary signed-in runner -> 200, and NO fresh-claims round-trip,
+ *   (c) happy path -> 200 `{ rows, total, page, limit }` with globalRank over
+ *       the full sorted set and a CTF-inclusive globalScore,
  *   (d) query params page/limit/filter parsed (defaults page 1 / limit 25) and
  *       forwarded to buildLeaderboard, with global rank preserved under filter.
  */
@@ -59,14 +63,11 @@ beforeEach(() => {
 });
 
 describe("GET /api/leaderboard", () => {
-  it("404s (bare, no body) for a non-admin and NEVER scans", async () => {
-    mockAuth.mockResolvedValue({ user: { services: [] } });
-    const res = await GET(req());
-    expect(res.status).toBe(404);
-    expect(await res.text()).toBe("");
-    expect(mockRevalidateAdmin).not.toHaveBeenCalled();
-    expect(mockScan).not.toHaveBeenCalled();
-  });
+  // ── LAUNCH 2026-08-03: the board went PUBLIC to signed-in runners. ────────
+  // The two tests that used to assert "non-admin -> 404" and "stale admin ->
+  // 404" encoded the admin-only rule and were REPLACED, not deleted: the
+  // behaviour they guarded is the behaviour we deliberately changed. What
+  // survives is the part that still matters — anonymous callers learn nothing.
 
   it("404s (bare) for an anonymous caller (no session) and NEVER scans", async () => {
     mockAuth.mockResolvedValue(null);
@@ -76,28 +77,32 @@ describe("GET /api/leaderboard", () => {
     expect(mockScan).not.toHaveBeenCalled();
   });
 
-  it("404s (fresh-claims deny) for a stale admin whose revalidation fails", async () => {
-    mockAuth.mockResolvedValue({
-      user: { services: ["admin"], authUserId: "sub-1" },
-    });
-    mockRevalidateAdmin.mockResolvedValue(false);
+  it("404s (bare) for a session carrying no user id, and NEVER scans", async () => {
+    mockAuth.mockResolvedValue({ user: {} });
     const res = await GET(req());
     expect(res.status).toBe(404);
     expect(await res.text()).toBe("");
     expect(mockScan).not.toHaveBeenCalled();
   });
 
-  it("returns 200 ranked rows with CTF-inclusive score for an admin", async () => {
+  it("200s for an ordinary signed-in runner (no admin group) — the board is public", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "u-1", services: [] } });
+    const res = await GET(req());
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.total).toBe(3);
+    // No elevation check remains on THIS route, so no fresh-claims round-trip.
+    expect(mockRevalidateAdmin).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 ranked rows with CTF-inclusive score", async () => {
     mockAuth.mockResolvedValue({
-      user: { services: ["admin"], authUserId: "sub-1" },
+      user: { id: "u-1", services: ["admin"], authUserId: "sub-1" },
     });
     mockRevalidateAdmin.mockResolvedValue(true);
 
     const res = await GET(req());
     expect(res.status).toBe(200);
-
-    // fresh-claims revalidation keyed by the OIDC sub, NOT the adapter id.
-    expect(mockRevalidateAdmin).toHaveBeenCalledWith("sub-1");
 
     const body = await res.json();
     expect(body.total).toBe(3);
@@ -119,7 +124,7 @@ describe("GET /api/leaderboard", () => {
 
   it("parses page/limit and returns the expected slice with global ranks", async () => {
     mockAuth.mockResolvedValue({
-      user: { services: ["admin"], authUserId: "sub-1" },
+      user: { id: "u-1", services: ["admin"], authUserId: "sub-1" },
     });
     mockRevalidateAdmin.mockResolvedValue(true);
 
@@ -137,7 +142,7 @@ describe("GET /api/leaderboard", () => {
 
   it("applies filter AFTER ranking so global rank is preserved", async () => {
     mockAuth.mockResolvedValue({
-      user: { services: ["admin"], authUserId: "sub-1" },
+      user: { id: "u-1", services: ["admin"], authUserId: "sub-1" },
     });
     mockRevalidateAdmin.mockResolvedValue(true);
 

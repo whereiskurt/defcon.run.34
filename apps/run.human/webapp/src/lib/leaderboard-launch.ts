@@ -18,4 +18,4 @@
  * their independent admin gate, and `/api/leaderboard/me` never accepts a
  * userId param, so a runner can only ever see themselves.
  */
-export const LEADERBOARD_SELF_ENABLED = false;
+export const LEADERBOARD_SELF_ENABLED = true;

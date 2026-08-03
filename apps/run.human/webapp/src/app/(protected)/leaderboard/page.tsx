@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 
 import { auth } from "@/config/auth";
-import { requireAdmin, revalidateAdmin } from "@/lib/admin-gate";
 
 import LeaderboardTable from "@/components/leaderboard/LeaderboardTable";
 
@@ -10,19 +9,23 @@ import LeaderboardTable from "@/components/leaderboard/LeaderboardTable";
  *
  * Lives in the (protected) route group so it renders INSIDE the real run.human
  * chrome (glass-nav header, footer, map background). This server component is
- * only the gate: it admits admins and hands the region-aware `apiBase` to the
- * <LeaderboardTable> client, which owns every fetch + the interactive board.
+ * only the gate: it admits signed-in runners and hands the region-aware
+ * `apiBase` to the <LeaderboardTable> client, which owns every fetch + the
+ * interactive board.
  *
- * ── Gate / non-disclosure (SC #1, mirrors (protected)/admin/page.tsx) ─────────
- * EVERY denial → notFound() (404), never a 403, never the page. Admits members
- * of ADMIN_GROUPS (admin + runadmin). revalidateAdmin MUST be called with
- * `session.user.authUserId` (the OIDC sub) — NOT `session.user.id` (the adapter
- * uuid): the Phase-43 identity landmine that would 404 a real admin.
+ * ── LAUNCHED 2026-08-03 (Kurt) ───────────────────────────────────────────────
+ * This board was admin-only and deliberately unlinked until the con. It is now
+ * PUBLIC TO EVERY SIGNED-IN RUNNER and linked from the header nav (desktop) and
+ * the mobile dropdown. `leaderboard-hidden.test.ts` — which proved the route
+ * string was absent from every nav source — was RETIRED in the same change,
+ * deliberately, because it existed to guard a property we intentionally gave up.
+ * Do not resurrect it without also unlinking the nav.
  *
- * ── Hidden (SC #2) ───────────────────────────────────────────────────────────
- * This route is linked from NO navigation component — header, dropdown, or menu.
- * It is reachable by URL only until launch. leaderboard-hidden.test.ts proves the
- * route string is absent from every nav source under src/components/header/.
+ * ── Gate / non-disclosure ────────────────────────────────────────────────────
+ * EVERY denial → notFound() (404), never a 403, never the page. The ADMIN
+ * requirement is gone but the fail-closed posture is not: an anonymous caller
+ * still cannot tell the route exists. Note the (protected) segment is NOT itself
+ * a gate — the session check here is what admits.
  *
  * ── currentUserId (own-row highlight) ────────────────────────────────────────
  * The board highlights the current admin's OWN row. That match is against
@@ -43,12 +46,13 @@ function apiBase(): string {
 }
 
 export default async function LeaderboardPage() {
-  // ── Gate (fail-closed; every denial → 404) ────────────────────────────────
+  // ── Gate: SIGNED-IN, no longer admin-only (Kurt, 2026-08-03) ──────────────
+  // The board went public for the con. It is still fail-closed for anonymous
+  // callers and still 404s rather than 403s, so an unauthenticated probe cannot
+  // tell the route exists — only the ADMIN requirement was dropped. Being in
+  // the (protected) segment is not on its own a gate; check the session here.
   const session = await auth();
-  const gate = requireAdmin(session);
-  if (!gate.ok) notFound();
-  const authUserId = session?.user?.authUserId;
-  if (!authUserId || !(await revalidateAdmin(authUserId))) notFound();
+  if (!session?.user?.id) notFound();
 
   return (
     <div className="w-full space-y-3">
