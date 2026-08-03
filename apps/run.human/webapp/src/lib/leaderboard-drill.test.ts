@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { groupSocial, buildCtfLines, maskCtfLines, injectCheckinLocations, buildClusterLines } from "./leaderboard-drill";
+import { groupSocial, buildCtfLines, maskCtfLines, injectCheckinLocations, buildClusterLines, conDayCount, sectionTotal } from "./leaderboard-drill";
 
 /**
  * Task 5 — pure lib for the leaderboard drill: social-scan day rollups +
@@ -227,5 +227,69 @@ describe("buildClusterLines", () => {
       3,
     );
     expect(lines[0].day).toBe("2026-08-07");
+  });
+});
+
+describe("conDayCount", () => {
+  // CON_DAYS is 2026-08-05..10 (con-days.ts), PDT.
+  it("counts distinct con days from epoch ms", () => {
+    const noon = (d: string) => Date.parse(`${d}T19:00:00.000Z`); // 12:00 PDT
+    expect(conDayCount([noon("2026-08-05"), noon("2026-08-06")])).toBe(2);
+  });
+
+  it("de-duplicates the same day", () => {
+    const noon = Date.parse("2026-08-05T19:00:00.000Z");
+    expect(conDayCount([noon, noon + 3_600_000, noon + 7_200_000])).toBe(1);
+  });
+
+  it("accepts an already-formatted YYYY-MM-DD (the social bucket shape)", () => {
+    expect(conDayCount(["2026-08-05", "2026-08-06", "2026-08-05"])).toBe(2);
+  });
+
+  it("accepts ISO strings (the CTF solvedAt shape)", () => {
+    expect(conDayCount(["2026-08-07T19:00:00.000Z"])).toBe(1);
+  });
+
+  it("ignores days outside the con", () => {
+    expect(conDayCount(["2026-07-30", "2026-08-11", "2026-08-05"])).toBe(1);
+  });
+
+  it("SKIPS unparseable values rather than counting them", () => {
+    // A NaN date must never inflate a streak.
+    expect(conDayCount(["not-a-date", NaN, undefined, null, ""])).toBe(0);
+  });
+});
+
+describe("sectionTotal", () => {
+  // The streak table is [0, 25, 50, 100, 500], capped at 4+ days.
+  it("adds the streak bonus to the section's own entry points", () => {
+    expect(sectionTotal(4115, 4)).toBe(4615);
+  });
+
+  it("is the whole value for a zero-point track (runs, social)", () => {
+    // Runs and scans are worth 0 each — the streak IS the contribution.
+    // STREAK_POINTS is [0, 25, 50, 100, 500] INDEXED BY DAY COUNT — so a single
+    // con day already pays 25, and only ZERO days pays nothing.
+    expect(sectionTotal(0, 4)).toBe(500);
+    expect(sectionTotal(0, 3)).toBe(100);
+    expect(sectionTotal(0, 2)).toBe(50);
+    expect(sectionTotal(0, 1)).toBe(25);
+    expect(sectionTotal(0, 0)).toBe(0);
+  });
+
+  it("is just the entry points when no con day is covered", () => {
+    expect(sectionTotal(250, 0)).toBe(250);
+  });
+
+  it("caps the streak at 4+ days", () => {
+    expect(sectionTotal(0, 4)).toBe(sectionTotal(0, 6));
+  });
+
+  it("the three sections sum to the score minus cluster bonus", () => {
+    // KPH's live showcase row: 11615 = runs + social + ctf + clusterBonus 6000.
+    const runs = sectionTotal(0, 4);
+    const social = sectionTotal(0, 4);
+    const ctf = sectionTotal(4115, 4);
+    expect(runs + social + ctf).toBe(11615 - 6000);
   });
 });
