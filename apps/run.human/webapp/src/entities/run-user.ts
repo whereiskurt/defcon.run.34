@@ -19,6 +19,32 @@ const siteDomain = process.env.SITE_DOMAIN || "defcon.run";
  * The profile data (name, picture, etc.) is retrieved from the auth service endpoint.
  * This table stores the userId, run-specific profile data, and unique identifiers for QR-based interactions.
  */
+/**
+ * Runner class — DC33's rabbit / hare / OG concept. `wildhare` is the STORED
+ * value; "hare" is only ever a display label (see admin-report.ts and
+ * AdminConsole's RUNNER_LABEL).
+ *
+ * ⚠️ NOT an authorization vocabulary. `admin` here is a cosmetic class and
+ * grants nothing — privileges come from `AuthProfile.services` in run.auth,
+ * which is what `requireAdmin` reads. The two share a word and nothing else.
+ *
+ * ⚠️ Despite the `mqtt` prefix on the attribute, the broker does not read this.
+ * Real consumers: the leaderboard emoji, the public check-in map's type filter,
+ * the mesh-map feed, the admin console tag — and run.flash's `resolveRingtone`,
+ * which picks the RTTTL written to a runner's radio from their class. Changing
+ * someone's class therefore changes their ringtone on next flash unless they
+ * have a personal override.
+ *
+ * Exported so the enum stops being hand-copied; several older call sites still
+ * spell the union out inline.
+ */
+export const RUNNER_CLASSES = ["rabbit", "admin", "wildhare", "og"] as const;
+export type RunnerClass = (typeof RUNNER_CLASSES)[number];
+
+export function isRunnerClass(v: unknown): v is RunnerClass {
+  return typeof v === "string" && (RUNNER_CLASSES as readonly string[]).includes(v);
+}
+
 export const RunUser = new Entity(
   {
     model: {
@@ -73,7 +99,7 @@ export const RunUser = new Entity(
         type: "string",
       },
       mqttUsertype: {
-        type: ["rabbit", "admin", "wildhare", "og"] as const,
+        type: RUNNER_CLASSES,
       },
 
       // Per-user Meshtastic ringtone (RTTTL). Optional override; when unset the
@@ -378,6 +404,22 @@ export async function updateRunUserProfile(
   }
 ): Promise<void> {
   await RunUser.patch({ userId }).set(data).go();
+}
+
+/**
+ * Set a runner's class. ADMIN-ONLY — deliberately a SEPARATE writer from
+ * `updateRunUserProfile` above.
+ *
+ * WHY NOT just add `mqttUsertype` to that function's accepted shape: it is
+ * called from `/api/user/route.ts` with `session.user.id`, i.e. the runner's own
+ * self-service profile route. Widening the shape shared with a self-service
+ * path is how a runner ends up able to promote themselves to `og` — the class
+ * is cosmetic, but it drives the leaderboard badge and the public map filter,
+ * so it must stay staff-assigned. Keeping the writers apart makes that
+ * structural rather than a thing the next caller has to remember.
+ */
+export async function setRunnerClass(userId: string, mqttUsertype: RunnerClass): Promise<void> {
+  await RunUser.patch({ userId }).set({ mqttUsertype }).go();
 }
 
 // Type definitions
