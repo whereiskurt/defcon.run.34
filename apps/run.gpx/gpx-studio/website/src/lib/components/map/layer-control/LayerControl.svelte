@@ -17,7 +17,7 @@
         DEFAULT_ON_FOLDER,
     } from '../public-overlays';
     import { LAYER, storedVisible, setLayerVisible } from '$lib/stores/layer-visibility';
-    import { requestedLayers } from '$lib/stores/layer-url';
+    import { requestedLayers, resolveRunnersVisible } from '$lib/stores/layer-url';
     import { MyConRunsLayer, myConRunGroups } from '../my-con-runs';
     import { CommunityRoutesLayer, communityRoutes } from '../community-routes';
     import { HeatmapLayer, heatmapState } from '../heatmap-layer';
@@ -323,11 +323,15 @@
         // authoritative in both directions, otherwise the runner's stored choice wins, and
         // a runner who has never touched the toggle gets ON.
         {
-            const requested = requestedLayers();
-            const runnersOn = requested
-                ? requested.keys.has(LAYER.runners)
-                : storedVisible(LAYER.runners, true);
-            void rabbitLayer.setVisible(runnersOn);
+            const runnersOn = resolveRunnersVisible(
+                requestedLayers(),
+                storedVisible(LAYER.runners, true)
+            );
+            // probe() when hidden, so the row still renders and the runner can turn them
+            // back on. Without it a hidden layer never polls, never latches `available`,
+            // and the control disappears along with the pins.
+            if (runnersOn) void rabbitLayer.setVisible(true);
+            else void rabbitLayer.probe();
         }
         // Hidden "Rainbow Bridges" easter egg: default-locked, revealed by the
         // rapid-3D-flip gesture (map.toggle3D) then pitch-gated. On unlock we also
