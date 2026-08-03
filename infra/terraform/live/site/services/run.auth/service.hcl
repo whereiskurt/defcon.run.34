@@ -31,20 +31,38 @@ locals {
     name         = "run-auth"
     regions      = ["us-east-1", "ca-central-1", "ap-southeast-1"]
     cluster_name = "app"
-    # 0.5 vCPU / 1 GB (Fargate requires >=1 GB at 0.5 vCPU). Bumped from the
-    # 256/512 "minimum sizing" cost-cut: run.auth is the single auth chokepoint,
-    # was peaking ~98% CPU on the 0.25-vCPU task, and the bib /signin fix now
-    # routes more returning users through its login page. Headroom for con.
-    task_cpu     = 512
-    task_memory  = 1024
+    # CON-WINDOW CAPACITY BUMP (2026-08-03) — 1 vCPU / 2 GB. TEMPORARY: revert to
+    # 512/1024 (and the container split below to 128/256/128 + 384/768/384) after
+    # DEF CON 34 unless the load says otherwise.
+    #
+    # History, so these numbers are not re-litigated later: this was originally
+    # 256/512 "minimum sizing" and peaked ~98% CPU. That ~98% figure is quoted in
+    # older notes and refers to the 0.25-vCPU task, NOT this one. It was then
+    # bumped to 512/1024, after which measured CPU is ~0.75% avg / ~2.5% max
+    # (CloudWatch, cluster app-use1-dc34, 2026-08-03 02:30 ET, idle). So this bump
+    # is HEADROOM for a con-day surge, not relief of a current saturation.
+    #
+    # Deliberately NO autoscaling — the block below stays enabled = false. Its
+    # 120s scale-out cooldown would land after a doors-open spike anyway, and a
+    # second task changes the OIDC failure modes (an in-flight authorize ->
+    # interaction -> token chain spans 3 hops and a scale-in can drop it).
+    #
+    # Fargate constraint: 1024 CPU requires memory in [2048..8192]. Leaving
+    # task_memory at 1024 is NOT a legal pairing and task registration would fail.
+    task_cpu     = 1024
+    task_memory  = 2048
 
     containers = [
       {
         name               = "run-auth-nginx"
         image              = "run-auth-nginx:${local.versions.nginx}"
-        cpu                = 128
-        memory             = 256
-        memory_reservation = 128
+        # Con-window bump, doubled with the task (was 128/256/128). The 25/75
+        # nginx:app split is preserved. Container memory is a HARD limit, so
+        # raising only task_memory would leave both containers capped where they
+        # were and the extra GB unusable.
+        cpu                = 256
+        memory             = 512
+        memory_reservation = 256
         essential          = true
         command            = ["nginx", "-g", "daemon off;"]
 
@@ -79,9 +97,12 @@ locals {
       {
         name               = "run-auth-app"
         image              = "run-auth-app:${local.versions.app}"
-        cpu                = 384
-        memory             = 768
-        memory_reservation = 384
+        # Con-window bump, doubled with the task (was 384/768/384). This is the
+        # Node/oidc-provider process — the actual auth chokepoint — so it keeps
+        # 75% of the new ceiling, the same share it had before.
+        cpu                = 768
+        memory             = 1536
+        memory_reservation = 768
         essential          = true
         command            = ["node", "server.js"]
 
