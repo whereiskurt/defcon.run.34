@@ -13,8 +13,7 @@ import { useState } from 'react';
 import { FaQuestion, FaRadio } from 'react-icons/fa6';
 import { GrMapLocation } from 'react-icons/gr';
 import { MenuIcon } from './icon/menu';
-import { FaUserAlt } from 'react-icons/fa';
-import { PiPersonSimpleRun } from 'react-icons/pi';
+import { FaUserAlt, FaTrophy } from 'react-icons/fa';
 import { FiDollarSign, FiShield } from 'react-icons/fi';
 import { useCopy } from '../CopyProvider';
 import { gpxMapUrl } from '@/lib/gpx-map';
@@ -94,15 +93,22 @@ const MenuDropDown = (params: any) => {
             <span className="text-base">{t('common.header.meshtastic')}</span>
           </DropdownItem>
 
+          {/* Launched 2026-08-03. Mobile and desktop nav are SEPARATE hardcoded
+              lists (header.tsx has its own `navItems`), so this entry has to be
+              added in both places or it only appears on one. */}
           <DropdownItem
-            textValue="bib"
-            startContent={<PiPersonSimpleRun className={iconClasses} />}
-            key="bib"
-            onClick={() => { setIsOpen(false); window.open('https://bib.defcon.run', '_blank'); }}
+            textValue="leaderboard"
+            startContent={<FaTrophy className={iconClasses} />}
+            key="leaderboard"
+            showDivider
+            onClick={() => handleNavigation('/leaderboard')}
           >
-            <span className="text-base">{t('common.header.bib')}</span>
+            <span className="text-base">{t('common.header.leaderboard')}</span>
           </DropdownItem>
 
+          {/* "Bib" was dropped from the nav on 2026-08-03 (Kurt) — it still
+              lives in the avatar menu as "My Bib" and on the landing page.
+              Donate stays. */}
           <DropdownItem
             textValue="donate"
             startContent={<FiDollarSign className={iconClasses} />}

@@ -15,8 +15,8 @@ import { useEffect, useState } from 'react';
 import { GrMapLocation } from 'react-icons/gr';
 import { MenuIcon } from './icon/menu';
 import { FaRadio } from 'react-icons/fa6';
-import { PiPersonSimpleRun } from 'react-icons/pi';
-import { FiShield } from 'react-icons/fi';
+import { FaTrophy } from 'react-icons/fa';
+import { FiShield, FiDollarSign } from 'react-icons/fi';
 import { DonateModal } from '../DonateModal';
 import { useCopy } from '../CopyProvider';
 import { gpxMapUrl } from '@/lib/gpx-map';
@@ -64,8 +64,22 @@ const BIB_REGION_PREFIX = process.env.NEXT_PUBLIC_REGION_SHORT || 'use1';
 const navItems = [
   { href: gpxMapUrl(), label: 'Maps', labelKey: 'common.header.maps', icon: GrMapLocation, external: true },
   { href: '/meshtastic', label: 'Meshtastic', labelKey: 'common.header.meshtastic', icon: FaRadio, external: false },
-  { href: 'https://bib.defcon.run', label: 'Bib', labelKey: 'common.header.bib', icon: PiPersonSimpleRun, external: true },
+  // Launched 2026-08-03. The board is signed-in-only, so this renders for
+  // everyone but 404s an anonymous click — same posture as the page itself.
+  { href: '/leaderboard', label: 'Leaderboard', labelKey: 'common.header.leaderboard', icon: FaTrophy, external: false },
 ] as const;
+
+/**
+ * ONE class string for every top-level nav control so the row reads as a single
+ * set. Donate used to be a bare <button> with no icon hanging off "Bib" behind a
+ * "/" separator, which is why it sat at a different weight and colour than its
+ * neighbours (Kurt, 2026-08-03: "make the header nicer, same font and stuff").
+ * Bib itself was dropped from the nav — it still lives in the avatar menu as
+ * "My Bib" and on the landing page.
+ */
+const NAV_BASE = 'flex items-center gap-1.5 text-sm transition-colors relative';
+const NAV_IDLE = 'text-default-500 hover:text-foreground';
+const NAV_ACTIVE = 'text-primary font-medium nav-active';
 
 export function Header(params: any) {
   const session = params.session;
@@ -133,52 +147,40 @@ export function Header(params: any) {
           </Tooltip>
         </NavbarItem>
 
-        {navItems.map(({ href, label, labelKey, icon: Icon, external }) => {
+        {navItems.map(({ href, labelKey, icon: Icon, external }) => {
           const isActive = !external && !!pathname && pathname.replace(basePath, '').startsWith(href);
           return (
             <NavbarItem key={href}>
-              <span className="text-sm flex items-center gap-1.5 py-1">
-                <Link
-                  color="foreground"
-                  href={href}
-                  {...(external ? { target: '_blank', rel: 'noreferrer' } : {})}
-                  className={`flex items-center gap-1.5 transition-colors relative ${
-                    isActive
-                      ? 'text-primary font-medium nav-active'
-                      : 'text-default-500 hover:text-foreground'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {t(labelKey)}
-                </Link>
-                {/* "Bib" gains a "Donate $" sibling that opens the quick-give
-                  * modal in place (cross-origin to the bib app). */}
-                {label === 'Bib' && (
-                  <>
-                    <span className="text-default-400">/</span>
-                    <button
-                      type="button"
-                      onClick={() => setDonateOpen(true)}
-                      className="transition-colors text-default-500 hover:text-foreground"
-                    >
-                      {t('common.header.donate')}
-                    </button>
-                  </>
-                )}
-              </span>
+              <Link
+                color="foreground"
+                href={href}
+                {...(external ? { target: '_blank', rel: 'noreferrer' } : {})}
+                className={`${NAV_BASE} ${isActive ? NAV_ACTIVE : NAV_IDLE}`}
+              >
+                <Icon className="w-4 h-4" />
+                {t(labelKey)}
+              </Link>
             </NavbarItem>
           );
         })}
+
+        {/* Donate opens the quick-give modal in place (the bib app is
+            cross-origin), so it is a button rather than a link — but it is
+            styled and iconed exactly like its neighbours. */}
+        <NavbarItem>
+          <button type="button" onClick={() => setDonateOpen(true)} className={`${NAV_BASE} ${NAV_IDLE}`}>
+            <FiDollarSign className="w-4 h-4" />
+            {t('common.header.donate')}
+          </button>
+        </NavbarItem>
 
         {isAdmin && (
           <NavbarItem>
             <Link
               color="foreground"
               href="/admin"
-              className={`flex items-center gap-1.5 transition-colors relative ${
-                pathname && pathname.replace(basePath, '').startsWith('/admin')
-                  ? 'text-primary font-medium nav-active'
-                  : 'text-default-500 hover:text-foreground'
+              className={`${NAV_BASE} ${
+                pathname && pathname.replace(basePath, '').startsWith('/admin') ? NAV_ACTIVE : NAV_IDLE
               }`}
             >
               <FiShield className="w-4 h-4" />

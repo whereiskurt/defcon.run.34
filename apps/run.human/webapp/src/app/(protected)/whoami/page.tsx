@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { useLogout } from '@/hooks/useLogout';
 import { Card, CardBody, Divider, Button, Chip, Avatar, Skeleton, Input } from '@heroui/react';
-import { LogOut, ChevronRight, ChevronDown, RefreshCw, Pencil, Check, X, Download, Camera, Footprints, Trophy, MapPin } from 'lucide-react';
+import { LogOut, ChevronRight, ChevronDown, RefreshCw, Pencil, Check, X, Download, QrCode, Footprints, Trophy, MapPin } from 'lucide-react';
 import { SiStrava, SiDiscord, SiGithub } from 'react-icons/si';
 import MeshtasticRadios from '@/components/profile/MeshtasticRadios';
 import CheckInHistory from '@/components/profile/CheckInHistory';
@@ -111,6 +111,42 @@ function QuotaBar({ remaining, initial, label }: { remaining: number; initial: n
   );
 }
 
+/**
+ * One row of the account accordion (Linked Providers / Authorized Services /
+ * Debug). Declared at MODULE level, not inside WhoAmIPage — a component defined
+ * inside another component is a new type on every render, so React unmounts and
+ * remounts the whole subtree each time, losing focus and any child state.
+ */
+function DisclosureRow({
+  label,
+  open,
+  onToggle,
+  children,
+}: {
+  label: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="py-3 first:pt-0 last:pb-0">
+      <button
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex items-center gap-2 w-full text-left cursor-pointer hover:opacity-80 transition-opacity"
+      >
+        {open ? (
+          <ChevronDown className="w-3.5 h-3.5 text-default-400" />
+        ) : (
+          <ChevronRight className="w-3.5 h-3.5 text-default-400" />
+        )}
+        <span className="text-sm font-semibold text-default-500">{label}</span>
+      </button>
+      {open && <div className="mt-3">{children}</div>}
+    </div>
+  );
+}
+
 export default function WhoAmIPage() {
   const [mounted, setMounted] = useState(false);
   // Panel open/closed states persist per browser so the page comes back the
@@ -122,6 +158,12 @@ export default function WhoAmIPage() {
   const [isStandingOpen, setIsStandingOpen] = useState(false);
   const [isQuotasOpen, setIsQuotasOpen] = usePersistedDisclosure('quotas');
   const [isDebugOpen, setIsDebugOpen] = usePersistedDisclosure('debug');
+  // Kurt 2026-08-03: Providers / Services / Debug collapsed into ONE stacked
+  // accordion. Each row keeps its own persisted key, so a runner who had Debug
+  // open keeps it open — and the two new rows default closed, which is why the
+  // account chrome no longer eats a screen of space above Sign Out.
+  const [isProvidersOpen, setIsProvidersOpen] = usePersistedDisclosure('providers');
+  const [isServicesOpen, setIsServicesOpen] = usePersistedDisclosure('services');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState('');
@@ -358,11 +400,11 @@ export default function WhoAmIPage() {
               )}
             </div>
             </div>
-            {/* Action bar — ONE loud primary (Add Run, gpx green) beside two
-                brand-teal outline actions. The old four-hue segmented pill
-                (green/orange/orange/blue) was retired: the Strava-group and
-                Signal popouts live on the landing page, and account linking
-                demoted to the text link below — it is a link, not a CTA. */}
+            {/* Action bar — ONE loud primary (+Activity, gpx green) beside three
+                brand-teal outline actions. Order is deliberate (Kurt, 2026-08-03):
+                the two things you do about YOUR OWN standing come first
+                (+Activity, My Leaderboard), then the two things you do out in the
+                world (Scan, Check-in). */}
             <div className="flex flex-wrap items-center gap-2 self-start">
               <a
                 href={gpxAddRunUrl()}
@@ -371,21 +413,37 @@ export default function WhoAmIPage() {
                 className="cta-bar seg-addrun flex items-center gap-2 rounded-full font-semibold text-xs sm:text-sm px-3 sm:px-4 py-2 sm:py-2.5 whitespace-nowrap"
               >
                 <Footprints className="w-4 h-4 sm:w-5 sm:h-5" />
-                Add Run
+                +Activity
               </a>
-              {/* The camera, promoted out of the collapsed QR panel — scanning
-                  another runner is the headline social act, not a sub-feature
-                  of your own QR. Labelled for the outcome ("Connect"), not the
-                  mechanism ("Scan"). */}
+              {/* "My Leaderboard", not "Leaderboard": this opens YourStandingModal
+                  — the caller's OWN row — while the header nav entry of the same
+                  name would open the full multi-runner board. Two surfaces, two
+                  names. LEADERBOARD_SELF_ENABLED is a cosmetic gate only; the API
+                  behind it enforces the same rule server-side. */}
+              {(LEADERBOARD_SELF_ENABLED || isAdmin) && (
+                <Button
+                  color="primary"
+                  variant="bordered"
+                  radius="full"
+                  className="font-semibold"
+                  startContent={<Trophy className="w-4 h-4 sm:w-5 sm:h-5" />}
+                  onPress={() => setIsStandingOpen(true)}
+                >
+                  {copyOr('leaderboard.self.button', 'My Leaderboard')}
+                </Button>
+              )}
+              {/* The camera, promoted out of the collapsed QR panel. A QR glyph
+                  rather than a camera: what you point it at is the subject, and
+                  it reads as the twin of "Your Social QR" below. */}
               <Button
                 color="primary"
                 variant="bordered"
                 radius="full"
                 className="font-semibold"
-                startContent={<Camera className="w-4 h-4 sm:w-5 sm:h-5" />}
+                startContent={<QrCode className="w-4 h-4 sm:w-5 sm:h-5" />}
                 onPress={() => setIsScannerOpen(true)}
               >
-                {copyOr('socialqr.scan.button', 'Connect')}
+                {copyOr('socialqr.scan.button', 'Scan')}
               </Button>
               {/* One tap to mark that you were here. No privacy or pin controls:
                   the server applies this runner's profile defaults, and the
@@ -401,21 +459,6 @@ export default function WhoAmIPage() {
               >
                 {copyOr('checkin.quick.button', 'Check-in')}
               </Button>
-              {/* Pre-launch this is admin-only; flipping LEADERBOARD_SELF_ENABLED
-                  shows it to every runner. Cosmetic gate only — the API behind it
-                  enforces the same rule server-side. */}
-              {(LEADERBOARD_SELF_ENABLED || isAdmin) && (
-                <Button
-                  color="primary"
-                  variant="bordered"
-                  radius="full"
-                  className="font-semibold"
-                  startContent={<Trophy className="w-4 h-4 sm:w-5 sm:h-5" />}
-                  onPress={() => setIsStandingOpen(true)}
-                >
-                  {copyOr('leaderboard.self.button', 'Leaderboard')}
-                </Button>
-              )}
             </div>
             {!user.hasStrava && (
               <a
@@ -568,14 +611,17 @@ export default function WhoAmIPage() {
         </Card>
       )}
 
-      {/* Two-column: Providers + Services */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-        {/* Linked Providers */}
-        <Card className="glass-card overflow-hidden">
-          <CardBody className="px-5 py-4 space-y-3">
-            <span className="text-xs font-semibold uppercase tracking-wider text-default-400">
-              Linked Providers
-            </span>
+      {/* Account chrome — ONE stacked accordion. Providers and Services used to
+          be two always-open cards in a 2-up grid with Debug as a third card
+          below; three stacked disclosure rows in a single card say the same
+          thing in a fraction of the height and put Sign Out back above the fold. */}
+      <Card className="glass-card overflow-hidden">
+        <CardBody className="px-5 py-3 divide-y divide-divider">
+          <DisclosureRow
+            label="Linked Providers"
+            open={isProvidersOpen}
+            onToggle={() => setIsProvidersOpen(!isProvidersOpen)}
+          >
             <div className="flex flex-wrap gap-1.5">
               {providerList.map(({ name, icon: Icon, key, color }) => {
                 const isConnected = user[key];
@@ -604,15 +650,13 @@ export default function WhoAmIPage() {
                 return chip;
               })}
             </div>
-          </CardBody>
-        </Card>
+          </DisclosureRow>
 
-        {/* Authorized Services */}
-        <Card className="glass-card overflow-hidden">
-          <CardBody className="px-5 py-4 space-y-3">
-            <span className="text-xs font-semibold uppercase tracking-wider text-default-400">
-              Authorized Services
-            </span>
+          <DisclosureRow
+            label="Authorized Services"
+            open={isServicesOpen}
+            onToggle={() => setIsServicesOpen(!isServicesOpen)}
+          >
             {services.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
                 {services.map((s) => (
@@ -630,27 +674,10 @@ export default function WhoAmIPage() {
             ) : (
               <p className="text-sm text-default-400">No services assigned</p>
             )}
+          </DisclosureRow>
 
-          </CardBody>
-        </Card>
-      </div>
-
-      {/* Debug */}
-      <Card className="glass-card overflow-hidden">
-        <CardBody className="px-5 py-3">
-          <button
-            onClick={() => setIsDebugOpen(!isDebugOpen)}
-            className="flex items-center gap-2 w-full text-left cursor-pointer hover:opacity-80 transition-opacity"
-          >
-            {isDebugOpen ? (
-              <ChevronDown className="w-3.5 h-3.5 text-default-400" />
-            ) : (
-              <ChevronRight className="w-3.5 h-3.5 text-default-400" />
-            )}
-            <span className="text-sm font-semibold text-default-500">Debug</span>
-          </button>
-          {isDebugOpen && (
-            <div className="space-y-3 mt-3">
+          <DisclosureRow label="Debug" open={isDebugOpen} onToggle={() => setIsDebugOpen(!isDebugOpen)}>
+            <div className="space-y-3">
               {user?.id && (
                 <p className="text-xs text-default-400">
                   User ID: <span className="font-mono text-foreground">{user.id}</span>
@@ -670,7 +697,7 @@ export default function WhoAmIPage() {
                 {JSON.stringify(session, null, 2)}
               </pre>
             </div>
-          )}
+          </DisclosureRow>
         </CardBody>
       </Card>
 

@@ -54,6 +54,7 @@ import { DynamoDB } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocument } from "@aws-sdk/lib-dynamodb";
 import { Entity } from "electrodb";
 import { computeUserScore } from "../src/lib/scoring-engine";
+import { computePoints } from "../src/lib/ctf-scoring";
 import { CON_DAYS } from "../src/lib/con-days";
 import { DEFAULT_CLUSTER_CONFIG } from "../src/lib/cluster-config";
 
@@ -308,14 +309,38 @@ async function main() {
   const days = CON_DAYS.slice(0, 4); // 4 distinct days = the 500-point streak cap
   const challenges = [...configs.keys()].sort();
 
-  const solves = challenges.map((challenge, i) => ({
-    challenge,
-    user: userId,
-    ordinal: 1, // first blood -> top of the decay curve
-    firstBlood: true,
-    channel: "covert" as const,
-    solvedAt: new Date(conNoon(days[i % days.length])).toISOString(),
-  }));
+  const solves = challenges.map((challenge, i) => {
+    const solvedAt = new Date(conNoon(days[i % days.length])).toISOString();
+    const cfg = configs.get(challenge) as Record<string, unknown>;
+    // STORE `points`, don't just rely on the engine re-deriving it. The SCORE is
+    // computed from ordinal + config (scoring-engine.flagValue), but the leaderboard
+    // DRILL-DOWN renders the `points` attribute stored on the row
+    // (leaderboard-drill-load.ts:110 -> buildCtfLines). Omit it and every flag reads
+    // "+0" in the drill while the total is correct — which is exactly how this was
+    // caught. Same function flagValue calls, same inputs, so the two agree by
+    // construction rather than by coincidence.
+    const points = computePoints(
+      1,
+      {
+        pointMax: (cfg?.pointMax as number) ?? 0,
+        pointFloor: (cfg?.pointFloor as number) ?? 0,
+        maxSolves: (cfg?.maxSolves as number) ?? 0,
+        firstBloodBonus: (cfg?.firstBloodBonus as number) ?? 0,
+        floorAfterMax: cfg?.floorAfterMax as boolean | undefined,
+        timeTiers: cfg?.timeTiers as never,
+      } as never,
+      Date.parse(solvedAt),
+    );
+    return {
+      challenge,
+      user: userId,
+      ordinal: 1, // first blood -> top of the decay curve
+      points,
+      firstBlood: true,
+      channel: "covert" as const,
+      solvedAt,
+    };
+  });
 
   const accomplishments = days.map((day, i) => ({
     userId,

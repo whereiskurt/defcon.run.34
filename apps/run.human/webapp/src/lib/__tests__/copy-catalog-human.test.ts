@@ -38,6 +38,7 @@ const REQUIRED_COMMON_KEYS = [
   "common.header.maps",
   "common.header.meshtastic",
   "common.header.bib",
+  "common.header.leaderboard",
   "common.header.donate",
   "common.header.admin",
   "common.header.myBibMobile",

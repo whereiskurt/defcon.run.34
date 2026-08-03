@@ -1,5 +1,4 @@
 import { auth } from "@/config/auth";
-import { requireAdmin, revalidateAdmin } from "@/lib/admin-gate";
 import { scanAllRunUsers } from "@/entities/run-user";
 import { getCachedScan } from "@/lib/leaderboard-cache";
 import { buildLeaderboard } from "@/lib/leaderboard-data";
@@ -13,18 +12,18 @@ import { buildLeaderboard } from "@/lib/leaderboard-data";
  * pure code — this handler only gates, parses params, and wires the cache to the
  * assembler.
  *
- * ── Gate (T-51-06 / T-51-07, non-disclosure) ────────────────────────────────
- * Every denial returns a BARE 404 `Response` — never a 403/401, never a body
- * that advertises the route. Three denial paths all collapse to 404:
- *   1. requireAdmin fails (no session / not an admin group),
- *   2. session.user.authUserId (the OIDC sub) is missing,
- *   3. revalidateAdmin(authUserId) fails the live fresh-claims check.
+ * ── Gate (non-disclosure) ───────────────────────────────────────────────────
+ * LAUNCHED 2026-08-03 (Kurt): admin-only → every SIGNED-IN runner, alongside the
+ * /leaderboard page and the new header nav entry.
  *
- * IDENTIFIER LANDMINE (Phase 43): revalidateAdmin MUST be called with
- * `session.user.authUserId` (the auth.defcon.run OIDC sub) — NOT
- * `session.user.id`, the Auth.js DynamoDB-adapter local uuid. The run.auth
- * validate endpoint is keyed by the OIDC sub; the adapter id silently fails the
- * claims lookup and 404s a real admin.
+ * Every denial still returns a BARE 404 `Response` — never a 403/401, never a
+ * body that advertises the route. Only the admin requirement was dropped; an
+ * anonymous caller is still told nothing.
+ *
+ * The Phase-43 identifier landmine no longer applies HERE (no revalidateAdmin
+ * call left), but it still governs every other admin route: revalidateAdmin
+ * takes `session.user.authUserId` (the OIDC sub), NOT `session.user.id` (the
+ * adapter uuid). Do not copy this file's simpler gate into an admin route.
  *
  * ── DoS (T-51-08) ──────────────────────────────────────────────────────────
  * The scan runs behind a 60s stale-while-revalidate cache (`getCachedScan`) that
@@ -45,14 +44,13 @@ const NOT_FOUND = () => new Response(null, { status: 404 });
 const DEFAULT_LIMIT = 25;
 
 export async function GET(request: Request) {
-  // ── Gate ──────────────────────────────────────────────────────────────────
+  // ── Gate: SIGNED-IN, no longer admin-only (Kurt, 2026-08-03) ──────────────
+  // Opened for the con along with the /leaderboard page and the header nav
+  // entry. Anonymous callers still get a BARE 404 (never 403, never a body that
+  // advertises the route) — only the admin requirement was dropped, not the
+  // fail-closed posture.
   const session = await auth();
-  const gate = requireAdmin(session);
-  if (!gate.ok) return NOT_FOUND();
-
-  // Fresh-claims revalidation keyed by the OIDC sub (NOT the adapter id).
-  const authUserId = session?.user?.authUserId;
-  if (!authUserId || !(await revalidateAdmin(authUserId))) return NOT_FOUND();
+  if (!session?.user?.id) return NOT_FOUND();
 
   // ── Params ──────────────────────────────────────────────────────────────
   const url = new URL(request.url);
