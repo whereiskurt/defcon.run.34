@@ -162,7 +162,15 @@ export async function listPendingForOwner(
 ): Promise<PendingContributionItem[]> {
   const result = await PendingContribution.scan
     .where(({ ownerSub: attr }, { eq }) => eq(attr, ownerSub))
-    .go();
+    // `pages: "all"` is load-bearing: DynamoDB caps a Scan at ~1 MB of SCANNED
+    // bytes and the ownerSub filter above is applied AFTER that read, so the cap
+    // is unrelated to how many rows match. run-human-electro already exceeds
+    // 1 MB. Two consequences of a short read, both money-visible:
+    // clearPendingForOwner filters THIS list, so a missed row is a pending hint
+    // that never gets cleared after reconciliation — the exact double-count its
+    // own docblock warns about — and the runner's pending intents go missing
+    // from their transaction history.
+    .go({ pages: "all" });
   return result.data;
 }
 
