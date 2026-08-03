@@ -8,7 +8,7 @@
  * and the `getCachedDrill` wiring; this module only shapes already-fetched
  * rows so it stays trivially unit-testable.
  */
-import { conLocalDate, isConDay } from "./con-days";
+import { conLocalDate, isConDay, streakPoints } from "./con-days";
 
 export type SocialDayLine = { day: string; count: number; points: number };
 
@@ -253,4 +253,53 @@ export function buildClusterLines(
   }
 
   return out.sort((a, b) => b.startAt - a.startAt);
+}
+
+// ---------------------------------------------------------------------------
+// Section totals — what each drill section actually contributes to the score
+// ---------------------------------------------------------------------------
+
+/**
+ * Distinct CON days covered by a set of timestamps. Accepts epoch ms, an ISO
+ * string, or an already-formatted YYYY-MM-DD.
+ *
+ * Mirrors the engine (lib/scoring-engine.ts): a day counts when
+ * `conLocalDate(t)` lands in CON_DAYS. Anything unparseable is SKIPPED rather
+ * than counted — a NaN date must never inflate a streak.
+ */
+export function conDayCount(
+  values: (string | number | undefined | null)[]
+): number {
+  const days = new Set<string>();
+  for (const v of values) {
+    if (v == null) continue;
+    let day: string;
+    if (typeof v === "number") {
+      if (!Number.isFinite(v)) continue;
+      day = conLocalDate(v);
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+      day = v;
+    } else {
+      const t = Date.parse(v);
+      if (Number.isNaN(t)) continue;
+      day = conLocalDate(t);
+    }
+    if (isConDay(day)) days.add(day);
+  }
+  return days.size;
+}
+
+/**
+ * A drill section's REAL contribution: its own entry points plus that track's
+ * streak bonus.
+ *
+ * WHY THIS EXISTS: runs and social scans are worth ZERO each — accomplishments
+ * only light con-days, and `social-scan` events are skipped by the engine
+ * before scoring (scoring-engine.ts:148-152). Summing entry points alone gave
+ * "+0 🥕 · 4 scans" sitting directly above a "+500 streak bonus" line, which
+ * reads as a broken board. These totals sum to the runner's score minus the
+ * cluster bonus, rather than to a number that appears nowhere.
+ */
+export function sectionTotal(entryPoints: number, conDays: number): number {
+  return entryPoints + streakPoints(conDays);
 }

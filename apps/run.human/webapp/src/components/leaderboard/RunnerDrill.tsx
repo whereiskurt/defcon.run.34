@@ -1,7 +1,8 @@
 'use client';
 
 import { Chip } from '@heroui/react';
-import { conLocalDate, isConDay, streakPoints } from '@/lib/con-days';
+import { streakPoints } from '@/lib/con-days';
+import { conDayCount, sectionTotal } from '@/lib/leaderboard-drill';
 import { Activity } from 'lucide-react';
 import PolylineRenderer from './PolylineRenderer';
 import type { CtfLine, SocialDayLine } from '@/lib/leaderboard-drill';
@@ -157,36 +158,16 @@ export function TokenCard({
 }
 
 /** Points a run contributes — `metadata.points` when present, else 1. */
-const runPoints = (r: Accomplishment) =>
-  typeof r.metadata?.points === 'number' ? r.metadata.points : 1;
-
 /**
- * Distinct CON days covered by a set of timestamps. Accepts epoch ms, an ISO
- * string, or an already-formatted YYYY-MM-DD.
+ * A run's own point value. Almost always 0: accomplishments carry NO points —
+ * they only light con-days for the run streak (see lib/bib-pickup.ts).
  *
- * Mirrors the engine (lib/scoring-engine.ts): a day counts when
- * `conLocalDate(t)` lands in CON_DAYS. Anything unparseable is skipped rather
- * than counted as a day — a NaN date must never inflate a streak.
+ * This used to fall back to 1, which INVENTED a carrot per run: a runner with
+ * four runs saw "+4 🥕" for points that exist nowhere in their score. The
+ * fallback is 0 now; the section chip and streak line carry the real value.
  */
-function conDayCount(values: (string | number | undefined | null)[]): number {
-  const days = new Set<string>();
-  for (const v of values) {
-    if (v == null) continue;
-    let day: string;
-    if (typeof v === 'number') {
-      if (!Number.isFinite(v)) continue;
-      day = conLocalDate(v);
-    } else if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
-      day = v;
-    } else {
-      const t = Date.parse(v);
-      if (Number.isNaN(t)) continue;
-      day = conLocalDate(t);
-    }
-    if (isConDay(day)) days.add(day);
-  }
-  return days.size;
-}
+const runPoints = (r: Accomplishment) =>
+  typeof r.metadata?.points === 'number' ? r.metadata.points : 0;
 
 /**
  * The streak line under a section heading.
@@ -259,6 +240,15 @@ export default function RunnerDrill({
   const socialConDays = conDayCount(social.days.map((d) => d.day));
   const ctfConDays = conDayCount(ctf.map((c) => c.at));
 
+  // What each section ACTUALLY contributes to the runner's score = its own
+  // entry points PLUS that track's streak bonus. Runs and social entries are
+  // worth 0 each, so before this their chips read "+0"/"+4" next to a "+500
+  // streak bonus" line and contradicted it on sight. These three now sum to the
+  // score minus the cluster bonus, instead of to a number that appears nowhere.
+  const runsTotal = sectionTotal(runsPts, runConDays);
+  const socialTotal = sectionTotal(socialPts, socialConDays);
+  const ctfSectionTotal = sectionTotal(ctfTotal, ctfConDays);
+
   if (!hasRuns && !hasSocial && !hasCtf) {
     return <p className="text-default-500 text-sm p-2">{emptyLabel}</p>;
   }
@@ -271,7 +261,7 @@ export default function RunnerDrill({
             label="Runs"
             chip={
               <Chip color="success" variant="flat" size="sm" className="shrink-0">
-                +{runsPts} 🥕 · {runs.length === 1 ? '1 run' : `${runs.length} runs`}
+                +{runsTotal} 🥕 · {runs.length === 1 ? '1 run' : `${runs.length} runs`}
               </Chip>
             }
           />
@@ -327,7 +317,7 @@ export default function RunnerDrill({
             label="Social"
             chip={
               <Chip color="secondary" variant="flat" size="sm" className="shrink-0">
-                +{socialPts} 🥕 · {socialScans === 1 ? '1 scan' : `${socialScans} scans`}
+                +{socialTotal} 🥕 · {socialScans === 1 ? '1 scan' : `${socialScans} scans`}
               </Chip>
             }
           />
@@ -393,7 +383,7 @@ export default function RunnerDrill({
             label="CTF"
             chip={
               <Chip color="warning" variant="flat" size="sm" className="shrink-0">
-                +{ctfTotal} 🥕 · {ctf.length === 1 ? '1 solve' : `${ctf.length} solves`}
+                +{ctfSectionTotal} 🥕 · {ctf.length === 1 ? '1 solve' : `${ctf.length} solves`}
               </Chip>
             }
           />
