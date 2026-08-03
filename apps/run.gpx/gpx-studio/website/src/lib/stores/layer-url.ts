@@ -117,3 +117,23 @@ export function requestedLayers(): LayerSelection | null {
     }
     return selection;
 }
+
+/**
+ * Startup visibility for the live runner pins.
+ *
+ * ⚠️ RUNNERS BREAKS THE BOTH-WAYS RULE, DELIBERATELY. Every other layer is default-OFF, so
+ * "the link did not name me" and "the link turned me off" are the same thing. Runners is
+ * the only default-ON layer, and reading an absent token as OFF silently killed it on every
+ * existing `?layers=routes` link — including all of run.human's map CTAs, which is exactly
+ * how it was caught (Kurt, 2026-08-03: "where are the sims/rabbits?").
+ *
+ * So: an explicit `runners` token turns them ON; anything else leaves the runner's own
+ * stored choice alone. The cost is that a link can turn runners on but not off. That is
+ * the right trade — a link should not be able to hide people from you by omission.
+ */
+export function resolveRunnersVisible(
+    requested: LayerSelection | null,
+    stored: boolean
+): boolean {
+    return requested?.keys.has(LAYER.runners) ? true : stored;
+}

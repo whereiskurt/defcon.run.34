@@ -201,6 +201,20 @@ export class RabbitLayer {
         }
     }
 
+    /**
+     * Latch `available` (and prime the source) WITHOUT revealing the layer.
+     *
+     * WHY THIS EXISTS: `available` latches inside refresh(), and refresh() only ran from
+     * setVisible(true). So a runner whose layer started hidden never got a successful poll,
+     * `available` stayed false, the "Runners on the Map" row never rendered — and there was
+     * no control left to turn runners back on. build() adds every layer with
+     * `visibility: 'none'`, so priming here cannot reveal anything.
+     */
+    async probe() {
+        if (!this.built) await this.build();
+        await this.refresh();
+    }
+
     async setVisible(visible: boolean) {
         rabbitState.update((s) => ({ ...s, visible }));
         if (visible) {
