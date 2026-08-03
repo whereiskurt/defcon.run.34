@@ -34,6 +34,15 @@ async function hasAuthSession(): Promise<boolean> {
     const authServerUrl = config.urls.privateAuthServer;
     const response = await fetch(`${authServerUrl}/api/session/validate/token`, {
       method: "POST",
+      // Cap the cross-container run.auth call so a slow/queueing/rolling auth
+      // task cannot block this page's SERVER render indefinitely. Node imposes
+      // no overall fetch timeout, so without this the landing page can hang with
+      // ZERO bytes flushed — a white screen on hotel LTE with no fallback. Same
+      // cap and same fail-open rationale as fetchFreshClaims (config/auth.ts).
+      // On timeout fetch rejects -> the catch below returns false -> the visitor
+      // sees the anonymous page and can click sign-in, which is the behaviour
+      // this path already has for every other network error.
+      signal: AbortSignal.timeout(1500),
       headers: {
         "Content-Type": "application/json",
         "X-Internal-Secret": process.env.AUTH_INTERNAL_SECRET || "",
