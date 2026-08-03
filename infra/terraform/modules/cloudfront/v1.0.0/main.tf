@@ -185,37 +185,61 @@ resource "aws_cloudfront_response_headers_policy" "cms_media_cors" {
   provider = aws.global-application
 }
 
-# Cache policy for the public heat-map artifact (CR-03, plan 71-13).
-# The gpx heat-map route at /{region}/api/gpx/public/heatmap/{year} sets
-# `Cache-Control: public, s-maxage=900`, but every app path on this distribution is
-# served by the catch-all /{region}/* behavior, which uses Managed-CachingDisabled —
-# so that s-maxage was ignored and three back-to-back identical requests all reported
-# a cloudfront MISS. Each miss is one S3 GetObject plus a ~441 KB body off a SINGLE
-# run.gpx ECS task; the route's own response-size bounds were reasoned about on the
-# premise that the CDN absorbed repeat load. This policy is that premise.
+# Cache policy for the public gpx API surface (CR-03, plan 71-13; widened by the
+# DDB pressure audit, S-3).
+#
+# NAME IS A HISTORICAL MISNOMER. This started as the heat-map artifact's policy and
+# now guards ALL SEVEN routes under /{region}/api/gpx/public/* — rabbits, ghosts,
+# checkins, maps, eggs, aggregate and heatmap. The resource/name are kept because a
+# CloudFront cache policy cannot be renamed in place: changing `name` forces a
+# create-new / retarget / delete-old cycle on a live distribution, which is not a
+# thing to do the week of the event. Read "heatmap_artifact" as "public gpx API".
+#
+# WHY IT EXISTS: every one of those routes emits `Cache-Control: public, s-maxage=N`
+# (30s rabbits ... 600s aggregate), but every app path on this distribution is served
+# by the catch-all /{region}/* behavior, which uses Managed-CachingDisabled — so every
+# one of those headers was ignored and three back-to-back identical requests all
+# reported a cloudfront MISS. Each miss is a full origin round trip off a SINGLE ECS
+# task per app. The routes' own response-size and load bounds were reasoned about on
+# the premise that the CDN absorbed repeat load. This policy is that premise.
 #
 # Managed-CachingOptimized (658327ea-...) is deliberately NOT used here. That policy
-# ignores query strings entirely, so the bare artifact and the `?meta=1` projection
-# would collide into ONE cache entry and serve each other's bodies. The whitelist
-# below is exactly one key — `meta` — which is the route's entire query contract.
+# ignores query strings entirely, so the bare heat-map artifact and the `?meta=1`
+# projection would collide into ONE cache entry and serve each other's bodies. The
+# whitelist below is the ENTIRE query contract of all seven routes, verified by grep:
+#   - `meta`  → heatmap/[year]/route.ts:162 (the meta projection)
+#   - `since` → checkins/route.ts:31        (the lookback window)
+# The other five routes take no parameters. ADDING A QUERY PARAMETER TO ANY PUBLIC
+# GPX ROUTE MEANS ADDING IT HERE IN THE SAME CHANGE — an unlisted param is stripped
+# from the cache key, so two different requests collide onto one entry.
 #
 # header_behavior = none + cookie_behavior = none means EVERY viewer shares one cache
-# entry. That is correct ONLY because this route performs no session lookup and reads
-# no cookie — that absence is the whole of what makes the route public (verified in
-# 71-VERIFICATION.md truth #4). The Managed-AllViewer origin request policy still
-# forwards the viewer Host so ALB host-header routing is unchanged; forwarding is not
-# the same as keying. IF A SESSION READ IS EVER ADDED TO THAT ROUTE, revisit this
-# policy FIRST — otherwise one user's response is served to every anonymous client.
+# entry. That is correct ONLY because these routes perform no session lookup and read
+# no cookie — that absence is the whole of what makes them public. Verified for all
+# seven: `grep -rE 'auth\(\)|getServerSession|cookies\(\)|headers\(\)' over
+# apps/run.gpx/webapp/src/app/api/gpx/public/** returns zero hits, and every route
+# exports GET only. The Managed-AllViewer origin request policy still forwards the
+# viewer Host so ALB host-header routing is unchanged; forwarding is not the same as
+# keying. IF A SESSION READ IS EVER ADDED TO ANY ROUTE UNDER THAT PREFIX, revisit
+# this policy FIRST — otherwise one user's response is served to every anonymous client.
 #
 # zonename contains dots; CloudFront policy names allow only alphanumerics, dashes
 # and underscores, so sanitize dots -> dashes exactly as the CORS policy above does.
 resource "aws_cloudfront_cache_policy" "heatmap_artifact" {
   name    = "heatmap-artifact-${replace(var.dns.zonename, ".", "-")}"
-  comment = "Edge cache for the public gpx heat-map artifact; key whitelists only the meta query string"
+  comment = "Edge cache for the public gpx API (7 routes); key whitelists the meta + since query strings"
 
-  # default_ttl agrees with CACHE_SECONDS (900) in the route itself.
+  # default_ttl = 0 is LOAD-BEARING, not a default. CloudFront applies default_ttl
+  # only when the origin response carries NO Cache-Control — and every route above
+  # has a degraded path that returns exactly that. eggs/route.ts:241 returns a plain
+  # 200 with the hardcoded DEFAULT_EGGS when the CMS is down; at the old
+  # default_ttl = 900 that degraded body would have been pinned at the edge for 15
+  # minutes, long after the CMS recovered. At 0, a response without an explicit
+  # s-maxage is simply not cached, so only the routes' own deliberate TTLs apply.
+  # (This does NOT weaken the heat-map: its success responses send s-maxage=900
+  # explicitly, which CloudFront honours, clamped to [min_ttl, max_ttl].)
   min_ttl     = 0
-  default_ttl = 900
+  default_ttl = 0
   max_ttl     = 3600
 
   parameters_in_cache_key_and_forwarded_to_origin {
@@ -235,7 +259,7 @@ resource "aws_cloudfront_cache_policy" "heatmap_artifact" {
     query_strings_config {
       query_string_behavior = "whitelist"
       query_strings {
-        items = ["meta"]
+        items = ["meta", "since"]
       }
     }
   }
@@ -669,17 +693,27 @@ resource "aws_cloudfront_distribution" "main" {
     }
   }
 
-  # Public heat-map artifact cache behavior (CR-03, plan 71-13), gpx only.
+  # Public gpx API cache behavior (CR-03, plan 71-13; widened by the DDB audit S-3
+  # from .../public/heatmap/* to .../public/*), gpx only.
   #
   # ORDERING IS LOAD-BEARING for the same reason as the block above: the /{region}/*
-  # wildcard that follows uses Managed-CachingDisabled, which is exactly why the
-  # route's `s-maxage=900` was ignored and three consecutive identical requests all
-  # returned a cloudfront MISS. Authored below the wildcard this behavior never
+  # wildcard that follows uses Managed-CachingDisabled, which is exactly why these
+  # routes' `s-maxage` headers were ignored and three consecutive identical requests
+  # all returned a cloudfront MISS. Authored below the wildcard this behavior never
   # matches and the misses continue.
   #
-  # The public heat-map route's response-size bounds are sized on the premise that
-  # this behavior exists and absorbs repeat fetches at the edge; without it every
-  # anonymous hit is one S3 GetObject plus a full body off a single ECS task.
+  # These routes' response-size bounds are sized on the premise that this behavior
+  # exists and absorbs repeat fetches at the edge; without it every anonymous hit is
+  # a full origin round trip off a single ECS task. The rabbits route in particular
+  # is polled by EVERY map viewer on a 45s timer via a default-on layer, so at event
+  # scale this behavior is the difference between ~2 origin requests/minute per POP
+  # and ~400.
+  #
+  # allowed_methods is deliberately NARROWER than the wildcard below (which permits
+  # POST/PUT/PATCH/DELETE). All seven routes under this prefix export GET only, so
+  # that is correct today — but it means ANY FUTURE non-GET handler added under
+  # /api/gpx/public/* will 405 AT THE EDGE, with no origin log to explain it. Add
+  # the method here in the same change, or put the write route somewhere else.
   #
   # Same conditional target and origin request policy as the wildcard: the ALB routes
   # services by Host header, so the viewer Host must keep being forwarded even though
@@ -691,7 +725,7 @@ resource "aws_cloudfront_distribution" "main" {
       if region_value.alb_dns_name != ""
     } : {}
     content {
-      path_pattern           = "/${ordered_cache_behavior.key}/api/gpx/public/heatmap/*"
+      path_pattern           = "/${ordered_cache_behavior.key}/api/gpx/public/*"
       target_origin_id       = contains(local.impart_on_domains, each.key) ? "impart" : "alb-${ordered_cache_behavior.key}"
       viewer_protocol_policy = "redirect-to-https"
       allowed_methods        = ["GET", "HEAD", "OPTIONS"]
