@@ -31,16 +31,43 @@ locals {
     name         = "run-human"
     regions      = ["us-east-1", "ca-central-1", "ap-southeast-1"]
     cluster_name = "app"
-    task_cpu     = 256
-    task_memory  = 512
+    # CON-WINDOW CAPACITY BUMP (2026-08-03) — 1 vCPU / 2 GB, matching run.auth.
+    # TEMPORARY: revert to 256/512 (and the container split below to 64/128 +
+    # 192/384) after DEF CON 34 unless the load says otherwise.
+    #
+    # This is the busiest user-facing service — check-ins, CTF claims, scans,
+    # leaderboard, admin — and it was running the Node process on 192 CPU units
+    # (0.1875 vCPU) and 384 MB, the same allocation as run.flash. Measured CPU
+    # hit 83% max at 2:30am with no users on the site (CloudWatch, cluster
+    # app-use1-dc34, 2026-08-03); the scan caches shipped in v0.0.151 brought
+    # that to ~14%, so this is headroom on top of a fixed hot path, not a
+    # substitute for it.
+    #
+    # MEMORY is the more important half here. 384 MB is very tight for a Next.js
+    # server that unmarshals multi-MB DynamoDB scan results — the audit measured
+    # a ~12 MB JSON parse on one admin render — and an OOM kill on a
+    # desired_count = 1 service is a full outage of run.defcon.run.
+    #
+    # NOT changed, deliberately: autoscaling stays enabled = false, and
+    # desired_count stays 1. Note that leaves the single-task SPOF intact — ECS
+    # replacing this task is still a total outage. desired_count = 2 is the
+    # change that actually removes that, and is a separate decision.
+    #
+    # Fargate constraint: 1024 CPU requires memory in [2048..8192]; 512 MB is
+    # not a legal pairing and task registration would fail.
+    task_cpu     = 1024
+    task_memory  = 2048
 
     containers = [
       {
         name               = "run-human-nginx"
         image              = "run-human-nginx:${local.versions.nginx}"
-        cpu                = 64
-        memory             = 128
-        memory_reservation = 64
+        # Con-window bump, 4x with the task (was 64/128). The 25/75 nginx:app
+        # split is preserved. Container memory is a HARD limit, so raising only
+        # task_memory would leave both containers capped where they were.
+        cpu                = 256
+        memory             = 512
+        memory_reservation = 256
         essential          = true
         command            = ["nginx", "-g", "daemon off;"]
 
@@ -75,9 +102,12 @@ locals {
       {
         name               = "run-human-app"
         image              = "run-human-app:${local.versions.app}"
-        cpu                = 192
-        memory             = 384
-        memory_reservation = 192
+        # Con-window bump, 4x with the task (was 192/384/192). This is the Next.js
+        # server that unmarshals the DynamoDB scan results — 384 MB was the real
+        # constraint, not the CPU.
+        cpu                = 768
+        memory             = 1536
+        memory_reservation = 768
         essential          = true
         command            = ["node", "server.js"]
 
