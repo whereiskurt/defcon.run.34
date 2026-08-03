@@ -25,6 +25,7 @@ import { mapCursor, MapCursorState } from '$lib/logic/map-cursor';
 import { autoSaveManager } from '$lib/auto-save';
 import { cloudFiles } from '$lib/cloud-sync';
 import { conRunDayColors, conRunMetaByFileId, runPopupHtml } from '$lib/components/map/run-popup';
+import { addInBand, moveToBand } from '$lib/components/map/z-bands';
 
 /** Singleton popup for a clicked run track (UAT round 2 fix B) — shared across
  * every GPXLayer instance, same convention as gpx-layer-popup.ts's
@@ -189,20 +190,24 @@ export class GPXLayer {
             }
 
             if (!_map.getLayer(this.fileId)) {
-                _map.addLayer({
-                    id: this.fileId,
-                    type: 'line',
-                    source: this.fileId,
-                    layout: {
-                        'line-join': 'round',
-                        'line-cap': 'round',
+                addInBand(
+                    _map,
+                    {
+                        id: this.fileId,
+                        type: 'line',
+                        source: this.fileId,
+                        layout: {
+                            'line-join': 'round',
+                            'line-cap': 'round',
+                        },
+                        paint: {
+                            'line-color': ['get', 'color'],
+                            'line-width': ['get', 'width'],
+                            'line-opacity': ['get', 'opacity'],
+                        },
                     },
-                    paint: {
-                        'line-color': ['get', 'color'],
-                        'line-width': ['get', 'width'],
-                        'line-opacity': ['get', 'opacity'],
-                    },
-                });
+                    'tracks'
+                );
 
                 _map.on('click', this.fileId, this.layerOnClickBinded);
                 _map.on('contextmenu', this.fileId, this.layerOnContextMenuBinded);
@@ -225,18 +230,22 @@ export class GPXLayer {
             }
 
             if (!_map.getLayer(this.fileId + '-waypoints')) {
-                _map.addLayer({
-                    id: this.fileId + '-waypoints',
-                    type: 'symbol',
-                    source: this.fileId + '-waypoints',
-                    layout: {
-                        'icon-image': ['get', 'icon'],
-                        'icon-size': 0.3,
-                        'icon-anchor': 'bottom',
-                        'icon-padding': 0,
-                        'icon-allow-overlap': true,
+                addInBand(
+                    _map,
+                    {
+                        id: this.fileId + '-waypoints',
+                        type: 'symbol',
+                        source: this.fileId + '-waypoints',
+                        layout: {
+                            'icon-image': ['get', 'icon'],
+                            'icon-size': 0.3,
+                            'icon-anchor': 'bottom',
+                            'icon-padding': 0,
+                            'icon-allow-overlap': true,
+                        },
                     },
-                });
+                    'tracks'
+                );
 
                 _map.on(
                     'mouseenter',
@@ -263,7 +272,8 @@ export class GPXLayer {
 
             if (get(directionMarkers)) {
                 if (!_map.getLayer(this.fileId + '-direction')) {
-                    _map.addLayer(
+                    addInBand(
+                        _map,
                         {
                             id: this.fileId + '-direction',
                             type: 'symbol',
@@ -285,6 +295,7 @@ export class GPXLayer {
                                 'text-halo-color': 'white',
                             },
                         },
+                        'tracks',
                         _map.getLayer('distance-markers') ? 'distance-markers' : undefined
                     );
                 }
@@ -385,19 +396,23 @@ export class GPXLayer {
         decrementColor(this.layerColor);
     }
 
+    /** Raise this file's layers to the top of the `tracks` band — NOT to the front of the
+     * whole stack. Markers, ghosts and tool overlays live in higher bands and must stay
+     * above the selected track. Call order below is preserved: line, then waypoints, then
+     * direction arrows, each landing on top of the band in turn. */
     moveToFront() {
         const _map = get(map);
         if (!_map) {
             return;
         }
         if (_map.getLayer(this.fileId)) {
-            _map.moveLayer(this.fileId);
+            moveToBand(_map, this.fileId, 'tracks');
         }
         if (_map.getLayer(this.fileId + '-waypoints')) {
-            _map.moveLayer(this.fileId + '-waypoints');
+            moveToBand(_map, this.fileId + '-waypoints', 'tracks');
         }
         if (_map.getLayer(this.fileId + '-direction')) {
-            _map.moveLayer(this.fileId + '-direction');
+            moveToBand(_map, this.fileId + '-direction', 'tracks');
         }
     }
 

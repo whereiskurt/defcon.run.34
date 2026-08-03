@@ -16,7 +16,8 @@ import { writable } from 'svelte/store';
  * folder/route/run names are data driven and change under us, and a re-order would
  * otherwise shuffle one layer's state onto another. Shape:
  *
- *   checkins · aggregate     the two fixed (non data-driven) toggles
+ *   checkins · aggregate · runners
+ *                            the fixed (non data-driven) toggles
  *   heat:<year>              one HEAT MAP year row (dc33, dc34 — also fixed)
  *   route:<fileId>           one public route row
  *   run:<fileId>             one "My DEF CON Runs" run row
@@ -52,6 +53,13 @@ export const LAYER = {
     aggregate: 'aggregate',
     heatDc33: 'heat:dc33',
     heatDc34: 'heat:dc34',
+    /**
+     * The live opt-in runner pins (`RabbitLayer`). Unlike every other id here this one
+     * defaults ON — it used to be force-shown with no control at all, so an absent entry
+     * has to keep meaning "visible" or upgrading would hide runners from everyone who
+     * ever loaded the map.
+     */
+    runners: 'runners',
 } as const;
 
 /** Key prefixes, exported so a load can prune ids whose layer no longer exists. */

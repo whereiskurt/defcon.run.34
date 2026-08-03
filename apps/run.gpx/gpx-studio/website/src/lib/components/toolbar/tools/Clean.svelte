@@ -20,6 +20,7 @@
     import { selection } from '$lib/logic/selection';
     import { fileActions } from '$lib/logic/file-actions';
     import { mapCursor, MapCursorState } from '$lib/logic/map-cursor';
+    import { addInBand } from '$lib/components/map/z-bands';
 
     let props: {
         class?: string;
@@ -63,15 +64,19 @@
                     });
                 }
                 if (!$map.getLayer('rectangle')) {
-                    $map.addLayer({
-                        id: 'rectangle',
-                        type: 'fill',
-                        source: 'rectangle',
-                        paint: {
-                            'fill-color': 'SteelBlue',
-                            'fill-opacity': 0.5,
+                    addInBand(
+                        $map,
+                        {
+                            id: 'rectangle',
+                            type: 'fill',
+                            source: 'rectangle',
+                            paint: {
+                                'fill-color': 'SteelBlue',
+                                'fill-opacity': 0.5,
+                            },
                         },
-                    });
+                        'tools'
+                    );
                 }
             }
         }

@@ -170,7 +170,7 @@
                     >
                         <Footprints size={22} class="shrink-0 text-white" />
                         <span>
-                            <span class="block text-sm font-semibold">Log a run</span>
+                            <span class="block text-sm font-semibold">Record Activity</span>
                             <span class="block text-xs text-white/80"
                                 >Get today's run on the map</span
                             >
@@ -222,7 +222,7 @@
                 <div class="p-4">
                     <div class="mb-1 flex items-center gap-2">
                         <Footprints size={20} class="text-primary" />
-                        <h2 class="text-base font-semibold">Log a run</h2>
+                        <h2 class="text-base font-semibold">Record Activity</h2>
                     </div>
 
                     {#if loadingUsage && usage.length === 0}

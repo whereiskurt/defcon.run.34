@@ -2,6 +2,7 @@ import mapboxgl from 'mapbox-gl';
 import { escapeHtml } from './escape-html';
 import { MatrixRain } from './matrix-rain';
 import { decryptReveal } from './ghost-decrypt';
+import { addInBand } from '$lib/components/map/z-bands';
 import { startCue, resetCue, stopCue } from '$lib/stores/refresh-cue';
 
 /** "1753757283" (unix secs) → short "2m" / "3h" / "5d" / "just now" label. */
@@ -80,7 +81,7 @@ export class GhostLayer {
             this.map.addSource(SOURCE, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
         }
         if (!this.map.getLayer(LAYER)) {
-            this.map.addLayer({
+            addInBand(this.map, {
                 id: LAYER, type: 'symbol', source: SOURCE,
                 layout: {
                     visibility: 'none',
@@ -97,7 +98,7 @@ export class GhostLayer {
                     'text-color': ['match', ['get', 'slug'], 'goldstein', '#FFD700', '#e0aaff'],
                     'text-halo-color': '#101015', 'text-halo-width': 1,
                 },
-            });
+            }, 'markers');
             this.clickFn = (e) => {
                 const f = (e as unknown as { features?: GeoJSON.Feature[] }).features?.[0];
                 if (!f) return;

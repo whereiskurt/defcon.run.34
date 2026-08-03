@@ -21,6 +21,14 @@ import {
     storedVisible,
 } from '$lib/stores/layer-visibility';
 import { requestedLayers } from '$lib/stores/layer-url';
+import { addInBand } from '$lib/components/map/z-bands';
+import {
+    coreWidth,
+    glowWidth,
+    CORE_OPACITY,
+    GLOW_OPACITY,
+    ROUTE_BLUR,
+} from '$lib/components/map/route-style';
 
 /**
  * "Community Routes" (2026-07-28 routes-vs-runs spec) — routes other runners
@@ -35,8 +43,6 @@ import { requestedLayers } from '$lib/stores/layer-url';
  */
 
 const SOURCE_PREFIX = 'community-route-';
-const CORE_WIDTH = 4;
-const GLOW_BLUR = 6;
 
 export type CommunityRouteEntry = {
     routeId: string;
@@ -338,31 +344,39 @@ export class CommunityRoutesLayer {
                 });
             }
             if (!this.map.getLayer(glow)) {
-                this.map.addLayer({
-                    id: glow,
-                    type: 'line',
-                    source: core,
-                    layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
-                    paint: {
-                        'line-color': color,
-                        'line-width': CORE_WIDTH * 2,
-                        'line-blur': GLOW_BLUR,
-                        'line-opacity': 0.35,
+                addInBand(
+                    this.map,
+                    {
+                        id: glow,
+                        type: 'line',
+                        source: core,
+                        layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
+                        paint: {
+                            'line-color': color,
+                            'line-width': glowWidth(),
+                            'line-blur': ROUTE_BLUR,
+                            'line-opacity': GLOW_OPACITY,
+                        },
                     },
-                });
+                    'routes'
+                );
             }
             if (!this.map.getLayer(core)) {
-                this.map.addLayer({
-                    id: core,
-                    type: 'line',
-                    source: core,
-                    layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
-                    paint: {
-                        'line-color': color,
-                        'line-width': CORE_WIDTH,
-                        'line-opacity': 0.95,
+                addInBand(
+                    this.map,
+                    {
+                        id: core,
+                        type: 'line',
+                        source: core,
+                        layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
+                        paint: {
+                            'line-color': color,
+                            'line-width': coreWidth(),
+                            'line-opacity': CORE_OPACITY,
+                        },
                     },
-                });
+                    'routes'
+                );
 
                 const onClick = (e: mapboxgl.MapMouseEvent) => {
                     const meta = this.routeMeta.get(r.routeId);

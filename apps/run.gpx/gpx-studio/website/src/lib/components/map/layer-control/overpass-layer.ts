@@ -6,6 +6,7 @@ import { overpassQueryData } from '$lib/assets/layers';
 import { MapPopup } from '$lib/components/map/map-popup';
 import { settings } from '$lib/logic/settings';
 import { db } from '$lib/db';
+import { addInBand } from '$lib/components/map/z-bands';
 
 const { currentOverpassQueries } = settings;
 
@@ -85,7 +86,7 @@ export class OverpassLayer {
             }
 
             if (!this.map.getLayer('overpass')) {
-                this.map.addLayer({
+                addInBand(this.map, {
                     id: 'overpass',
                     type: 'symbol',
                     source: 'overpass',
@@ -95,7 +96,7 @@ export class OverpassLayer {
                         'icon-padding': 0,
                         'icon-allow-overlap': ['step', ['zoom'], false, 14, true],
                     },
-                });
+                }, 'routes');
 
                 this.map.on('mouseenter', 'overpass', this.onHoverBinded);
                 this.map.on('click', 'overpass', this.onHoverBinded);

@@ -1,7 +1,9 @@
 import mapboxgl from 'mapbox-gl';
+import { writable } from 'svelte/store';
 import { dcjackSvg } from './dcjack-svg';
 import { escapeHtml } from './escape-html';
 import { startCue, resetCue, stopCue } from '$lib/stores/refresh-cue';
+import { addInBand } from '$lib/components/map/z-bands';
 
 const DEFAULT_PIN_COLOR = '#e6007a';
 const SOURCE = 'dc34-rabbits';
@@ -17,6 +19,23 @@ function rabbitUrl(): string {
     const prefix = i > 0 ? path.slice(0, i) : '';
     return `${prefix}/api/gpx/public/rabbits`;
 }
+
+/**
+ * What the Map Layers row needs to know about this layer, mirroring `heatmapState`.
+ *
+ * `available` flips true on the FIRST SUCCESSFUL POLL and never goes back — the row must
+ * not blink out of the panel when a later poll fails or when everyone logs off, or the
+ * toggle a runner just used would vanish under their cursor. `count` is only for the
+ * row's hint, so "checked but nothing on the map" reads as "nobody is sharing right now"
+ * rather than as a broken checkbox.
+ */
+export type RabbitState = { available: boolean; visible: boolean; count: number };
+
+export const rabbitState = writable<RabbitState>({
+    available: false,
+    visible: false,
+    count: 0,
+});
 
 /**
  * RabbitLayer — opt-in live attendees ("Show me on the map"). Thin polling
@@ -80,7 +99,7 @@ export class RabbitLayer {
         }
         if (!this.map.getLayer(LAYER)) {
             // Cluster bubble: black disc + white ring, sized by count (matches the jack).
-            this.map.addLayer({
+            addInBand(this.map, {
                 id: CLUSTER_LAYER, type: 'circle', source: SOURCE,
                 filter: ['has', 'point_count'],
                 layout: { visibility: 'none' },
@@ -89,8 +108,8 @@ export class RabbitLayer {
                     'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2,
                     'circle-radius': ['step', ['get', 'point_count'], 15, 5, 18, 15, 22],
                 },
-            });
-            this.map.addLayer({
+            }, 'markers');
+            addInBand(this.map, {
                 id: CLUSTER_COUNT, type: 'symbol', source: SOURCE,
                 filter: ['has', 'point_count'],
                 layout: {
@@ -99,9 +118,9 @@ export class RabbitLayer {
                     'text-size': 13, 'text-allow-overlap': true,
                 },
                 paint: { 'text-color': '#ffffff' },
-            });
+            }, 'markers');
             // Individual jacks (unclustered points only).
-            this.map.addLayer({
+            addInBand(this.map, {
                 id: LAYER, type: 'symbol', source: SOURCE,
                 filter: ['!', ['has', 'point_count']],
                 layout: {
@@ -112,7 +131,7 @@ export class RabbitLayer {
                     'text-offset': [0, 0.4], 'text-anchor': 'top',
                 },
                 paint: { 'text-color': '#ffffff', 'text-halo-color': '#101015', 'text-halo-width': 1.4 },
-            });
+            }, 'markers');
             // Click a cluster → zoom to expand it.
             this.clusterClickFn = (e) => {
                 const f = (e as unknown as { features?: GeoJSON.Feature[] }).features?.[0];
@@ -168,6 +187,9 @@ export class RabbitLayer {
             const fc = (await res.json()) as GeoJSON.FeatureCollection;
             const src = this.map.getSource(SOURCE) as mapboxgl.GeoJSONSource | undefined;
             if (src) { src.setData(this.register(fc)); resetCue('rabbits'); }
+            // The endpoint answered, so the row is real — see rabbitState above for why
+            // this latches on rather than tracking the live count.
+            rabbitState.update((s) => ({ ...s, available: true, count: fc.features?.length ?? 0 }));
         } catch {
             // keep last frame
         }
@@ -180,6 +202,7 @@ export class RabbitLayer {
     }
 
     async setVisible(visible: boolean) {
+        rabbitState.update((s) => ({ ...s, visible }));
         if (visible) {
             // Start the countdown cue up front — independent of build()/style-ready,
             // which can stall (e.g. a terrain source that never lets the map go idle).

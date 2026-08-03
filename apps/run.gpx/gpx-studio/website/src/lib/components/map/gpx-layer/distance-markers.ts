@@ -5,6 +5,7 @@ import type { GeoJSONSource } from 'mapbox-gl';
 import { get } from 'svelte/store';
 import { map } from '$lib/components/map/map';
 import { allHidden } from '$lib/logic/hidden';
+import { addInBand, moveToBand } from '$lib/components/map/z-bands';
 
 const { distanceMarkers, distanceUnits } = settings;
 
@@ -44,44 +45,48 @@ export class DistanceMarkers {
                     });
                 }
                 if (!map_.getLayer('distance-markers')) {
-                    map_.addLayer({
-                        id: 'distance-markers',
-                        type: 'symbol',
-                        source: 'distance-markers',
-                        filter: [
-                            'match',
-                            ['get', 'level'],
-                            100,
-                            ['>=', ['zoom'], 0],
-                            50,
-                            ['>=', ['zoom'], 7],
-                            25,
-                            [
-                                'any',
-                                ['all', ['>=', ['zoom'], 8], ['<=', ['zoom'], 9]],
+                    addInBand(
+                        map_,
+                        {
+                            id: 'distance-markers',
+                            type: 'symbol',
+                            source: 'distance-markers',
+                            filter: [
+                                'match',
+                                ['get', 'level'],
+                                100,
+                                ['>=', ['zoom'], 0],
+                                50,
+                                ['>=', ['zoom'], 7],
+                                25,
+                                [
+                                    'any',
+                                    ['all', ['>=', ['zoom'], 8], ['<=', ['zoom'], 9]],
+                                    ['>=', ['zoom'], 11],
+                                ],
+                                10,
+                                ['>=', ['zoom'], 10],
+                                5,
                                 ['>=', ['zoom'], 11],
+                                1,
+                                ['>=', ['zoom'], 13],
+                                false,
                             ],
-                            10,
-                            ['>=', ['zoom'], 10],
-                            5,
-                            ['>=', ['zoom'], 11],
-                            1,
-                            ['>=', ['zoom'], 13],
-                            false,
-                        ],
-                        layout: {
-                            'text-field': ['get', 'distance'],
-                            'text-size': 14,
-                            'text-font': ['Open Sans Bold'],
+                            layout: {
+                                'text-field': ['get', 'distance'],
+                                'text-size': 14,
+                                'text-font': ['Open Sans Bold'],
+                            },
+                            paint: {
+                                'text-color': 'black',
+                                'text-halo-width': 2,
+                                'text-halo-color': 'white',
+                            },
                         },
-                        paint: {
-                            'text-color': 'black',
-                            'text-halo-width': 2,
-                            'text-halo-color': 'white',
-                        },
-                    });
+                        'tracks'
+                    );
                 } else {
-                    map_.moveLayer('distance-markers');
+                    moveToBand(map_, 'distance-markers', 'tracks');
                 }
             } else {
                 if (map_.getLayer('distance-markers')) {
