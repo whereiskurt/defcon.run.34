@@ -15,6 +15,7 @@ import {
   DEFAULT_ALGORITHM,
 } from "@/lib/ctf-otp-core";
 import { compileScheduleToRules } from "@/lib/qr-schedule";
+import { createScanCache } from "@/lib/scan-cache";
 
 // Re-export so existing `import { QrValidationError } from "@/lib/qr-admin"`
 // call sites (route.ts, tests) keep working after the extraction to qr-errors.ts.
@@ -225,10 +226,36 @@ export async function listQrCodes() {
   return result.data;
 }
 
-/** All CTF challenges (admin list). */
-export async function listCtf() {
+/**
+ * 60s stale-while-revalidate cache for the CTF challenge scan.
+ *
+ * `rescoreUser` awaits `listCtf()` on the hot scoring path — every check-in,
+ * QR/social scan and CTF claim — so this full-table scan sat in front of the
+ * spinner a runner watches outside on LTE, costing two sequential DynamoDB
+ * round trips per scoring event. It is the direct twin of `getClusterConfig`
+ * (cluster-config-store), the other read `rescoreUser` needs on every call, and
+ * is cached for the same reason with the same TTL and the same write-path bust.
+ *
+ * Safe to cache because the scoring engine consumes only STATIC challenge
+ * config off these rows (`EngineCtfConfig` — points, caps, time tiers). The
+ * hot-path mutation, `solveCount`, is allocated by an atomic
+ * `Ctf.patch().add({solveCount: 1})` that reads DynamoDB directly and never
+ * consults this cache, so ordinals and first-blood remain exact.
+ *
+ * `upsertCtf`/`deleteCtf` below bust it, making admin edits and freshly minted
+ * challenges read-your-writes. Two residual staleness windows, both ≤60s and
+ * both display-only: the admin CTF table's `solveCount`/`capReached` columns
+ * (admin/leaderboard/page.tsx:278), and a row written OUT of band — a seed
+ * script, or another warm container's write, which this process cannot observe.
+ */
+const ctfCache = createScanCache("ctf", async () => {
   const result = await Ctf.scan.go({ pages: "all" });
   return result.data;
+});
+
+/** All CTF challenges (admin list). Cached — see `ctfCache` above. */
+export async function listCtf() {
+  return ctfCache.get();
 }
 
 /**
@@ -697,6 +724,9 @@ export async function upsertCtf(input: CtfInput): Promise<string> {
   if (input.codes?.length) {
     await loadCtfCodes(challenge, input.codes);
   }
+  // Bust the read cache so the next listCtf() — the mint route's answerHash
+  // match, rescoreUser's config map, the admin tables — sees this write.
+  ctfCache.invalidate();
   return challenge;
 }
 
@@ -716,4 +746,5 @@ async function challengeHasSolves(challenge: string): Promise<boolean> {
 /** Delete a CTF challenge by (normalized) challenge. Idempotent. */
 export async function deleteCtf(challenge: string): Promise<void> {
   await Ctf.delete({ challenge: normalizeChallenge(challenge) }).go();
+  ctfCache.invalidate();
 }
