@@ -1,5 +1,6 @@
 import { ListItem, ListTrackSegmentItem } from '$lib/components/file-list/file-list';
 import { map } from '$lib/components/map/map';
+import { addInBand, moveToBand } from '$lib/components/map/z-bands';
 import { fileActions } from '$lib/logic/file-actions';
 import { GPXFileStateCollectionObserver, type GPXFileState } from '$lib/logic/file-state';
 import { selection } from '$lib/logic/selection';
@@ -144,17 +145,21 @@ export class ReducedGPXLayerCollection {
             });
         }
         if (!map_.getLayer('simplified')) {
-            map_.addLayer({
-                id: 'simplified',
-                type: 'line',
-                source: 'simplified',
-                paint: {
-                    'line-color': 'white',
-                    'line-width': 3,
+            addInBand(
+                map_,
+                {
+                    id: 'simplified',
+                    type: 'line',
+                    source: 'simplified',
+                    paint: {
+                        'line-color': 'white',
+                        'line-width': 3,
+                    },
                 },
-            });
+                'tools'
+            );
         } else {
-            map_.moveLayer('simplified');
+            moveToBand(map_, 'simplified', 'tools');
         }
     }
 

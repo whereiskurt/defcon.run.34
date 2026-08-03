@@ -8,6 +8,9 @@
         CHECKIN_USER_TYPES,
     } from '../public-overlays';
     import type { PublicOverlaysLayer, CheckinWindow } from '../public-overlays';
+    import { rabbitState } from '../rabbit-layer';
+    import type { RabbitLayer } from '../rabbit-layer';
+    import { LAYER, setLayerVisible } from '$lib/stores/layer-visibility';
     import { Section, Row, Chips, Chip } from '$lib/components/dialog-shell/index.js';
     import {
         layerSectionCollapse,
@@ -43,7 +46,14 @@
 
     // The layer instance is created in LayerControl's map.onLoad; may be undefined
     // for the first frame before the map loads.
-    let { layer }: { layer: PublicOverlaysLayer | undefined } = $props();
+    // `rabbitLayer` is owned by LayerControl, not by PublicOverlaysLayer — the live runner
+    // row is hosted here because it belongs beside the other two people-shaped toggles,
+    // not because the two layers are related. Undefined for the first frame, like `layer`.
+    let {
+        layer,
+        rabbitLayer,
+    }: { layer: PublicOverlaysLayer | undefined; rabbitLayer: RabbitLayer | undefined } =
+        $props();
 
     // §9 "master collapse / off": the group master toggle drives the collapse state, not
     // just the checkbox click — so a programmatic setGroupVisible (e.g. the §5b "Check out
@@ -100,6 +110,28 @@
         }
     });
 </script>
+
+<!-- Live runner pins. Labelled "Runners on the Map" rather than "Live Runners" so it
+     cannot be misread as a variant of "All Runners" directly below it — one is where
+     people are right now, the other is a blended trace of everywhere they have been.
+
+     PERSIST ON THE GESTURE, not inside setVisible(): the layer's setter is also how the
+     seeding path and a `?layers=` override apply their value, and writing those to
+     localStorage would let a shared link permanently turn runners off for whoever opened
+     it. Only a click through this row is a preference. -->
+{#if $rabbitState.available}
+    <Section
+        label="Runners on the Map"
+        count={$rabbitState.count}
+        collapsible={false}
+        master={$rabbitState.visible}
+        onmaster={(v) => {
+            setLayerVisible(LAYER.runners, v);
+            void rabbitLayer?.setVisible(v);
+        }}
+        hint="Runners who opted in to sharing their live position. Nobody appears here without turning it on themselves."
+    />
+{/if}
 
 {#if $publicAggregate.available}
     <Section

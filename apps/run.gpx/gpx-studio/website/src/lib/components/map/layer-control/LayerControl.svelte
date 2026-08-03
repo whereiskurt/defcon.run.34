@@ -10,7 +10,14 @@
     import ConDaySaveDialog from '$lib/components/cloud/ConDaySaveDialog.svelte';
     import { cloudFiles, type CloudFile } from '$lib/cloud-sync';
     import { OverpassLayer } from './overpass-layer';
-    import { PublicOverlaysLayer, publicOverlayGroups, publicAggregate } from '../public-overlays';
+    import {
+        PublicOverlaysLayer,
+        publicOverlayGroups,
+        publicAggregate,
+        DEFAULT_ON_FOLDER,
+    } from '../public-overlays';
+    import { LAYER, storedVisible, setLayerVisible } from '$lib/stores/layer-visibility';
+    import { requestedLayers } from '$lib/stores/layer-url';
     import { MyConRunsLayer, myConRunGroups } from '../my-con-runs';
     import { CommunityRoutesLayer, communityRoutes } from '../community-routes';
     import { HeatmapLayer, heatmapState } from '../heatmap-layer';
@@ -71,7 +78,10 @@
     let communityRoutesLayer: CommunityRoutesLayer | undefined = $state();
     let communityRoutesLoadAttempted = false;
     let ghostLayer: GhostLayer | undefined;
-    let rabbitLayer: RabbitLayer | undefined;
+    // $state because it is now PASSED DOWN to PublicOverlays for the "Runners on the Map"
+    // row. Without it the child would capture the initial `undefined` forever and the
+    // toggle would silently do nothing — same reason communityRoutesLayer above is $state.
+    let rabbitLayer: RabbitLayer | undefined = $state();
     let rainbowArch: RainbowArch | undefined;
     let coffeeCup: CoffeeCup | undefined;
     let theSpot: TheSpot | undefined;
@@ -307,8 +317,18 @@
         });
         if (rabbitLayer) rabbitLayer.remove();
         rabbitLayer = new RabbitLayer(_map);
-        // Rabbit Layer is default-ON: only opted-in (verified && showOnMap) users appear.
-        void rabbitLayer.setVisible(true);
+        // Runners are default-ON — only opted-in (verified && showOnMap) users appear, so
+        // there is nothing to protect by hiding them. They used to be force-shown with no
+        // control at all; now they seed like every other family: a `?layers=` link is
+        // authoritative in both directions, otherwise the runner's stored choice wins, and
+        // a runner who has never touched the toggle gets ON.
+        {
+            const requested = requestedLayers();
+            const runnersOn = requested
+                ? requested.keys.has(LAYER.runners)
+                : storedVisible(LAYER.runners, true);
+            void rabbitLayer.setVisible(runnersOn);
+        }
         // Hidden "Rainbow Bridges" easter egg: default-locked, revealed by the
         // rapid-3D-flip gesture (map.toggle3D) then pitch-gated. On unlock we also
         // fire the covert CTF award (rainbow-egg), once — same single-subscription
@@ -426,6 +446,12 @@
         if (!action) return;
         if (action === 'routes' && publicOverlaysLayer) {
             for (const group of get(publicOverlayGroups)) {
+                // DEF CON 34 ONLY. This used to turn on every folder in the manifest,
+                // which silently ticked Rabbit Routes as well (Kurt, 2026-08-02). Other
+                // folders are left exactly as they were rather than forced off — a card
+                // click is an additive gesture, unlike a `?layers=` link which declares a
+                // complete state.
+                if (group.folderName !== DEFAULT_ON_FOLDER) continue;
                 publicOverlaysLayer.setGroupVisible(group.folderId, true);
                 // Unfold here, explicitly. PublicOverlays' own master-drives-collapse
                 // effect cannot do it: the dialog is closed at this moment, so that
@@ -438,6 +464,9 @@
             }
             open = true;
         } else if (action === 'runners' && rabbitLayer) {
+            // Persist as well as show: the layer is a real toggle now, so a card click has
+            // to survive a reload the same way ticking the row would.
+            setLayerVisible(LAYER.runners, true);
             void rabbitLayer.setVisible(true);
             open = true;
         }
@@ -525,7 +554,7 @@
          wrapper and no hand-written label here. The guards ARE the
          "empty sections stay hidden" behavior. -->
     {#if $publicOverlayGroups.length > 0 || $publicAggregate.available}
-        <PublicOverlays layer={publicOverlaysLayer} />
+        <PublicOverlays layer={publicOverlaysLayer} {rabbitLayer} />
     {/if}
     {#if $heatmapState.dc33.available || $heatmapState.dc34.available}
         <HeatMap layer={heatmapLayer} />

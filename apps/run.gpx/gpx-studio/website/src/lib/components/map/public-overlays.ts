@@ -20,6 +20,14 @@ import {
     storedVisible,
 } from '$lib/stores/layer-visibility';
 import { requestedLayers } from '$lib/stores/layer-url';
+import { addInBand } from '$lib/components/map/z-bands';
+import {
+    coreWidth,
+    glowWidth,
+    CORE_OPACITY,
+    GLOW_OPACITY,
+    ROUTE_BLUR,
+} from '$lib/components/map/route-style';
 
 /**
  * Public overlays — DEF CON 34 official map layers (v1.7 Phase 28, decorated v1.8).
@@ -52,12 +60,13 @@ function regionPrefix(): string {
 const MANIFEST_URL = `${regionPrefix()}/api/gpx/public/maps`;
 // GLOBAL folder shown ON by default (Kurt 2026-07-11). Other groups (e.g.
 // "Rabbit Routes") stay off until the viewer opts in.
-const DEFAULT_ON_FOLDER = 'DEF CON 34 Maps';
+/**
+ * The one folder that is ON for a first-time visitor. Exported because the QuickStart
+ * "Check out the routes" card has to mean the SAME set — it used to turn on every folder
+ * in the manifest, which quietly ticked Rabbit Routes too.
+ */
+export const DEFAULT_ON_FOLDER = 'DEF CON 34 Maps';
 const SOURCE_PREFIX = 'public-map-';
-const CORE_WIDTH = 4;
-const GLOW_BLUR = 6;
-// Lines read too thin on the map — scale the CMS/base weight up so routes pop.
-const WIDTH_SCALE = 2.5;
 
 export type PublicMap = {
     fileId: string;
@@ -610,14 +619,18 @@ export class PublicOverlaysLayer {
                 this.map.addSource(AGGREGATE_LAYER, { type: 'geojson', data: geojson });
             }
             if (!this.map.getLayer(AGGREGATE_LAYER)) {
-                this.map.addLayer({
-                    id: AGGREGATE_LAYER,
-                    type: 'line',
-                    source: AGGREGATE_LAYER,
-                    layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
-                    // Low opacity so overlapping tracks read as density (a soft heatmap).
-                    paint: { 'line-color': '#00e5ff', 'line-width': 2, 'line-opacity': 0.15 },
-                });
+                addInBand(
+                    this.map,
+                    {
+                        id: AGGREGATE_LAYER,
+                        type: 'line',
+                        source: AGGREGATE_LAYER,
+                        layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
+                        // Low opacity so overlapping tracks read as density (a soft heatmap).
+                        paint: { 'line-color': '#00e5ff', 'line-width': 2, 'line-opacity': 0.15 },
+                    },
+                    'routes'
+                );
             }
             // Restored in ONE store write (never "available, off" then "on"): the layer
             // control derives collapse from an ON/OFF transition, so a two-step restore
@@ -825,20 +838,24 @@ export class PublicOverlaysLayer {
             }
             // Cluster bubbles — teal, sized by member count, magenta ring.
             if (!this.map.getLayer(CHECKINS_CLUSTER_LAYER)) {
-                this.map.addLayer({
-                    id: CHECKINS_CLUSTER_LAYER,
-                    type: 'circle',
-                    source: CHECKINS_SOURCE,
-                    filter: ['==', ['get', 'kind'], 'cluster'],
-                    layout: { visibility: 'none' },
-                    paint: {
-                        'circle-color': DC34.teal,
-                        'circle-opacity': 0.85,
-                        'circle-radius': ['step', ['get', 'size'], 16, 8, 20, 15, 26, 25, 32],
-                        'circle-stroke-width': 2,
-                        'circle-stroke-color': DC34.magenta,
+                addInBand(
+                    this.map,
+                    {
+                        id: CHECKINS_CLUSTER_LAYER,
+                        type: 'circle',
+                        source: CHECKINS_SOURCE,
+                        filter: ['==', ['get', 'kind'], 'cluster'],
+                        layout: { visibility: 'none' },
+                        paint: {
+                            'circle-color': DC34.teal,
+                            'circle-opacity': 0.85,
+                            'circle-radius': ['step', ['get', 'size'], 16, 8, 20, 15, 26, 25, 32],
+                            'circle-stroke-width': 2,
+                            'circle-stroke-color': DC34.magenta,
+                        },
                     },
-                });
+                    'markers'
+                );
 
                 // Click opens the roster, it does NOT zoom-expand: a semantic
                 // cluster is a real gathering, not an artifact of the current
@@ -883,35 +900,43 @@ export class PublicOverlaysLayer {
                 );
             }
             if (!this.map.getLayer(CHECKINS_COUNT_LAYER)) {
-                this.map.addLayer({
-                    id: CHECKINS_COUNT_LAYER,
-                    type: 'symbol',
-                    source: CHECKINS_SOURCE,
-                    filter: ['==', ['get', 'kind'], 'cluster'],
-                    layout: {
-                        visibility: 'none',
-                        'text-field': ['to-string', ['get', 'size']],
-                        'text-font': ['Open Sans Bold'],
-                        'text-size': 12,
+                addInBand(
+                    this.map,
+                    {
+                        id: CHECKINS_COUNT_LAYER,
+                        type: 'symbol',
+                        source: CHECKINS_SOURCE,
+                        filter: ['==', ['get', 'kind'], 'cluster'],
+                        layout: {
+                            visibility: 'none',
+                            'text-field': ['to-string', ['get', 'size']],
+                            'text-font': ['Open Sans Bold'],
+                            'text-size': 12,
+                        },
+                        paint: { 'text-color': '#101015' },
                     },
-                    paint: { 'text-color': '#101015' },
-                });
+                    'markers'
+                );
             }
             // Individual check-ins — the runner's chosen pin with a details popup.
             if (!this.map.getLayer(CHECKINS_PIN_LAYER)) {
-                this.map.addLayer({
-                    id: CHECKINS_PIN_LAYER,
-                    type: 'symbol',
-                    source: CHECKINS_SOURCE,
-                    filter: ['==', ['get', 'kind'], 'pin'],
-                    layout: {
-                        visibility: 'none',
-                        'icon-image': ['get', 'iconId'],
-                        'icon-size': 0.5,
-                        'icon-anchor': 'bottom',
-                        'icon-allow-overlap': true,
+                addInBand(
+                    this.map,
+                    {
+                        id: CHECKINS_PIN_LAYER,
+                        type: 'symbol',
+                        source: CHECKINS_SOURCE,
+                        filter: ['==', ['get', 'kind'], 'pin'],
+                        layout: {
+                            visibility: 'none',
+                            'icon-image': ['get', 'iconId'],
+                            'icon-size': 0.5,
+                            'icon-anchor': 'bottom',
+                            'icon-allow-overlap': true,
+                        },
                     },
-                });
+                    'markers'
+                );
 
                 const onPinClick = (e: mapboxgl.MapMouseEvent) => {
                     const f = (e as unknown as { features?: GeoJSON.Feature[] }).features?.[0];
@@ -989,9 +1014,8 @@ export class PublicOverlaysLayer {
     private addRouteLayer(m: PublicMap, folderName: string) {
         const core = coreLayerId(m.fileId);
         const glow = glowLayerId(m.fileId);
-        // Scaled-up widths: the crisp core plus a wider blurred glow halo.
-        const coreW = (m.mapWeight ?? CORE_WIDTH) * WIDTH_SCALE;
-        const glowW = coreW * 2;
+        // Widths come from route-style: the crisp core plus a wider blurred glow halo,
+        // both scaled by zoom off the CMS weight.
         try {
             if (!this.map.getSource(core)) {
                 this.map.addSource(core, {
@@ -1001,33 +1025,41 @@ export class PublicOverlaysLayer {
             }
             // Wide, blurred glow beneath — the DEF CON neon look.
             if (!this.map.getLayer(glow)) {
-                this.map.addLayer({
-                    id: glow,
-                    type: 'line',
-                    source: core,
-                    layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
-                    paint: {
-                        'line-color': m.color,
-                        'line-width': glowW,
-                        'line-blur': GLOW_BLUR,
-                        'line-opacity': 0.35,
+                addInBand(
+                    this.map,
+                    {
+                        id: glow,
+                        type: 'line',
+                        source: core,
+                        layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
+                        paint: {
+                            'line-color': m.color,
+                            'line-width': glowWidth(m.mapWeight),
+                            'line-blur': ROUTE_BLUR,
+                            'line-opacity': GLOW_OPACITY,
+                        },
                     },
-                });
+                    'routes'
+                );
             }
             // Crisp core line on top.
             if (!this.map.getLayer(core)) {
-                this.map.addLayer({
-                    id: core,
-                    type: 'line',
-                    source: core,
-                    layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
-                    paint: {
-                        'line-color': m.color,
-                        // Curated CMS weight (scaled up) / opacity when present, else the defaults.
-                        'line-width': coreW,
-                        'line-opacity': m.mapOpacity ?? 0.95,
+                addInBand(
+                    this.map,
+                    {
+                        id: core,
+                        type: 'line',
+                        source: core,
+                        layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
+                        paint: {
+                            'line-color': m.color,
+                            // Curated CMS weight (scaled up) / opacity when present, else the defaults.
+                            'line-width': coreWidth(m.mapWeight),
+                            'line-opacity': m.mapOpacity ?? CORE_OPACITY,
+                        },
                     },
-                });
+                    'routes'
+                );
 
                 const onClick = (e: mapboxgl.MapMouseEvent) => {
                     this.hoverPopup.remove();
@@ -1140,19 +1172,23 @@ export class PublicOverlaysLayer {
                 });
             }
             if (!this.map.getLayer(poi)) {
-                this.map.addLayer({
-                    id: poi,
-                    type: 'symbol',
-                    source: poi,
-                    layout: {
-                        visibility: 'none',
-                        'icon-image': ['get', 'icon'],
-                        'icon-size': 0.3,
-                        'icon-anchor': 'bottom',
-                        'icon-padding': 0,
-                        'icon-allow-overlap': true,
+                addInBand(
+                    this.map,
+                    {
+                        id: poi,
+                        type: 'symbol',
+                        source: poi,
+                        layout: {
+                            visibility: 'none',
+                            'icon-image': ['get', 'icon'],
+                            'icon-size': 0.3,
+                            'icon-anchor': 'bottom',
+                            'icon-padding': 0,
+                            'icon-allow-overlap': true,
+                        },
                     },
-                });
+                    'routes'
+                );
 
                 const onClick = (e: mapboxgl.MapMouseEvent) => {
                     const f = (e as unknown as { features?: GeoJSON.Feature[] }).features?.[0];

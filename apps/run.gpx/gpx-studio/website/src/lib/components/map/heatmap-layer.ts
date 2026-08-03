@@ -2,6 +2,7 @@ import mapboxgl from 'mapbox-gl';
 import { writable } from 'svelte/store';
 import { LAYER, setLayerVisible, storedVisible } from '$lib/stores/layer-visibility';
 import { requestedLayers } from '$lib/stores/layer-url';
+import { addInBand } from '$lib/components/map/z-bands';
 
 /**
  * HeatmapLayer — the DC33 / DC34 stacked-flame heat layers (Phase 71, HEAT-04).
@@ -354,7 +355,8 @@ export class HeatmapLayer {
                     year === 'dc33' && this.map.getLayer(heatLayerId('dc34'))
                         ? heatLayerId('dc34')
                         : undefined;
-                this.map.addLayer(
+                addInBand(
+                    this.map,
                     {
                         id: layerId,
                         type: 'line',
@@ -366,6 +368,7 @@ export class HeatmapLayer {
                         },
                         paint: HEAT_PAINT[year],
                     },
+                    'heat',
                     beneath
                 );
             }

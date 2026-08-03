@@ -70,7 +70,7 @@ export class CoffeeCup {
         el.title = 'PublicUs — where KPH gets his coffee';
         el.innerHTML =
             '<div class="dc34-coffee-cup">☕</div>' +
-            '<div class="dc34-coffee-label">PublicUs<br>KPH Coffee</div>';
+            '<div class="dc34-coffee-label">PublicUs</div>';
         // Click the beacon → PublicUs modal + covert CTF award. Stop propagation so
         // the click doesn't also fall through to the map (pan/deselect).
         el.addEventListener('click', (e) => {

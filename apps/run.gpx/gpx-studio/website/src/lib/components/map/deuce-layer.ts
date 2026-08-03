@@ -13,6 +13,14 @@ import {
     MONO_FLEET,
     monorailStates,
 } from './monorail-route';
+import { addInBand } from '$lib/components/map/z-bands';
+import {
+    coreWidth,
+    glowWidth,
+    CORE_OPACITY,
+    GLOW_OPACITY,
+    ROUTE_BLUR,
+} from '$lib/components/map/route-style';
 
 /**
  * DeuceLayer — the hidden Strip transit layer: the RTC Deuce bus line AND the
@@ -97,13 +105,19 @@ export class DeuceLayer {
         return new Promise((resolve) => this.map.once('idle', () => resolve()));
     }
 
+    /**
+     * `weight` is a route-style weight (nominal 4), not a pixel width — the Monorail is
+     * deliberately drawn thinner than the Deuce bus, and that distinction predates the
+     * move to zoom-aware widths. Keep passing it or the two lines collapse to the same
+     * thickness.
+     */
     private addLineWithGlow(
         src: string,
         glowId: string,
         coreId: string,
         coords: [number, number][],
         color: string,
-        coreWidth: number
+        weight: number
     ) {
         if (!this.map.getSource(src)) {
             this.map.addSource(src, {
@@ -117,22 +131,39 @@ export class DeuceLayer {
         }
         // Wide, blurred glow beneath — the DEF CON neon look (public-overlays).
         if (!this.map.getLayer(glowId)) {
-            this.map.addLayer({
-                id: glowId,
-                type: 'line',
-                source: src,
-                layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
-                paint: { 'line-color': color, 'line-width': 10, 'line-blur': 6, 'line-opacity': 0.35 },
-            });
+            addInBand(
+                this.map,
+                {
+                    id: glowId,
+                    type: 'line',
+                    source: src,
+                    layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
+                    paint: {
+                        'line-color': color,
+                        'line-width': glowWidth(weight),
+                        'line-blur': ROUTE_BLUR,
+                        'line-opacity': GLOW_OPACITY,
+                    },
+                },
+                'routes'
+            );
         }
         if (!this.map.getLayer(coreId)) {
-            this.map.addLayer({
-                id: coreId,
-                type: 'line',
-                source: src,
-                layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
-                paint: { 'line-color': color, 'line-width': coreWidth, 'line-opacity': 0.9 },
-            });
+            addInBand(
+                this.map,
+                {
+                    id: coreId,
+                    type: 'line',
+                    source: src,
+                    layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
+                    paint: {
+                        'line-color': color,
+                        'line-width': coreWidth(weight),
+                        'line-opacity': CORE_OPACITY,
+                    },
+                },
+                'routes'
+            );
         }
     }
 
@@ -157,19 +188,26 @@ export class DeuceLayer {
             });
         }
         if (!this.map.getLayer(layerId)) {
-            this.map.addLayer({
-                id: layerId,
-                type: 'circle',
-                source: src,
-                layout: { visibility: 'none' },
-                paint: {
-                    'circle-radius': 4.5,
-                    'circle-color': fill,
-                    'circle-stroke-color': stroke,
-                    'circle-stroke-width': 2,
-                    'circle-opacity': 0.95,
+            addInBand(
+                this.map,
+                {
+                    id: layerId,
+                    type: 'circle',
+                    source: src,
+                    layout: { visibility: 'none' },
+                    paint: {
+                        'circle-radius': 4.5,
+                        'circle-color': fill,
+                        'circle-stroke-color': stroke,
+                        'circle-stroke-width': 2,
+                        'circle-opacity': 0.95,
+                    },
                 },
-            });
+                // Stops/stations are clickable pins, not scenery: they go in `markers` so
+                // a route line that loads later cannot bury them — the exact failure the
+                // banding exists to stop.
+                'markers'
+            );
         }
     }
 
@@ -193,7 +231,14 @@ export class DeuceLayer {
         ensureStyle();
         this.addLineWithGlow(SRC_ROUTE, LAYER_GLOW, LAYER_CORE, DEUCE_ROUTE, LIVERY_BLUE, 3.5);
         this.addPins(SRC_STOPS, LAYER_STOPS, DEUCE_STOPS, LIVERY_YELLOW, LIVERY_BLUE);
-        this.addLineWithGlow(SRC_MONO, LAYER_MONO_GLOW, LAYER_MONO_CORE, MONORAIL_ROUTE, MONO_CYAN, 2.5);
+        this.addLineWithGlow(
+            SRC_MONO,
+            LAYER_MONO_GLOW,
+            LAYER_MONO_CORE,
+            MONORAIL_ROUTE,
+            MONO_CYAN,
+            2.5
+        );
         this.addPins(SRC_STATIONS, LAYER_STATIONS, MONORAIL_STATIONS, MONO_SILVER, '#1E2A36');
         if (!this.stopClickFn) {
             this.stopClickFn = this.pinPopupHandler('🚏', 'Deuce — every ~17 min, 24/7');

@@ -27,9 +27,11 @@ import { LAYER } from './layer-visibility';
  * at the default view with the answer somewhere off-screen. Nothing is fitted when the
  * parameter is absent, or when it names only layers that carry no route geometry.
  *
- * OUT OF SCOPE, DELIBERATELY: ghost mode (`stores/ghost.ts`) and the always-on rabbit
- * live-pin layer are not in `layer-visibility.ts`, are not URL-addressable, and keep
- * their own defaults. Nothing here touches them.
+ * OUT OF SCOPE, DELIBERATELY: ghost mode (`stores/ghost.ts`) is not in
+ * `layer-visibility.ts`, is not URL-addressable, and keeps its own default. Nothing here
+ * touches it. The rabbit live-pin layer USED to be excluded on the same grounds; it was
+ * brought in as `runners` on 2026-08-02 because "always on, no control" is not a default,
+ * it is a missing feature.
  *
  * THE SELECTION IS READ AT EACH SEEDING SITE, not applied from here. Every layer family
  * resolves its own visibility while its manifest lands (`public-overlays.ts`,
@@ -56,6 +58,7 @@ const LITERAL_TOKENS = new Set<string>([
     LAYER.checkins,
     LAYER.heatDc33,
     LAYER.heatDc34,
+    LAYER.runners,
 ]);
 
 export type LayerSelection = {

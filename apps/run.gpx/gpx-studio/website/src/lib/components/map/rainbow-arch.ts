@@ -1,6 +1,7 @@
 import mapboxgl from 'mapbox-gl';
 import { buildRainbowFeatures, isArchActiveNow, RAINBOW_ARCHES, pitchOpacity } from './rainbow-geometry';
 import { openEggModal } from './egg-modal';
+import { addInBand } from '$lib/components/map/z-bands';
 
 const SOURCE = 'dc34-rainbow';
 const LAYER = 'dc34-rainbow-arch';
@@ -61,7 +62,7 @@ export class RainbowArch {
             // fill-extrusion-opacity is layer-wide (not data-driven), so a
             // punchier ramp needs its own layer.
             for (const id of [LAYER, BOOST_LAYER]) {
-                this.map.addLayer({
+                addInBand(this.map, {
                     id,
                     type: 'fill-extrusion',
                     source: SOURCE,
@@ -73,7 +74,7 @@ export class RainbowArch {
                         'fill-extrusion-opacity': 0,
                         'fill-extrusion-vertical-gradient': true
                     }
-                });
+                }, 'routes');
             }
             // Reveal ramps with pitch, live.
             this.pitchFn = () => this.applyOpacity();
