@@ -2,7 +2,14 @@ import { auth } from "@/config/auth";
 import { requireAdmin, revalidateAdmin } from "@/lib/admin-gate";
 import { getAuthUserEmail } from "@/entities/auth-user";
 import { getUserQuotas, type QuotaInfo } from "@/lib/quota-client";
-import { getRunUser, updateRunUserProfile } from "@/entities/run-user";
+import {
+  getRunUser,
+  updateRunUserProfile,
+  setRunnerClass,
+  isRunnerClass,
+  RUNNER_CLASSES,
+  type RunnerClass,
+} from "@/entities/run-user";
 import { validateRingtone } from "@/lib/ringtone";
 
 /**
@@ -89,12 +96,24 @@ export async function GET(
 }
 
 /**
- * PATCH /api/admin/users/[userId] — set or clear a runner's ringtone (RTTTL).
+ * PATCH /api/admin/users/[userId] — set a runner's ringtone and/or class.
  *
  * Same non-disclosure gate as GET: every denial → bare 404. `revalidateAdmin`
  * (LIVE claims) denies a just-revoked admin inside the JWT staleness window.
- * Body: { ringtone: string | null } — null/empty clears (reverts to class
- * default). Invalid RTTTL → 400. On success → { ok: true, ringtone }.
+ *
+ * Body (both optional, at least one required):
+ *   { ringtone: string | null }   null/empty clears (reverts to class default).
+ *                                 Invalid RTTTL → 400.
+ *   { mqttUsertype: RunnerClass } rabbit | admin | wildhare | og. Anything else
+ *                                 → 400; the value reaches a closed ElectroDB
+ *                                 enum, so an unchecked write would throw at the
+ *                                 DB layer and surface as a 500 instead.
+ *
+ * On success → { ok: true, ringtone?, mqttUsertype? } reflecting what changed.
+ *
+ * ⚠️ `mqttUsertype: "admin"` is a COSMETIC class and grants no privilege — see
+ * RUNNER_CLASSES in entities/run-user.ts. It does change the RTTTL run.flash
+ * writes to the runner's radio (class default), unless they set a ringtone.
  */
 export async function PATCH(
   req: Request,
@@ -108,24 +127,50 @@ export async function PATCH(
   const { userId } = await params;
   if (!userId) return NOT_FOUND();
 
-  let body: { ringtone?: unknown };
+  let body: { ringtone?: unknown; mqttUsertype?: unknown };
   try {
     body = await req.json();
   } catch {
     return Response.json({ ok: false, error: "Invalid body" }, { status: 400 });
   }
 
-  const raw = body.ringtone == null ? null : String(body.ringtone);
-  const v = validateRingtone(raw);
-  if (!v.ok) {
-    return Response.json({ ok: false, error: v.reason }, { status: 400 });
+  const wantsRingtone = "ringtone" in body;
+  const wantsClass = "mqttUsertype" in body;
+  if (!wantsRingtone && !wantsClass) {
+    return Response.json(
+      { ok: false, error: "Nothing to update" },
+      { status: 400 }
+    );
   }
 
-  // validateRingtone returns null for a clear; ElectroDB `.set` rejects null on
-  // a string attr, so persist "" — the flasher treats empty as "class default".
-  await updateRunUserProfile(userId, { ringtone: v.value ?? "" });
-  return Response.json(
-    { ok: true, ringtone: v.value },
-    { headers: { "Cache-Control": "no-store" } }
-  );
+  const out: { ok: true; ringtone?: string | null; mqttUsertype?: RunnerClass } = { ok: true };
+
+  if (wantsClass) {
+    // Validate BEFORE writing: mqttUsertype is a closed ElectroDB enum, so an
+    // unchecked value throws at the DB layer and surfaces as an opaque 500.
+    if (!isRunnerClass(body.mqttUsertype)) {
+      return Response.json(
+        { ok: false, error: `mqttUsertype must be one of: ${RUNNER_CLASSES.join(", ")}` },
+        { status: 400 }
+      );
+    }
+    // Dedicated admin-only writer — NOT updateRunUserProfile, which is shared
+    // with the runner's own self-service profile route.
+    await setRunnerClass(userId, body.mqttUsertype);
+    out.mqttUsertype = body.mqttUsertype;
+  }
+
+  if (wantsRingtone) {
+    const raw = body.ringtone == null ? null : String(body.ringtone);
+    const v = validateRingtone(raw);
+    if (!v.ok) {
+      return Response.json({ ok: false, error: v.reason }, { status: 400 });
+    }
+    // validateRingtone returns null for a clear; ElectroDB `.set` rejects null on
+    // a string attr, so persist "" — the flasher treats empty as "class default".
+    await updateRunUserProfile(userId, { ringtone: v.value ?? "" });
+    out.ringtone = v.value;
+  }
+
+  return Response.json(out, { headers: { "Cache-Control": "no-store" } });
 }

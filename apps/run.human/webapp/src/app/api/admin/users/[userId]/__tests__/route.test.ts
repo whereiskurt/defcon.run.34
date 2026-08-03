@@ -4,15 +4,21 @@ const mockAuth = vi.fn();
 const mockRevalidateAdmin = vi.fn();
 const mockUpdate = vi.fn();
 const mockGetRunUser = vi.fn();
+const mockSetClass = vi.fn();
 
 vi.mock("@/config/auth", () => ({
   auth: (...a: unknown[]) => mockAuth(...a),
   revalidateAdmin: (...a: unknown[]) => mockRevalidateAdmin(...a),
   revalidateGroups: vi.fn(),
 }));
+const RUNNER_CLASSES = ["rabbit", "admin", "wildhare", "og"] as const;
 vi.mock("@/entities/run-user", () => ({
   getRunUser: (...a: unknown[]) => mockGetRunUser(...a),
   updateRunUserProfile: (...a: unknown[]) => mockUpdate(...a),
+  setRunnerClass: (...a: unknown[]) => mockSetClass(...a),
+  isRunnerClass: (v: unknown) =>
+    typeof v === "string" && ["rabbit", "admin", "wildhare", "og"].includes(v),
+  RUNNER_CLASSES: ["rabbit", "admin", "wildhare", "og"],
 }));
 // GET path deps — stub so importing the route never loads AWS.
 vi.mock("@/entities/auth-user", () => ({
@@ -39,6 +45,7 @@ beforeEach(() => {
   mockRevalidateAdmin.mockReset().mockResolvedValue(true);
   mockUpdate.mockReset().mockResolvedValue(undefined);
   mockGetRunUser.mockReset();
+  mockSetClass.mockReset().mockResolvedValue(undefined);
 });
 
 describe("PATCH /api/admin/users/[userId] — ringtone", () => {
@@ -83,5 +90,80 @@ describe("PATCH /api/admin/users/[userId] — ringtone", () => {
     const res = await PATCH(patchReq({ ringtone: null }), ctx);
     expect(res.status).toBe(200);
     expect(mockUpdate).toHaveBeenCalledWith("u1", { ringtone: "" });
+  });
+
+  // ── Runner class (mqttUsertype), added 2026-08-03 ────────────────────────
+  //
+  // The class reaches a CLOSED ElectroDB enum, so an unvalidated value throws at
+  // the DB layer and surfaces as an opaque 500 — hence the reject-before-write
+  // assertions rather than just checking the status code.
+
+  it("sets a valid runner class via the dedicated admin writer", async () => {
+    mockAuth.mockResolvedValue(ADMIN);
+    const res = await PATCH(patchReq({ mqttUsertype: "wildhare" }), ctx);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, mqttUsertype: "wildhare" });
+    expect(mockSetClass).toHaveBeenCalledWith("u1", "wildhare");
+    // NOT the profile writer — that one is shared with the runner's own
+    // self-service route, so the class must never travel through it.
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it.each(RUNNER_CLASSES)("accepts %s", async (cls) => {
+    mockAuth.mockResolvedValue(ADMIN);
+    const res = await PATCH(patchReq({ mqttUsertype: cls }), ctx);
+    expect(res.status).toBe(200);
+    expect(mockSetClass).toHaveBeenCalledWith("u1", cls);
+  });
+
+  it("400s an unknown class and writes NOTHING", async () => {
+    mockAuth.mockResolvedValue(ADMIN);
+    const res = await PATCH(patchReq({ mqttUsertype: "hare" }), ctx);
+    expect(res.status).toBe(400);
+    expect(mockSetClass).not.toHaveBeenCalled();
+  });
+
+  it("400s a non-string class and writes NOTHING", async () => {
+    mockAuth.mockResolvedValue(ADMIN);
+    const res = await PATCH(patchReq({ mqttUsertype: 42 }), ctx);
+    expect(res.status).toBe(400);
+    expect(mockSetClass).not.toHaveBeenCalled();
+  });
+
+  it("400s an empty body rather than silently no-opping", async () => {
+    mockAuth.mockResolvedValue(ADMIN);
+    const res = await PATCH(patchReq({}), ctx);
+    expect(res.status).toBe(400);
+    expect(mockSetClass).not.toHaveBeenCalled();
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("rejects the class BEFORE writing the ringtone in a combined body", async () => {
+    mockAuth.mockResolvedValue(ADMIN);
+    const res = await PATCH(
+      patchReq({ mqttUsertype: "nope", ringtone: "og:d=8,o=5,b=110:g" }),
+      ctx,
+    );
+    expect(res.status).toBe(400);
+    expect(mockSetClass).not.toHaveBeenCalled();
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("applies both when both are valid", async () => {
+    mockAuth.mockResolvedValue(ADMIN);
+    const res = await PATCH(
+      patchReq({ mqttUsertype: "og", ringtone: "og:d=8,o=5,b=110:g" }),
+      ctx,
+    );
+    expect(res.status).toBe(200);
+    expect(mockSetClass).toHaveBeenCalledWith("u1", "og");
+    expect(mockUpdate).toHaveBeenCalledWith("u1", { ringtone: "og:d=8,o=5,b=110:g" });
+  });
+
+  it("404s a non-admin without writing the class", async () => {
+    mockAuth.mockResolvedValue({ user: { services: [] } });
+    const res = await PATCH(patchReq({ mqttUsertype: "og" }), ctx);
+    expect(res.status).toBe(404);
+    expect(mockSetClass).not.toHaveBeenCalled();
   });
 });

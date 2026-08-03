@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SummaryTiles } from "@/lib/admin-report";
 import { validateRingtone, MAX_RINGTONE_LEN } from "@/lib/ringtone";
@@ -80,6 +81,12 @@ const RUNNER_LABEL: Record<string, string> = {
   rabbit: "rabbit",
   og: "og",
 };
+/**
+ * Display order for the class picker — the default first, then the two the con
+ * actually hands out, then admin. Deliberately NOT RUNNER_CLASSES' own order,
+ * which is a DB enum and shouldn't be reordered for cosmetic reasons.
+ */
+const RUNNER_CLASS_ORDER = ["rabbit", "wildhare", "og", "admin"] as const;
 /** Human labels for known quota ids; unknown ids fall back to the raw id. */
 const QUOTA_LABEL: Record<string, string> = {
   gpx_upload: "GPX uploads",
@@ -133,6 +140,7 @@ export function AdminConsole({
   apiBase: string;
   adminEmail: string | null;
 }) {
+  const router = useRouter();
   const [q, setQ] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("signup");
   const [sortDir, setSortDir] = useState<-1 | 1>(-1);
@@ -148,6 +156,8 @@ export function AdminConsole({
   const [ringtoneDraft, setRingtoneDraft] = useState("");
   const [ringtoneSaving, setRingtoneSaving] = useState(false);
   const [ringtoneMsg, setRingtoneMsg] = useState<string | null>(null);
+  const [classSaving, setClassSaving] = useState(false);
+  const [classMsg, setClassMsg] = useState<string | null>(null);
   const [recalcBusy, setRecalcBusy] = useState(false);
   const [recalcMsg, setRecalcMsg] = useState<string | null>(null);
   const [awardBusy, setAwardBusy] = useState(false);
@@ -305,6 +315,48 @@ export function AdminConsole({
       setRingtoneMsg("save failed");
     } finally {
       setRingtoneSaving(false);
+    }
+  };
+
+  /**
+   * Set the runner's class (rabbit / hare / og / admin). Cosmetic — it drives
+   * the leaderboard badge, the public map's type filter, and run.flash's default
+   * ringtone. It grants NO privilege; that lives in run.auth services.
+   *
+   * Optimistic on neither the row nor the drawer: the class is also rendered in
+   * the (filterable) table behind this drawer, so both are updated from the
+   * SERVER's echoed value after the PATCH lands, never from the local draft.
+   */
+  const saveRunnerClass = async (value: string) => {
+    if (!selected) return;
+    setClassSaving(true);
+    setClassMsg(null);
+    try {
+      const res = await fetch(`${apiBase}/api/admin/users/${selected.userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mqttUsertype: value }),
+      });
+      if (!res.ok) {
+        setClassMsg(
+          res.status === 404 ? "not authorized" : `save failed (${res.status})`
+        );
+        return;
+      }
+      const data = (await res.json()) as { mqttUsertype?: string };
+      const next = data.mqttUsertype ?? value;
+      setDetail((d) => (d ? { ...d, mqttUsertype: next as UserDetail["mqttUsertype"] } : d));
+      // `rows` is a SERVER prop on a force-dynamic page — there is no local
+      // setter, and keeping a client-side override map would give the table and
+      // the admins/hares filter chips two sources of truth that drift. Ask Next
+      // to re-run the server component instead; the drawer already shows the new
+      // value optimistically so the refresh is invisible.
+      router.refresh();
+      setClassMsg("saved");
+    } catch {
+      setClassMsg("save failed");
+    } finally {
+      setClassSaving(false);
     }
   };
 
@@ -747,6 +799,47 @@ export function AdminConsole({
                   ) : (
                     <span className="text-default-400 text-xs">none</span>
                   )}
+                </div>
+              </Section>
+
+              <Section title="Runner class">
+                <div className="flex flex-col gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {RUNNER_CLASS_ORDER.map((cls) => {
+                      const current =
+                        (detail?.mqttUsertype ?? selected.runnerType ?? "rabbit") === cls;
+                      return (
+                        <button
+                          key={cls}
+                          type="button"
+                          disabled={classSaving || current}
+                          onClick={() => saveRunnerClass(cls)}
+                          className="rounded-full border px-3 py-1 text-[12px] font-medium transition-colors disabled:cursor-default"
+                          style={{
+                            borderColor: RUNNER_COLOR[cls],
+                            color: current ? "#000" : RUNNER_COLOR[cls],
+                            background: current ? RUNNER_COLOR[cls] : "transparent",
+                            opacity: classSaving && !current ? 0.4 : 1,
+                          }}
+                        >
+                          {RUNNER_LABEL[cls]}
+                        </button>
+                      );
+                    })}
+                    {classMsg ? (
+                      <span
+                        className={`text-[11px] ${
+                          classMsg === "saved" ? "text-success" : "text-danger"
+                        }`}
+                      >
+                        {classMsg}
+                      </span>
+                    ) : null}
+                  </div>
+                  <span className="text-[11px] text-default-400">
+                    Cosmetic: leaderboard badge, map filter, and the default radio
+                    ringtone. Grants no admin access.
+                  </span>
                 </div>
               </Section>
 
