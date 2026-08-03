@@ -61,6 +61,18 @@ type LeaderboardTableProps = {
 
 const PAGE_SIZE = 25;
 
+/**
+ * Runner-class filter chips. `rabbit` is deliberately absent — it is the signup
+ * default, so "only rabbits" is the whole board minus a handful and nobody wants
+ * it as a one-click view. Emoji match `runnerClassEmoji` so a chip and the badge
+ * on a row read as the same thing.
+ */
+const CLASS_CHIPS: { cls: string; label: string; color: 'warning' | 'secondary' | 'danger' }[] = [
+  { cls: 'wildhare', label: '⭐️ Wild Hares', color: 'warning' },
+  { cls: 'og', label: '🤠 OG', color: 'secondary' },
+  { cls: 'admin', label: '🛡️ Admin', color: 'danger' },
+];
+
 /** DC33 accordion item classes (parity). */
 const itemClasses = {
   base: 'p-0',
@@ -84,6 +96,15 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
   const [filter, setFilter] = useState('');
   // "Named only" — hide runners still on the default rabbit_ name. ON by default.
   const [namedOnly, setNamedOnly] = useState(true);
+  /**
+   * Runner-class chip selection (mqttUsertype), sent as `?class=`.
+   *
+   * SEPARATE from `filter` on purpose. These chips used to call fastFilter('og'),
+   * i.e. the displayName-CONTAINS search — so "OG" matched "Ogden"/"Progress"
+   * and missed every actual OG whose name lacked those letters. Class is an
+   * enum: it gets compared server-side, never searched.
+   */
+  const [runnerClass, setRunnerClass] = useState<string>('');
   const [searchInput, setSearchInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -103,6 +124,7 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
           limit: String(PAGE_SIZE),
           ...(filter ? { filter } : {}),
           ...(namedOnly ? { named: '1' } : {}),
+          ...(runnerClass ? { class: runnerClass } : {}),
         });
         const res = await fetch(`${apiBase}/api/leaderboard?${params}`, { cache: 'no-store' });
         if (!res.ok) throw new Error(String(res.status));
@@ -122,7 +144,7 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
     return () => {
       cancelled = true;
     };
-  }, [apiBase, page, filter, namedOnly]);
+  }, [apiBase, page, filter, namedOnly, runnerClass]);
 
   // ── Lazy per-runner accomplishments fetch (cache once by userId) ─────────────
   const fetchUserAccomplishments = useCallback(
@@ -173,6 +195,12 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
   const fastFilter = (value: string) => {
     setSearchInput(value);
     setFilter(value);
+    setPage(1);
+  };
+
+  /** Toggle a class chip. Clicking the active one clears back to everyone. */
+  const toggleClass = (cls: string) => {
+    setRunnerClass((cur) => (cur === cls ? '' : cls));
     setPage(1);
   };
 
@@ -254,24 +282,26 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
                   {currentUserName} (you!)
                 </Chip>
               )}
-              <Chip
-                size="sm"
-                variant="flat"
-                color="warning"
-                className="cursor-pointer"
-                onClick={() => fastFilter('wildhare')}
-              >
-                ⭐️ Wild Hares
-              </Chip>
-              <Chip
-                size="sm"
-                variant="flat"
-                color="secondary"
-                className="cursor-pointer"
-                onClick={() => fastFilter('og')}
-              >
-                🤠 OG
-              </Chip>
+              {/* Class chips: an EXACT mqttUsertype match server-side, not a
+                  name search. Click the active one again to clear. */}
+              {CLASS_CHIPS.map(({ cls, label, color }) => (
+                <Chip
+                  key={cls}
+                  size="sm"
+                  variant={runnerClass === cls ? 'solid' : 'flat'}
+                  color={color}
+                  className="cursor-pointer"
+                  onClick={() => toggleClass(cls)}
+                  title={
+                    runnerClass === cls
+                      ? 'Showing this class only - click to show everyone'
+                      : `Show only ${label}`
+                  }
+                >
+                  {label}
+                  {runnerClass === cls ? ' ✓' : ''}
+                </Chip>
+              ))}
             </div>
           </div>
         </CardHeader>

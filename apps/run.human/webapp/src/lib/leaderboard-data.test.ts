@@ -266,3 +266,60 @@ describe("isStale / LEADERBOARD_CACHE_TTL_MS (SC #3 core)", () => {
     expect(isStale(now, now - 60_000)).toBe(false);
   });
 });
+
+describe("buildLeaderboard — runnerClass filter", () => {
+  // REGRESSION (2026-08-03). The board's class chips called the displayName
+  // `filter` with "og"/"wildhare". That is a case-insensitive CONTAINS match, so
+  // "OG" returned every runner whose NAME happened to contain those two letters
+  // and missed every actual OG whose name did not. Class is an enum: compared,
+  // never searched.
+  const CAST = [
+    row({ userId: "a", displayName: "Ogden", mqttUsertype: "rabbit", activityScore: 50 }),
+    row({ userId: "b", displayName: "Zed", mqttUsertype: "og", activityScore: 40 }),
+    row({ userId: "c", displayName: "Progress", mqttUsertype: "rabbit", activityScore: 30 }),
+    row({ userId: "d", displayName: "Hopper", mqttUsertype: "wildhare", activityScore: 20 }),
+    row({ userId: "e", displayName: "Boss", mqttUsertype: "admin", activityScore: 10 }),
+  ];
+
+  it("matches the CLASS, not names that merely contain the word", () => {
+    const res = buildLeaderboard(CAST, { runnerClass: "og" });
+    expect(res.rows.map((r) => r.userId)).toEqual(["b"]);
+    expect(res.total).toBe(1);
+  });
+
+  it("the old text filter is what was broken — proving the distinction", () => {
+    // Same input, the PREVIOUS behaviour: three name matches, none of them the OG.
+    const viaText = buildLeaderboard(CAST, { filter: "og" });
+    expect(viaText.rows.map((r) => r.displayName)).toEqual(["Ogden", "Progress"]);
+    expect(viaText.rows.some((r) => r.mqttUsertype === "og")).toBe(false);
+  });
+
+  it("filters wildhare and admin exactly", () => {
+    expect(buildLeaderboard(CAST, { runnerClass: "wildhare" }).rows.map((r) => r.userId)).toEqual(["d"]);
+    expect(buildLeaderboard(CAST, { runnerClass: "admin" }).rows.map((r) => r.userId)).toEqual(["e"]);
+  });
+
+  it("is case-insensitive on the incoming param", () => {
+    expect(buildLeaderboard(CAST, { runnerClass: "OG" }).rows.map((r) => r.userId)).toEqual(["b"]);
+  });
+
+  it("preserves GLOBAL rank — the filter narrows the page, never the rank", () => {
+    const res = buildLeaderboard(CAST, { runnerClass: "wildhare" });
+    expect(res.rows[0].globalRank).toBe(4);
+  });
+
+  it("an unknown class returns an empty board, never everyone", () => {
+    const res = buildLeaderboard(CAST, { runnerClass: "hare" });
+    expect(res.rows).toEqual([]);
+    expect(res.total).toBe(0);
+  });
+
+  it("ANDs with namedOnly and the text filter", () => {
+    const res = buildLeaderboard(CAST, { runnerClass: "rabbit", filter: "ogd" });
+    expect(res.rows.map((r) => r.userId)).toEqual(["a"]);
+  });
+
+  it("absent runnerClass leaves the board untouched", () => {
+    expect(buildLeaderboard(CAST, {}).total).toBe(5);
+  });
+});

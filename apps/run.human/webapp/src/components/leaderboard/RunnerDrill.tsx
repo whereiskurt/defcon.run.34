@@ -1,6 +1,7 @@
 'use client';
 
 import { Chip } from '@heroui/react';
+import { conLocalDate, isConDay, streakPoints } from '@/lib/con-days';
 import { Activity } from 'lucide-react';
 import PolylineRenderer from './PolylineRenderer';
 import type { CtfLine, SocialDayLine } from '@/lib/leaderboard-drill';
@@ -160,6 +161,63 @@ const runPoints = (r: Accomplishment) =>
   typeof r.metadata?.points === 'number' ? r.metadata.points : 1;
 
 /**
+ * Distinct CON days covered by a set of timestamps. Accepts epoch ms, an ISO
+ * string, or an already-formatted YYYY-MM-DD.
+ *
+ * Mirrors the engine (lib/scoring-engine.ts): a day counts when
+ * `conLocalDate(t)` lands in CON_DAYS. Anything unparseable is skipped rather
+ * than counted as a day — a NaN date must never inflate a streak.
+ */
+function conDayCount(values: (string | number | undefined | null)[]): number {
+  const days = new Set<string>();
+  for (const v of values) {
+    if (v == null) continue;
+    let day: string;
+    if (typeof v === 'number') {
+      if (!Number.isFinite(v)) continue;
+      day = conLocalDate(v);
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+      day = v;
+    } else {
+      const t = Date.parse(v);
+      if (Number.isNaN(t)) continue;
+      day = conLocalDate(t);
+    }
+    if (isConDay(day)) days.add(day);
+  }
+  return days.size;
+}
+
+/**
+ * The streak line under a section heading.
+ *
+ * WHY IT EXISTS: the per-entry chips in every section are COSMETIC. Runs and
+ * social scans carry no points at all (accomplishments only light con-days;
+ * `social-scan` events are written with `points: 0`), so a runner with a full
+ * streak sees a column of "+0 🥕" and concludes the board is broken — which is
+ * exactly how this got reported. The real value of those two tracks arrives as
+ * a streak bonus, and this is the only place that says so.
+ */
+function StreakLine({ days, kind }: { days: number; kind: 'run' | 'social' | 'CTF' }) {
+  if (days === 0) return null;
+  const pts = streakPoints(days);
+  return (
+    <p className="text-[11px] text-default-500 pl-0.5">
+      🔥 {days} con {days === 1 ? 'day' : 'days'} of {kind} activity
+      {pts > 0 ? (
+        <>
+          {' '}
+          → <span className="text-success font-medium">+{pts} 🥕</span> streak bonus
+        </>
+      ) : null}
+      {days < 4 ? (
+        <span className="text-default-400"> · {4 - days} more for the max 500</span>
+      ) : null}
+    </p>
+  );
+}
+
+/**
  * The three drill sections (Runs / Social / CTF) for one runner. Each section
  * renders only when it has content; when all three are empty the caller's
  * `emptyLabel` shows instead.
@@ -194,6 +252,13 @@ export default function RunnerDrill({
   const socialScans = social.days.reduce((s, d) => s + d.count, 0);
   const runsPts = runs.reduce((s, r) => s + runPoints(r), 0);
 
+  // Distinct con days per track — the input to the streak bonus. Derived from
+  // the SAME entries rendered below, so the line can never disagree with what
+  // the runner is looking at.
+  const runConDays = conDayCount(runs.map((r) => r.completedAt));
+  const socialConDays = conDayCount(social.days.map((d) => d.day));
+  const ctfConDays = conDayCount(ctf.map((c) => c.at));
+
   if (!hasRuns && !hasSocial && !hasCtf) {
     return <p className="text-default-500 text-sm p-2">{emptyLabel}</p>;
   }
@@ -210,6 +275,7 @@ export default function RunnerDrill({
               </Chip>
             }
           />
+          <StreakLine days={runConDays} kind="run" />
           {/* Fill wide screens: cards flow into columns; single column on
               mobile (UAT: don't waste horizontal space). */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 items-start">
@@ -265,6 +331,7 @@ export default function RunnerDrill({
               </Chip>
             }
           />
+          <StreakLine days={socialConDays} kind="social" />
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-1.5 items-start">
             {social.days.map((d) => (
               <TokenCard
@@ -330,6 +397,7 @@ export default function RunnerDrill({
               </Chip>
             }
           />
+          <StreakLine days={ctfConDays} kind="CTF" />
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-1.5 items-start">
             {ctf.map((c, idx) => (
               <TokenCard
