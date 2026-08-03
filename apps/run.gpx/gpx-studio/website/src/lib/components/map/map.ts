@@ -9,6 +9,7 @@ import { ARCH_SEARCH_WORDS } from './rainbow-geometry';
 import { coffeeUnlocked } from '$lib/stores/coffee';
 import { toggleDeuce } from '$lib/stores/deuce';
 import { togglePayphones } from '$lib/stores/payphone';
+import { installBands } from './z-bands';
 
 const { treeFileView, elevationProfile, bottomPanelSize, rightPanelSize, distanceUnits } = settings;
 
@@ -159,6 +160,12 @@ export class MapboxGLMap {
         });
         map.addControl(scaleControl);
         map.on('style.load', () => {
+            // Z-ORDER ANCHORS FIRST, before anything else can add a layer. Every DEF CON
+            // layer family inserts relative to these, so they have to exist before the
+            // first feed resolves — see z-bands.ts for why insertion order alone was a
+            // race. `style.load` also fires after a basemap swap, and installBands() is
+            // idempotent, so the anchors survive one.
+            installBands(map);
             map.addSource('mapbox-dem', {
                 type: 'raster-dem',
                 url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
@@ -204,6 +211,10 @@ export class MapboxGLMap {
             this.resize();
             scaleControl.setUnit(get(distanceUnits));
 
+            // Belt and braces: the onLoad callbacks below construct every layer class, so
+            // the anchors must be in place even in the unlikely case `style.load` did not
+            // fire first. Idempotent.
+            installBands(map);
             this._onLoadCallbacks.forEach((callback) => callback(map));
             this._onLoadCallbacks = [];
         });
