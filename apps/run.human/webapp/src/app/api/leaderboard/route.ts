@@ -68,12 +68,17 @@ export async function GET(request: Request) {
   // Neutral (off) by default at the API; the board turns it ON by default.
   const namedParam = url.searchParams.get("named");
   const namedOnly = namedParam === "1" || namedParam === "true";
+  // Runner class (rabbit/admin/wildhare/og). Validated against the enum so a
+  // junk value returns an EMPTY board rather than silently behaving like "all"
+  // — a filter that quietly does nothing is worse than one that shows zero.
+  const classParam = url.searchParams.get("class");
+  const runnerClass = classParam ? classParam.toLowerCase() : undefined;
 
   // ── Cached scan → rank/paginate → JSON ─────────────────────────────────────
   // RunUserItem[] is assignable to LeaderboardUser[] (CTF fields optional), so
   // the scan rows pass straight into buildLeaderboard with no cast.
   const users = await getCachedScan(scanAllRunUsers);
-  const result = buildLeaderboard(users, { page, limit, filter, namedOnly });
+  const result = buildLeaderboard(users, { page, limit, filter, namedOnly, runnerClass });
 
   return Response.json(result, {
     headers: { "Cache-Control": "private, max-age=30" },

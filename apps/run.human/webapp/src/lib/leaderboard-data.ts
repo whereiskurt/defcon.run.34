@@ -74,6 +74,16 @@ export type BuildLeaderboardOptions = {
   /** When true, drop runners still on the auto-generated `rabbit_XXXX` default
    *  name (i.e. keep only those who have SET a name). Applied after ranking. */
   namedOnly?: boolean;
+  /**
+   * Exact runner-class match (`mqttUsertype`). Applied after ranking, ANDed with
+   * the other filters.
+   *
+   * ⚠️ THIS IS NOT THE TEXT FILTER. The board's class chips used to call the
+   * displayName-contains `filter` with "og"/"wildhare", which matched any name
+   * merely CONTAINING those letters — "Ogden", "Progress" — and missed every
+   * OG whose name didn't. Class is an enum; it must be compared, not searched.
+   */
+  runnerClass?: string;
 };
 
 const DEFAULT_LIMIT = 25;
@@ -123,9 +133,12 @@ export function buildLeaderboard(
   // 3. Filter AFTER ranking so globalRank stays global (T-51-02). "namedOnly"
   //    and the text filter compose (AND); both narrow the page, not the rank.
   const filter = opts.filter?.trim().toLowerCase();
+  const runnerClass = opts.runnerClass?.trim().toLowerCase();
   const filtered = ranked.filter((r) => {
     if (opts.namedOnly && !hasCustomName(r.displayName)) return false;
     if (filter && !(r.displayName ?? "").toLowerCase().includes(filter)) return false;
+    // EXACT match, never a substring: see BuildLeaderboardOptions.runnerClass.
+    if (runnerClass && (r.mqttUsertype ?? "") !== runnerClass) return false;
     return true;
   });
 
