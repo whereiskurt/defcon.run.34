@@ -27,8 +27,11 @@ vi.mock("electrodb", () => {
       return { go: () => mockCreate(input) };
     }
     scan = {
+      // Forward the .go() OPTIONS so tests can assert pagination. The previous
+      // mock swallowed them, which is precisely why a bare `.go()` (capped at
+      // one ~1 MB DynamoDB page) survived in the money path unnoticed.
       where: (_fn: unknown) => ({
-        go: () => mockScan(),
+        go: (opts?: unknown) => mockScan(opts),
       }),
     };
   }
@@ -282,5 +285,19 @@ describe("listDonationsForOwner()", () => {
     mockScan.mockResolvedValue({ data: [] });
     const result = await listDonationsForOwner("user-nobody");
     expect(result).toEqual([]);
+  });
+
+  /**
+   * Regression guard. DynamoDB stops a Scan after ~1 MB of SCANNED bytes and
+   * the ownerSub filter is applied AFTER that read, so on the shared
+   * run-human-electro table (already >1 MB) a bare `.go()` returns an
+   * arbitrary first slice — a donor's own donation silently missing from
+   * their transaction history, and then CACHED by report-cache's
+   * unstable_cache wrapper.
+   */
+  it("pages the whole scan, so no donation can be missed", async () => {
+    mockScan.mockResolvedValue({ data: [] });
+    await listDonationsForOwner("user-1");
+    expect(mockScan).toHaveBeenCalledWith({ pages: "all" });
   });
 });

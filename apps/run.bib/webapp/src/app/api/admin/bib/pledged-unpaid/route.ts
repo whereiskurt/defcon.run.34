@@ -27,6 +27,16 @@ import { requireBibAdmin } from "@/lib/admin-gate";
  * v1.5. A future v1.6 could add a byWillPayInPerson GSI if scan latency
  * becomes a problem.
  *
+ * `pages: "all"` is LOAD-BEARING, not a tuning knob. DynamoDB stops a Scan
+ * after ~1 MB of SCANNED bytes and returns a LastEvaluatedKey; the
+ * where-filter is applied after that read, so the cap has nothing to do with
+ * how many bibs match. run-human-electro is shared with ~15 entities and is
+ * already ~1.7 MB, so a single-page scan silently returns whichever pledged
+ * runners happen to land in an arbitrary first slice — and `count` below
+ * would report that subset as the total with no truncation signal anywhere.
+ * This is the sheet used to prepare cash intake: a short read means a runner
+ * shows up to pay and is not on the list. Do not drop the option.
+ *
  * Runtime pinned to Node.js because the ElectroDB scan pipeline needs
  * Node crypto for AWS SDK request signing.
  */
@@ -63,7 +73,7 @@ export async function GET() {
       .where(({ willPayInPerson, paidAmount }, { eq }) => {
         return `${eq(willPayInPerson, true)} AND ${eq(paidAmount, 0)}`;
       })
-      .go();
+      .go({ pages: "all" });
 
     const bibs: PledgedBibRow[] = result.data.map((row) => ({
       ownerSub: row.ownerSub,

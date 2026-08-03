@@ -229,6 +229,12 @@ export async function listDonationsForOwner(
 ): Promise<GeneralDonationItem[]> {
   const result = await GeneralDonation.scan
     .where(({ ownerSub: attr }, { eq }) => eq(attr, ownerSub))
-    .go();
+    // `pages: "all"` is load-bearing: DynamoDB caps a Scan at ~1 MB of SCANNED
+    // bytes and the ownerSub filter above is applied AFTER that read, so the cap
+    // is unrelated to how many rows match. run-human-electro is shared with ~15
+    // entities and already exceeds 1 MB, so a single page would silently drop a
+    // donor's own donations from their transaction history — and report-cache
+    // wraps this in unstable_cache, so the short read would then be CACHED.
+    .go({ pages: "all" });
   return result.data;
 }

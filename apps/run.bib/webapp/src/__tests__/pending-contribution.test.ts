@@ -30,7 +30,10 @@ vi.mock("electrodb", () => {
       return { set: (attrs: unknown) => ({ go: () => mockPatch(key, attrs) }) };
     }
     scan = {
-      where: (_fn: unknown) => ({ go: () => mockScan() }),
+      // Forward the .go() OPTIONS so tests can assert pagination. The previous
+      // mock swallowed them, which is precisely why a bare `.go()` (capped at
+      // one ~1 MB DynamoDB page) survived in the money path unnoticed.
+      where: (_fn: unknown) => ({ go: (opts?: unknown) => mockScan(opts) }),
     };
   }
   return { Entity };
@@ -128,6 +131,20 @@ describe("clearPendingForOwner()", () => {
     mockScan.mockResolvedValue({ data: [] });
     await clearPendingForOwner("u1", "bib", "venmo");
     expect(mockDelete).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Regression guard. DynamoDB stops a Scan after ~1 MB of SCANNED bytes and
+   * the ownerSub filter is applied AFTER that read, so on the shared
+   * run-human-electro table (already >1 MB) a bare `.go()` returns an
+   * arbitrary first slice. clearPendingForOwner filters THIS list, so a
+   * truncated read leaves a pending hint uncleared after reconciliation —
+   * the double-count the function's own docblock warns about.
+   */
+  it("pages the whole scan, so no pending row can be missed", async () => {
+    mockScan.mockResolvedValue({ data: [] });
+    await clearPendingForOwner("u1", "bib", "venmo");
+    expect(mockScan).toHaveBeenCalledWith({ pages: "all" });
   });
 });
 
