@@ -22,6 +22,7 @@ import {
 } from '$lib/stores/layer-visibility';
 import { requestedLayers } from '$lib/stores/layer-url';
 import { addInBand } from '$lib/components/map/z-bands';
+import { RouteHitRouter } from './route-hit';
 import {
     coreWidth,
     glowWidth,
@@ -228,8 +229,12 @@ export class CommunityRoutesLayer {
     // a route the runner turned on afterwards.
     private urlOverride = requestedLayers() !== null;
 
+    /** Radius-based click routing for the thin route lines — see route-hit.ts. */
+    private routeHits: RouteHitRouter;
+
     constructor(map: mapboxgl.Map) {
         this.map = map;
+        this.routeHits = new RouteHitRouter(map);
         this.popup = new mapboxgl.Popup({
             closeButton: true,
             closeOnClick: true,
@@ -396,11 +401,13 @@ export class CommunityRoutesLayer {
                 };
                 const onEnter = () => (this.map.getCanvas().style.cursor = 'pointer');
                 const onLeave = () => (this.map.getCanvas().style.cursor = '');
-                this.map.on('click', core, onClick);
+                // Click goes through the radius router, NOT `map.on('click', core)`:
+                // the core line is only 3-8px wide, far under the 44px touch target.
+                // Hover stays on the line itself — a desktop-only cue.
+                this.routeHits.register(core, onClick);
                 this.map.on('mouseenter', core, onEnter);
                 this.map.on('mouseleave', core, onLeave);
                 this.listeners.push(
-                    { id: core, type: 'click', fn: onClick },
                     { id: core, type: 'mouseenter', fn: onEnter },
                     { id: core, type: 'mouseleave', fn: onLeave }
                 );
@@ -478,6 +485,7 @@ export class CommunityRoutesLayer {
         try {
             for (const l of this.listeners) this.map.off(l.type, l.id, l.fn);
             this.listeners = [];
+            this.routeHits.destroy();
             this.popup.remove();
             for (const routeId of this.routeMeta.keys()) {
                 for (const id of [coreLayerId(routeId), glowLayerId(routeId)]) {

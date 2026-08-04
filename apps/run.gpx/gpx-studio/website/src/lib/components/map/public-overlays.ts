@@ -21,6 +21,7 @@ import {
 } from '$lib/stores/layer-visibility';
 import { requestedLayers } from '$lib/stores/layer-url';
 import { addInBand } from '$lib/components/map/z-bands';
+import { RouteHitRouter } from './route-hit';
 import {
     coreWidth,
     glowWidth,
@@ -138,6 +139,20 @@ function checkinsUrl(): string {
     const since = Math.floor((Date.now() - 14 * 24 * 3600_000) / 3600_000) * 3600_000;
     return `${regionPrefix()}/api/gpx/public/checkins?since=${since}`;
 }
+/**
+ * Refresh cadence for the public check-ins feed.
+ *
+ * Matched to the feed's own `s-maxage=120`, so a poll normally lands on the
+ * CloudFront edge rather than the run.human origin. That matters here: run.human
+ * runs as a single task with autoscaling off, and the DC34 load audit found map
+ * polling — not /admin — was what put it under pressure. The `since` value in
+ * `checkinsUrl()` is rounded down to the hour, so every viewer shares one cache
+ * key for the hour instead of minting a fresh one per request.
+ *
+ * The timer only runs while the layer is actually visible, and the layer
+ * defaults to OFF, so a viewer who never opens check-ins polls zero times.
+ */
+const CHECKINS_POLL_MS = 120_000;
 const CHECKINS_SOURCE = 'public-checkins';
 const CHECKINS_PIN_LAYER = 'public-checkins-pin';
 const CHECKINS_CLUSTER_LAYER = 'public-checkins-cluster';
@@ -438,9 +453,18 @@ export class PublicOverlaysLayer {
     private listeners: { id: string; type: 'click' | 'mouseenter' | 'mouseleave' | 'mousemove'; fn: any }[] = [];
     // fileId -> [[minLon,minLat],[maxLon,maxLat]] for fit-on-toggle (Kurt 2026-07-04).
     private routeBounds = new Map<string, [[number, number], [number, number]]>();
+    /** Radius-based click routing for the thin route lines — see route-hit.ts. */
+    private routeHits: RouteHitRouter;
 
     constructor(map: mapboxgl.Map) {
         this.map = map;
+        // Pins outrank routes at the exact click point, so tapping a POI or a
+        // check-in that happens to sit on a route still opens the pin's popup.
+        this.routeHits = new RouteHitRouter(map, () => [
+            CHECKINS_PIN_LAYER,
+            CHECKINS_CLUSTER_LAYER,
+            ...getGroupsSnapshot().flatMap((g) => g.maps.map((m) => poiLayerId(m.fileId))),
+        ]);
         this.popup = new mapboxgl.Popup({
             closeButton: true,
             closeOnClick: true,
@@ -693,6 +717,8 @@ export class PublicOverlaysLayer {
     // Raw fetched check-ins — filters re-derive the source data from this list
     // (setData re-clusters; a layer filter would leave cluster counts stale).
     private checkins: PublicCheckIn[] = [];
+    /** Poll handle; non-null only while the check-ins layer is visible. */
+    private checkinTimer: ReturnType<typeof setInterval> | null = null;
     /** Clustering knobs, served by the feed so they track /admin/clusters. */
     private clusterConfig: MapClusterConfig = DEFAULT_MAP_CLUSTER_CONFIG;
 
@@ -796,6 +822,52 @@ export class PublicOverlaysLayer {
         checkinFilters.update((f) => ({ ...f, ...partial }));
         const source = this.map.getSource(CHECKINS_SOURCE) as mapboxgl.GeoJSONSource | undefined;
         if (source) source.setData(this.checkinFeatures());
+    }
+
+    /** Start/stop the check-ins poll. Only ever runs while the layer is visible. */
+    private setCheckInPolling(active: boolean) {
+        if (active) {
+            if (!this.checkinTimer) {
+                this.checkinTimer = setInterval(() => void this.refreshCheckIns(), CHECKINS_POLL_MS);
+            }
+        } else if (this.checkinTimer) {
+            clearInterval(this.checkinTimer);
+            this.checkinTimer = null;
+        }
+    }
+
+    /**
+     * Re-fetch the public check-ins feed and re-derive the source data.
+     *
+     * WHY THIS EXISTS: the feed used to be fetched exactly once, during overlay
+     * init, so an open map tab stayed frozen at page-load time — a runner who
+     * checked in while looking at the map never saw their own pin appear, and
+     * reloading was the only cure (Kurt 2026-08-04). Every other live layer here
+     * already polls: rabbits 45s, ghosts 90s, arches 60s.
+     *
+     * Deliberately narrow: this refreshes DATA only. It never touches layer
+     * visibility, the filters, or the camera — a background poll that moved the
+     * map out from under someone would be a worse bug than the stale pin it
+     * fixes, and it is the same rule the restore paths follow.
+     */
+    private async refreshCheckIns() {
+        try {
+            const res = await fetch(checkinsUrl(), { credentials: 'omit' });
+            if (!res.ok) return;
+            const body = (await res.json()) as { checkIns?: PublicCheckIn[] };
+            // An empty array is treated as a blip, not as "the board is empty":
+            // a degraded origin in this stack has returned a 200 with no rows
+            // before, and wiping every pin on that would be far more visible
+            // than showing a two-minute-old one.
+            if (!body.checkIns || body.checkIns.length === 0) return;
+            const fresh = body.checkIns;
+            this.checkins = fresh;
+            const source = this.map.getSource(CHECKINS_SOURCE) as mapboxgl.GeoJSONSource | undefined;
+            if (source) source.setData(this.checkinFeatures());
+            publicCheckIns.update((s) => ({ ...s, count: fresh.length }));
+        } catch {
+            // transient feed failure — keep the pins already on screen
+        }
     }
 
     /** Load public user check-ins as hidden, clustered layers of big branded pins. */
@@ -990,6 +1062,9 @@ export class PublicOverlaysLayer {
             this.applyCheckInsLayers(visible);
             if (requested) setLayerVisible(LAYER.checkins, visible);
             publicCheckIns.set({ available: true, visible, count: body.checkIns.length });
+            // A layer that lands visible (stored ON, or named by `?layers=`) starts
+            // polling right away; one that lands hidden costs nothing until opened.
+            this.setCheckInPolling(visible);
         } catch {
             // check-ins unavailable → no layer, studio unaffected
         }
@@ -1008,6 +1083,10 @@ export class PublicOverlaysLayer {
         this.applyCheckInsLayers(visible);
         publicCheckIns.update((s) => ({ ...s, visible }));
         setLayerVisible(LAYER.checkins, visible);
+        // Opening the layer should show what is there NOW, not whatever the last
+        // fetch happened to catch — then keep it fresh for as long as it is open.
+        if (visible) void this.refreshCheckIns();
+        this.setCheckInPolling(visible);
     }
 
     /** Add the glow + core line layers for a route, plus its click/hover handlers. */
@@ -1083,12 +1162,15 @@ export class PublicOverlaysLayer {
                     this.map.getCanvas().style.cursor = '';
                     this.hoverPopup.remove();
                 };
-                this.map.on('click', core, onClick);
+                // Click goes through the radius router, NOT `map.on('click', core)`:
+                // the core line is only 3-8px wide, far under the 44px touch target.
+                // Hover stays bound to the line itself — it is a desktop-only cue and
+                // a radius-based hover would fire far from anything the pointer is on.
+                this.routeHits.register(core, onClick);
                 this.map.on('mouseenter', core, onEnter);
                 this.map.on('mousemove', core, onMove);
                 this.map.on('mouseleave', core, onLeave);
                 this.listeners.push(
-                    { id: core, type: 'click', fn: onClick },
                     { id: core, type: 'mouseenter', fn: onEnter },
                     { id: core, type: 'mousemove', fn: onMove },
                     { id: core, type: 'mouseleave', fn: onLeave }
@@ -1305,6 +1387,7 @@ export class PublicOverlaysLayer {
         try {
             for (const l of this.listeners) this.map.off(l.type, l.id, l.fn);
             this.listeners = [];
+            this.routeHits.destroy();
             this.popup.remove();
             this.hoverPopup.remove();
             for (const group of getGroupsSnapshot()) {
@@ -1331,6 +1414,7 @@ export class PublicOverlaysLayer {
             // map not ready
         }
         this.loaded = false;
+        this.setCheckInPolling(false);
         this.checkins = [];
         publicOverlayGroups.set([]);
         publicAggregate.set({ available: false, visible: false });

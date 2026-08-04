@@ -7,25 +7,37 @@ import { gpxStatistics } from '$lib/logic/statistics';
 import { map } from '$lib/components/map/map';
 import type { GPXFileWithStatistics } from './statistics-tree';
 import type { Coordinates } from 'gpx';
-import { page } from '$app/state';
 
+/**
+ * NOTE: there is deliberately NO auto-fit observer in this class.
+ *
+ * A blanket `GPXFileStateCollectionObserver` used to live in the constructor and
+ * fit the camera whenever ANY file entered the collection — no user action
+ * involved. On a normal studio load that meant the files restored from IndexedDB
+ * (`fileStateCollection.connectToDatabase`) yanked the map: it fired LAST
+ * (`finalizeFitBounds` waits for every file's bounds to resolve), snapped
+ * instantly (`easing: () => 1`), and passed no `maxZoom` — unlike every other fit
+ * in this codebase — so a runner who had already zoomed into an area was pulled
+ * back out to the union of everything they had open.
+ *
+ * Its only guard was `page.url.hash.length == 0`, which does not hold up in
+ * practice: mapbox maintains the `#zoom/lat/lng` hash itself via
+ * `history.replaceState`, which SvelteKit's `page.url` never observes. So once
+ * the runner had panned or zoomed, the guard still read an empty hash and the
+ * fit ran anyway.
+ *
+ * Fitting on a REAL user action is unchanged and still explicit — opening,
+ * importing, or dropping a file calls `fitBoundsOnLoad` directly (file-actions,
+ * strava-import, CloudStorage, Embedding), and the menu's recenter calls
+ * `centerMapOnSelection`. A fresh visitor still lands framed on the LVCC via the
+ * map's default center. This matches the rule the layer modules already follow:
+ * a restore must never move the camera. (Kurt 2026-08-04)
+ */
 export class BoundsManager {
     private _bounds: mapboxgl.LngLatBounds = new mapboxgl.LngLatBounds();
     private _files: Set<string> = new Set();
     private _fileStateCollectionObserver: GPXFileStateCollectionObserver | null = null;
     private _unsubscribes: (() => void)[] = [];
-
-    constructor() {
-        this._fileStateCollectionObserver = new GPXFileStateCollectionObserver(
-            (newFiles) => {
-                if (page.url.hash.length == 0) {
-                    this.fitBoundsOnLoad(Array.from(newFiles.keys()));
-                }
-            },
-            (fileId) => {},
-            () => {}
-        );
-    }
 
     fitBoundsOnLoad(files: string[]) {
         this.reset();
