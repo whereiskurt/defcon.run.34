@@ -222,6 +222,25 @@ const DEFAULT_EGGS: EggModal[] = [
     accent: "#E11D48",
     links: [mapLink(36.1316, -115.1512)],
   },
+  {
+    // Reached from the "About the shuttles" link on a live shuttle popup. The
+    // layer itself is hidden until you search "bsides"/"shuttle" or type
+    // "bsides"; that reveal fires the covert `bsides-shuttle` award.
+    id: "dc34-bsides-shuttle",
+    eyebrow: "Con Transit",
+    title: "🚌 BSides Las Vegas Shuttles",
+    titleUrl: "https://bsideslv.org/",
+    descriptionHtml:
+      "<p><strong>BSides Las Vegas</strong> runs its own shuttle fleet during " +
+      "hacker summer camp, and the buses report their positions live. These " +
+      "markers are the real fleet, not a simulation — colored by their livery, " +
+      "pointed the way they are heading, and dimmed when a bus has gone quiet.</p>" +
+      "<p>They park at the <strong>Tuscany</strong> between runs. Catch one " +
+      "moving and you are watching an actual bus cross Las Vegas.</p>",
+    address: "255 E Flamingo Rd, Las Vegas",
+    accent: "#EC4899",
+    links: [mapLink(36.112728, -115.160809)],
+  },
 ];
 
 export async function GET() {

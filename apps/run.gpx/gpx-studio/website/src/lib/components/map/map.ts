@@ -8,6 +8,7 @@ import { rainbowUnlocked, toggleForcedArch } from '$lib/stores/rainbow';
 import { ARCH_SEARCH_WORDS } from './rainbow-geometry';
 import { coffeeUnlocked } from '$lib/stores/coffee';
 import { toggleDeuce } from '$lib/stores/deuce';
+import { toggleShuttles } from '$lib/stores/shuttle';
 import { togglePayphones } from '$lib/stores/payphone';
 import { toggleKph } from '$lib/stores/kph';
 import { installBands } from './z-bands';
@@ -113,6 +114,10 @@ export class MapboxGLMap {
                     // The secret red LVCC booth answers ONLY to "kph" — kept
                     // out of the phreak-keyword set above on purpose.
                     if (/\bkph\b/i.test(query)) toggleKph();
+                    // BSides Las Vegas shuttles: searching the con's name or
+                    // "shuttle" toggles the live fleet layer (mobile-friendly
+                    // twin of the typed "bsides" gesture).
+                    if (/\b(b-?sides|shuttles?)\b/i.test(query)) toggleShuttles();
                     // Per-arch shortcuts: searching a keyword *toggles* that
                     // arch on/off (weed→NuWu, dd→Double Down, vegas→LV sign).
                     for (const [word, archId] of Object.entries(ARCH_SEARCH_WORDS)) {

@@ -144,15 +144,26 @@ Layer-specific behavior:
 
 ## Component 4 — egg and flag
 
+Clicking a bus opens the **live telemetry popup**, not the egg modal directly. The live
+data is the point of the feature, and the Deuce's click-to-modal behavior exists only
+because the Deuce has no feed to show. The popup carries an "About the shuttles →" button
+into the shared egg modal, so the CMS-editable lore is one click away without displacing
+the live readout.
+
 - **Egg entry** `dc34-bsides-shuttle` added to `DEFAULT_EGGS` in
   `apps/run.gpx/webapp/src/app/api/gpx/public/eggs/route.ts` (CMS-overridable). The
-  order-sensitive `EXPECTED_IDS` list in `route.test.ts` must be updated in the same change.
-- **Modal** `map/shuttle-egg.ts`, cloned from `deuce-egg.ts`.
-- **Flag.** Covert, 1 point, id `bsides-shuttle`, reveal word `bsides`. The layer carries
-  `encodeFlag('bsides-shuttle', 'bsides')`. A `Ctf` row is seeded into the production
-  `run-human-electro` table at `pk=$run#challenge_bsides-shuttle` with
-  `hashAnswer('bsides')` under `DEFAULT_SALT`, cloned from the deuce-egg row shape via the
-  existing CLI.
+  order-sensitive `EXPECTED_IDS` list in `route.test.ts` is updated in the same change.
+  Opened via `openEggModal(map, 'dc34-bsides-shuttle', at)` from the popup button.
+- **Flag fires on reveal**, not on click — matching how `deuceShown`/`kphShown` wire
+  `fireDeuceEgg`/`fireKphEgg` in `LayerControl.svelte`. Unlocking the layer is the
+  accomplishment; hunting individual buses is not.
+- **Flag.** Covert, 1 point, id `bsides-shuttle`, reveal word `bsides`. `map/shuttle-egg.ts`
+  (cloned from `deuce-egg.ts`) carries
+  `encodeFlag('bsides-shuttle', 'bsides')` = `9580199438190287796513706166079891499691313634242699531`,
+  verified by reproducing the shipped `deuce-egg` and `kph-phone` values with the same
+  codec. A `Ctf` row is seeded into the production `run-human-electro` table at
+  `pk=$run#challenge_bsides-shuttle` with `hashAnswer('bsides')` under `DEFAULT_SALT`,
+  cloned from the deuce-egg row shape via the existing CLI.
 
 ## Out of scope
 
