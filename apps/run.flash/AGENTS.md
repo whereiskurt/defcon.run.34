@@ -69,10 +69,16 @@ PR → merge → release + deploy as above.
 
 Edit `webapp/app-downloads.sources.json` (URL + filename + labels), mirror the
 URL-stripped entries into `webapp/public/data/apps-manifest.json`, vitest, PR,
-release. **Meshtastic-Android tags need the `v` prefix** (`v2.8.0-open.1`);
+release. **Meshtastic-Android tags need the `v` prefix** (`v2.8.0`);
 older releases use different asset names (2.7.13 = `app-fdroid-release.apk`).
 Build hard-fails on a bad APK URL — that's intentional; these links are
 load-bearing at con.
+
+⚠️ **Pre-release tags get DELETED when the final ships.** `v2.8.0-open.1` was
+pinned here and 404'd the moment `v2.8.0` released, hard-failing every run.flash
+build until it was repointed (2026-08-04). Pin FINAL tags; if you must pin a
+pre-release, expect to chase it. Probe before releasing:
+`curl -sIL -o /dev/null -w '%{http_code}\n' <url>`
 
 ## Landmines (all hit for real)
 
