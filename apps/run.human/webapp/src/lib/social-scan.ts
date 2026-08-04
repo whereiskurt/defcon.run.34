@@ -88,7 +88,7 @@ export type ScanResult =
       ownerName: string;
       remainingToday: number;
       /** Operator scans only — absent for ordinary runner-to-runner scans. */
-      bib?: BibScanStatus;
+      bibStatus?: BibScanStatus;
     }
   | {
       ok: false;
@@ -98,7 +98,7 @@ export type ScanResult =
        * same-day re-scan still primed — the operator UI must be able to say so
        * instead of showing a bare 409.
        */
-      bib?: BibScanStatus;
+      bibStatus?: BibScanStatus;
       ownerName?: string;
     };
 
@@ -147,11 +147,11 @@ export async function judgeScan(
   //
   // AFTER the self-check above, so an operator scanning their OWN QR never
   // primes themselves — that is the loophole this whole feature closes.
-  let bib: BibScanStatus | undefined;
+  let bibStatus: BibScanStatus | undefined;
   if (input.operator && store.bibStatus && store.mintPickupPass) {
     try {
       const status = await store.bibStatus(owner.userId);
-      if (status !== "none") bib = status;
+      if (status !== "none") bibStatus = status;
       if (status === "ready") {
         await store.mintPickupPass(owner.userId, scannerId);
       }
@@ -167,8 +167,8 @@ export async function judgeScan(
   if (!claimed) {
     // Only decorate when priming actually happened. An ordinary runner's 409 is
     // byte-identical to what it has always been.
-    return bib
-      ? { ok: false, code: "already_today", bib, ownerName: owner.displayName }
+    return bibStatus
+      ? { ok: false, code: "already_today", bibStatus, ownerName: owner.displayName }
       : { ok: false, code: "already_today" };
   }
 
@@ -205,7 +205,7 @@ export async function judgeScan(
     ownerId: owner.userId,
     ownerName: owner.displayName || "a runner",
     remainingToday: Math.max(0, DAILY_SCAN_CAP - count),
-    bib,
+    bibStatus,
   };
 }
 

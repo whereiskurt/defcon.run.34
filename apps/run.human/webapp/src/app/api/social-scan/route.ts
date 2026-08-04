@@ -36,6 +36,9 @@ export async function POST(req: NextRequest) {
       // Attendance mode: admin/runadmin/qradmin scanners bypass the daily cap
       // so a full run's worth of attendees can be paired (usage still counted).
       capExempt: isQrAdmin(session),
+      // Same group: an operator scan also PRIMES the scanned runner's bib for
+      // pickup (mints a BibPickupPass). Ordinary runner scans pay no extra reads.
+      operator: isQrAdmin(session),
     },
     defaultScanStore
   );
@@ -46,6 +49,19 @@ export async function POST(req: NextRequest) {
       rescoreBestEffort(result.ownerId),
     ]);
     return NextResponse.json(result);
+  }
+
+  // ── Priming succeeded even though the social pair is spent for the day ──────
+  // An operator working through a box of bibs re-scans people constantly; a red
+  // 409 would read as "that didn't work" when in fact the bib IS primed. Only
+  // operator scans of an actual bib-holder land here — a runner's own duplicate
+  // scan still gets the ordinary 409 below.
+  if (result.code === "already_today" && result.bibStatus) {
+    return NextResponse.json({
+      code: "bib_ready",
+      bibStatus: result.bibStatus,
+      ownerName: result.ownerName,
+    });
   }
   // ── Bib pickup: the FIRST self-scan is the identity check ─────────────────
   // A runner scanning their own QR at the pickup table proves the bib in their

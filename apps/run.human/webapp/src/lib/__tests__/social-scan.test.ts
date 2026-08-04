@@ -276,7 +276,7 @@ describe("judgeScan — bib priming", () => {
     fake.state.bibs.set("owner", "ready");
     const result = await prime();
 
-    expect(result).toMatchObject({ ok: true, bib: "ready" });
+    expect(result).toMatchObject({ ok: true, bibStatus: "ready" });
     expect(fake.state.passes).toEqual([
       { userId: "owner", grantedBy: "scanner" },
     ]);
@@ -290,7 +290,7 @@ describe("judgeScan — bib priming", () => {
     expect(second).toMatchObject({
       ok: false,
       code: "already_today",
-      bib: "ready",
+      bibStatus: "ready",
       ownerName: "Bunny",
     });
     expect(fake.state.passes).toHaveLength(2);
@@ -300,7 +300,7 @@ describe("judgeScan — bib priming", () => {
     fake.state.bibs.set("owner", "picked_up");
     const result = await prime();
 
-    expect(result).toMatchObject({ ok: true, bib: "picked_up" });
+    expect(result).toMatchObject({ ok: true, bibStatus: "picked_up" });
     expect(fake.state.passes).toEqual([]);
   });
 
@@ -308,7 +308,7 @@ describe("judgeScan — bib priming", () => {
     const result = await prime();
 
     expect(result).toMatchObject({ ok: true });
-    expect((result as { bib?: string }).bib).toBeUndefined();
+    expect((result as { bibStatus?: string }).bibStatus).toBeUndefined();
     expect(fake.state.passes).toEqual([]);
   });
 
