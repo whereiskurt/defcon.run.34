@@ -596,8 +596,12 @@ export async function pushDeviceConfig(
       settings: create(Protobuf.Channel.ChannelSettingsSchema, {
         name: ch.name,
         psk: pskBytes,
-        uplinkEnabled: true,
-        downlinkEnabled: true,
+        // Per-channel MQTT bridging. dc.run (PRIMARY) is the only channel with
+        // either direction on; the DEF CON event channels and LongFast carry
+        // world-readable keys and are RF-only. Default false so a channel added
+        // to the config without an explicit flag never silently starts bridging.
+        uplinkEnabled: ch.uplinkEnabled ?? false,
+        downlinkEnabled: ch.downlinkEnabled ?? false,
         // Per-channel position precision. 0 = position sharing off on this
         // channel; 32 = exact GPS. dc.run (PRIMARY) is precise; the public
         // LongFast bridge is 0. Position packets themselves are gated by the

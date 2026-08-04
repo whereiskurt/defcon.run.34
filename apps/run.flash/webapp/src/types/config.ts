@@ -25,6 +25,10 @@ export interface ChannelConfig {
   role: "PRIMARY" | "SECONDARY";
   /** Channel position precision: 0 = position off, 32 = exact, ~13 = coarse grid */
   positionPrecision?: number;
+  /** Bridge this channel's RF traffic UP to MQTT. Unset = false (dc.run only). */
+  uplinkEnabled?: boolean;
+  /** Rebroadcast MQTT traffic DOWN onto this channel over LoRa. Unset = false. */
+  downlinkEnabled?: boolean;
 }
 
 /** Device-level Position module config */

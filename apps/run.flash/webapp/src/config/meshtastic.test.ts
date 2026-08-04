@@ -1,11 +1,34 @@
 import { describe, it, expect } from "vitest";
 import {
+  meshtasticConfig,
   ringtoneForClass,
   resolveRingtone,
   RINGTONES,
   MAX_RINGTONE_LEN,
 } from "./meshtastic";
 import { isValidRtttl } from "@/lib/rtttl";
+
+describe("channel MQTT bridging policy", () => {
+  it("bridges dc.run in both directions and nothing else", () => {
+    for (const ch of meshtasticConfig.channels) {
+      const bridged = ch.name === "dc.run";
+      expect({ name: ch.name, up: ch.uplinkEnabled, down: ch.downlinkEnabled }).toEqual({
+        name: ch.name,
+        up: bridged,
+        down: bridged,
+      });
+    }
+  });
+
+  it("states both flags explicitly on every channel", () => {
+    // Relying on the `?? false` default would leave a channel's MQTT posture
+    // invisible in the config table. Every entry says what it does.
+    for (const ch of meshtasticConfig.channels) {
+      expect(typeof ch.uplinkEnabled, `${ch.name}.uplinkEnabled`).toBe("boolean");
+      expect(typeof ch.downlinkEnabled, `${ch.name}.downlinkEnabled`).toBe("boolean");
+    }
+  });
+});
 
 describe("ringtoneForClass", () => {
   it("maps each class to its tune", () => {

@@ -27,6 +27,10 @@ export const meshtasticConfig = Object.freeze({
       // Exact GPS shared on the PSK-encrypted event channel (32 = full precision;
       // 0 = position off; ~13 = coarse grid). Only the dc.run PSK holders see it.
       positionPrecision: Number(process.env.DCR34_PRIMARY_POS_PRECISION) || 32,
+      // dc.run is the ONLY channel that bridges to MQTT, in either direction.
+      // Everything the fleet, the map and the ghosts rely on rides this channel.
+      uplinkEnabled: true,
+      downlinkEnabled: true,
     },
     // DEF CON 34 event-firmware channels. These PSKs are public constants —
     // they are baked into meshtastic/firmware event/defcon34 userPrefs.jsonc —
@@ -34,23 +38,34 @@ export const meshtasticConfig = Object.freeze({
     // audible on RF. Position precision mirrors the event build: DEFCONnect 14
     // (km-scale blur, matches event ch0), chat channels 0 (no position — the
     // keys are world-readable, exact coords don't belong there).
+    //
+    // MQTT uplink AND downlink are OFF on every one of these. The keys are
+    // world-readable, so uplinking would forward other attendees' event-channel
+    // RF into our broker, and downlinking would push our MQTT traffic back out
+    // onto channels we don't own. Listen on RF, bridge nothing.
     {
       name: "DEFCONnect",
       psk: "OEu8wB3AItGBvza4YSHh+5a3LlW/dCJ+nWr7SNZMsaE=",
       role: "SECONDARY" as const,
       positionPrecision: 14,
+      uplinkEnabled: false,
+      downlinkEnabled: false,
     },
     {
       name: "HackerComms",
       psk: "6IzsaoVhx1ETWeWuu0dUWMLqItvYJLbRzwgTAKCfvtY=",
       role: "SECONDARY" as const,
       positionPrecision: 0,
+      uplinkEnabled: false,
+      downlinkEnabled: false,
     },
     {
       name: "NodeChat",
       psk: "TiIdi8MJG+IRnIkS8iUZXRU+MHuGtuzEasOWXp4QndU=",
       role: "SECONDARY" as const,
       positionPrecision: 0,
+      uplinkEnabled: false,
+      downlinkEnabled: false,
     },
     {
       name: "LongFast",
@@ -59,6 +74,11 @@ export const meshtasticConfig = Object.freeze({
       // Position sharing OFF on the public bridge channel (uses the default key,
       // so exact coords here would be world-readable). 0 = no position packets.
       positionPrecision: Number(process.env.DCR34_BRIDGE_POS_PRECISION) || 0,
+      // Also NOT bridged: our radios do not feed public LongFast RF into
+      // mqtt.defcon.run. meshtk still holds the LongFast key, so it keeps seeing
+      // whatever OTHER people's uplinking radios put on the broker.
+      uplinkEnabled: false,
+      downlinkEnabled: false,
     },
   ],
   // Device config: rebroadcast only CORE portnums (text/position/nodeinfo/
