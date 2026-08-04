@@ -18,6 +18,7 @@
     import { fileStateCollection } from '$lib/logic/file-state';
     import { gpxStatistics, slicedGPXStatistics } from '$lib/logic/statistics';
     import { loadFile } from '$lib/logic/file-actions';
+    import { boundsManager } from '$lib/logic/bounds';
     import { selection } from '$lib/logic/selection';
     import { untrack } from 'svelte';
     import { isSelected, toggle } from '$lib/components/map/layer-control/utils';
@@ -64,6 +65,15 @@
             fileStateCollection.setEmbeddedFiles(files);
             $fileOrder = ids;
             selection.selectAll();
+            // Frame the embedded route. This used to happen implicitly, via a
+            // blanket auto-fit observer in BoundsManager — but that observer also
+            // fired for files restored from IndexedDB on a normal studio load and
+            // yanked the camera away from runners who had already zoomed in, so it
+            // was removed (see bounds.ts). An embed is a genuine "show me this",
+            // so it fits explicitly instead. Still skipped when the URL hash
+            // already picks the view, exactly as the old guard did — and `hash` is
+            // the real prop here, not the stale `page.url` the observer read.
+            if (hash.length === 0) boundsManager.fitBoundsOnLoad(ids);
         });
         if (allowedEmbeddingBasemaps.includes(options.basemap)) {
             $currentBasemap = options.basemap;
