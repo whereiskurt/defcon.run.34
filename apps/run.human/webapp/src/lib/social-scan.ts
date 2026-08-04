@@ -3,8 +3,11 @@ import { TOKEN_RE } from "./short-token";
 import { pairKey, applyScoreDelta } from "./social-rank";
 import { RunnerToken } from "@/entities/runner-token";
 import { RunUser, getUserByHash } from "@/entities/run-user";
-import { SocialPair, SocialQuota } from "@/entities/social";
+import { SocialPair, SocialQuota, BibPickupPass } from "@/entities/social";
 import { CtfScoreEvent } from "@/entities/ctf";
+import { getBibForPickup } from "@/entities/bib";
+import { defaultStore as ctfStore } from "@/lib/ctf-judge";
+import { BIB_PICKUP_CHALLENGE } from "@/lib/bib-pickup";
 
 /**
  * Social-scan judge (runner social QR).
@@ -36,6 +39,15 @@ export type SocialUser = {
   socialScore?: number;
 };
 
+/**
+ * Operator-scan bib verdict. Drives BOTH the mint decision and the scanner copy,
+ * from one read, so the two can never disagree.
+ *   none      → no bib on file; an ordinary scan, no bib wording
+ *   ready     → has a bib, not yet collected; the ONLY status that mints a pass
+ *   picked_up → already collected; report it, mint nothing
+ */
+export type BibScanStatus = "none" | "ready" | "picked_up";
+
 export type ScanStore = {
   resolveOwnerByToken(token: string): Promise<SocialUser | null>;
   resolveOwnerByHash(hash: string): Promise<SocialUser | null>;
@@ -60,13 +72,34 @@ export type ScanStore = {
   ): Promise<void>;
   /** SocialBoard distribution move old→new. */
   scoreDelta(oldScore: number, newScore: number): Promise<void>;
+  /**
+   * Operator scans ONLY: does this runner have a bib, and did they collect it?
+   * Optional so existing fakes keep compiling.
+   */
+  bibStatus?(userId: string): Promise<BibScanStatus>;
+  /** Upsert the durable pickup pass. Re-priming refreshes it. */
+  mintPickupPass?(userId: string, grantedBy: string): Promise<void>;
 };
 
 export type ScanResult =
-  | { ok: true; ownerId: string; ownerName: string; remainingToday: number }
+  | {
+      ok: true;
+      ownerId: string;
+      ownerName: string;
+      remainingToday: number;
+      /** Operator scans only — absent for ordinary runner-to-runner scans. */
+      bib?: BibScanStatus;
+    }
   | {
       ok: false;
       code: "bad_token" | "not_found" | "self" | "already_today" | "cap";
+      /**
+       * `already_today` only. Priming happens BEFORE the pair claim, so a
+       * same-day re-scan still primed — the operator UI must be able to say so
+       * instead of showing a bare 409.
+       */
+      bib?: BibScanStatus;
+      ownerName?: string;
     };
 
 export async function judgeScan(
@@ -77,6 +110,11 @@ export async function judgeScan(
     nowMs: number;
     /** Admin attendance mode: usage is still counted, the cap is not enforced. */
     capExempt?: boolean;
+    /**
+     * Operator (QR_ADMIN_GROUPS) scan: may prime a bib for pickup. Ordinary
+     * runner scans leave this false and pay no extra reads.
+     */
+    operator?: boolean;
   },
   store: ScanStore
 ): Promise<ScanResult> {
@@ -98,10 +136,41 @@ export async function judgeScan(
   if (!owner) return { ok: false, code: "not_found" };
   if (owner.userId === scannerId) return { ok: false, code: "self" };
 
+  // ── Bib priming ───────────────────────────────────────────────────────────
+  // Deliberately BEFORE the pair-day claim. SocialPair burns an unordered pair
+  // for the whole PT day, so minting only on the success path would mean an
+  // operator re-scanning a bib they already scanned today mints NOTHING and
+  // that runner can never redeem. Priming must be repeatable; the pair is not.
+  //
+  // Gated on the BIB, not on the operator's group: operators also use attendance
+  // mode for ordinary run scanning, where "bib ready" would be nonsense.
+  //
+  // AFTER the self-check above, so an operator scanning their OWN QR never
+  // primes themselves — that is the loophole this whole feature closes.
+  let bib: BibScanStatus | undefined;
+  if (input.operator && store.bibStatus && store.mintPickupPass) {
+    try {
+      const status = await store.bibStatus(owner.userId);
+      if (status !== "none") bib = status;
+      if (status === "ready") {
+        await store.mintPickupPass(owner.userId, scannerId);
+      }
+    } catch (err) {
+      // Priming is additive — a failure must never take the scan down with it.
+      console.error("[social-scan] bib priming failed", err);
+    }
+  }
+
   const day = socialDay(nowMs);
   const pk = pairKey(scannerId, owner.userId);
   const claimed = await store.claimPairDay(pk, day, scannerId, owner.userId);
-  if (!claimed) return { ok: false, code: "already_today" };
+  if (!claimed) {
+    // Only decorate when priming actually happened. An ordinary runner's 409 is
+    // byte-identical to what it has always been.
+    return bib
+      ? { ok: false, code: "already_today", bib, ownerName: owner.displayName }
+      : { ok: false, code: "already_today" };
+  }
 
   // Cap check AFTER the pair claim: an over-cap scan burns the pair for the
   // day (prevents cap-probing the same target repeatedly). Only the scanner
@@ -136,6 +205,7 @@ export async function judgeScan(
     ownerId: owner.userId,
     ownerName: owner.displayName || "a runner",
     remainingToday: Math.max(0, DAILY_SCAN_CAP - count),
+    bib,
   };
 }
 
@@ -201,4 +271,23 @@ export const defaultScanStore: ScanStore = {
     }
   },
   scoreDelta: applyScoreDelta,
+  async bibStatus(userId) {
+    const bib = await getBibForPickup(userId);
+    if (!bib) return "none";
+    // Same existence read judgeBibPickup uses for first-ness, so the operator's
+    // "already picked up" and the runner's "no award" can never disagree.
+    const collected = await ctfStore.hasScoreFor!({
+      challenge: BIB_PICKUP_CHALLENGE,
+      user: userId,
+    });
+    return collected ? "picked_up" : "ready";
+  },
+  async mintPickupPass(userId, grantedBy) {
+    // put(), not create(): re-priming a bib must refresh the row, not throw.
+    await BibPickupPass.put({
+      userId,
+      grantedBy,
+      grantedAt: new Date().toISOString(),
+    }).go();
+  },
 };
