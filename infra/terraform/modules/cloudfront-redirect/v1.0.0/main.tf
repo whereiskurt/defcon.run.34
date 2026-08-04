@@ -20,6 +20,7 @@ locals {
     flash     = "interstitial-flash.html.tftpl"
     phone     = "interstitial-phone.html.tftpl"
     ghost     = "interstitial-ghost.html.tftpl"
+    wired     = "interstitial-wired.html.tftpl"
   }
   splash_tpl = {
     for h, r in local.redirect_map :

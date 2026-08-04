@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${og_title}</title>
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="defcon.run">
+<meta property="og:url" content="${page_url}">
+<meta property="og:title" content="${og_title}">
+<meta property="og:description" content="${og_description}">
+<meta property="og:image" content="${og_image}">
+<meta property="og:image:secure_url" content="${og_image}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${og_title}">
+<meta name="twitter:description" content="${og_description}">
+<meta name="twitter:image" content="${og_image}">
+
+<!-- Wired splash: a fake newsroom "story is loading" beat. The article skeleton
+     renders, a redacted source photo sits behind a scrim, and a decrypt counter
+     runs to 100 before we hand the reader over to the destination (which is,
+     of course, the rickroll). Same ~1.6s beat as the other splashes so the tab
+     title reads the og_title rather than the destination.
+     meta-refresh is the no-JS fallback, long enough to never preempt the JS.
+     NOTE (terraform templatefile): a percent sign immediately followed by an
+     open brace is read as a control directive, so CSS percent keyframe
+     selectors must double the percent sign. This splash uses from/to keyframes
+     to sidestep it entirely — including in this comment, which is also parsed. -->
+<meta http-equiv="refresh" content="4;url=${target_url}">
+<link rel="canonical" href="${target_url}">
+<style>
+  :root{ --bg:#0a0a0c; --ink:#f4f4f5; --muted:#a8a8ae; --faint:#77777e;
+         --red:#ff2b2b; --border:#26262c; --surface:#141418; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--ink); overflow:hidden;
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,sans-serif;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .glow{position:fixed;inset:0;background:
+    radial-gradient(60% 55% at 55% 8%,rgba(255,208,138,.10),transparent 64%),
+    radial-gradient(70% 60% at 92% 96%,rgba(255,43,43,.08),transparent 62%);}
+  .noise{position:fixed;inset:0;opacity:.04;background-size:256px 256px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23n)'/%3E%3C/svg%3E")}
+  .scan{position:fixed;inset:0;opacity:.10;
+    background:repeating-linear-gradient(180deg,rgba(255,255,255,.10) 0 1px,transparent 1px 4px)}
+
+  .wrap{position:relative;z-index:2;padding:26px;max-width:620px;width:100%}
+
+  /* masthead */
+  .head{display:flex;align-items:flex-start;justify-content:space-between;
+    border-bottom:2px solid var(--ink);padding-bottom:14px}
+  .mast{font-size:clamp(30px,8vw,42px);font-weight:900;letter-spacing:.02em;line-height:1}
+  .mast small{display:block;font-size:clamp(8px,2.2vw,10px);font-weight:700;
+    letter-spacing:.32em;color:var(--faint);margin-top:8px}
+  .live{display:inline-flex;align-items:center;gap:7px;background:var(--red);color:#fff;
+    padding:7px 12px;font-size:clamp(9px,2.4vw,11px);font-weight:700;letter-spacing:.20em;
+    white-space:nowrap}
+  .live i{width:6px;height:6px;border-radius:50%;background:#fff;
+    animation:pulse 1.1s ease-in-out infinite alternate}
+  @keyframes pulse{from{opacity:.35}to{opacity:1}}
+
+  /* article */
+  h1{margin-top:22px;font-size:clamp(22px,6.4vw,34px);line-height:1.06;font-weight:900;
+    letter-spacing:-.025em;text-transform:uppercase}
+  h1 em{font-style:normal;color:var(--red)}
+  .byline{margin-top:12px;font-size:clamp(9px,2.4vw,11px);letter-spacing:.16em;
+    color:var(--faint);text-transform:uppercase}
+
+  /* redacted source photo */
+  .photo{position:relative;margin-top:20px;height:clamp(96px,26vw,132px);
+    border:1px solid var(--border);background:
+      radial-gradient(70% 80% at 58% 42%,#332d25,#141312 60%,#0c0c0e 100%);
+    overflow:hidden}
+  .photo .blocks{position:absolute;left:16%;right:16%;top:26%;bottom:26%;
+    display:grid;grid-template-columns:repeat(10,1fr);grid-template-rows:repeat(3,1fr);
+    filter:blur(1px);opacity:.85}
+  .photo .blocks i{display:block}
+  .photo .scrim{position:absolute;inset:0;
+    background:linear-gradient(180deg,rgba(10,10,12,.35),rgba(10,10,12,.86))}
+  .photo .tag{position:absolute;left:10px;bottom:8px;font-size:10px;letter-spacing:.18em;
+    color:#9a9aa2;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .photo .stamp{position:absolute;right:10px;top:12px;font-size:clamp(13px,3.6vw,17px);
+    font-weight:900;letter-spacing:.10em;color:var(--red);border:2px solid var(--red);
+    padding:3px 9px;transform:rotate(-9deg);opacity:.92}
+
+  /* decrypt beat */
+  .load{margin-top:18px;display:flex;align-items:baseline;justify-content:space-between;
+    font-size:clamp(10px,2.6vw,12px);letter-spacing:.16em;color:var(--muted);
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .load b{color:var(--ink);font-weight:700}
+  .bar{margin-top:9px;height:3px;background:var(--surface);border:1px solid var(--border);
+    overflow:hidden}
+  .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--red),#ff8a3d);
+    box-shadow:0 0 12px rgba(255,43,43,.55);animation:fill 1.5s ease-out forwards}
+  @keyframes fill{to{width:100%}}
+
+  .foot{margin-top:18px;font-size:11px;letter-spacing:.12em;color:var(--faint)}
+  .foot a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--border)}
+
+  @media (prefers-reduced-motion:reduce){
+    .bar>i{animation:none;width:100%}
+    .live i{animation:none;opacity:1}
+  }
+</style>
+</head>
+<body>
+  <div class="glow"></div><div class="noise"></div><div class="scan"></div>
+  <div class="wrap">
+
+    <div class="head">
+      <div class="mast">WIRED<small>EXCLUSIVE &middot; SECURITY</small></div>
+      <div class="live"><i></i>DEVELOPING</div>
+    </div>
+
+    <h1>Leaked photo: the DEF&nbsp;CON 34 <em>run bib</em></h1>
+    <div class="byline">By Staff &middot; Las Vegas &middot; Source protected</div>
+
+    <div class="photo">
+      <div class="blocks" id="b"></div>
+      <div class="scrim"></div>
+      <div class="stamp">LEAKED</div>
+      <div class="tag">FIG 1 &middot; SOURCE PHOTO &middot; REDACTED</div>
+    </div>
+
+    <div class="load"><span id="l">Decrypting source photo&hellip;</span><b id="p">0</b></div>
+    <div class="bar"><i></i></div>
+
+    <div class="foot"><a href="${target_url}">continue to the full story &rsaquo;</a></div>
+  </div>
+<script>
+  // Paint the redaction mosaic, run the decrypt counter over the splash beat, go.
+  var TARGET = ${target_url_json};
+  var tones = ["#e9e3d5","#ddd6c6","#cbc3b1","#f1ebde","#bfb7a5","#e4ddce","#d3cbba"];
+  var blocks = document.getElementById("b");
+  for (var i = 0; i < 30; i++) {
+    var el = document.createElement("i");
+    el.style.background = tones[(i * 5 + (i % 7)) % tones.length];
+    el.style.opacity = 0.55 + ((i * 3) % 4) * 0.09;
+    blocks.appendChild(el);
+  }
+
+  var p = document.getElementById("p"), l = document.getElementById("l"), t0 = Date.now();
+  var LOG = [
+    "Decrypting source photo…",
+    "Verifying with second source…",
+    "Legal has cleared publication…",
+    "Publishing…"
+  ];
+  var tick = setInterval(function () {
+    var f = Math.min(1, (Date.now() - t0) / 1500);
+    p.textContent = Math.round(f * 100);
+    l.textContent = LOG[Math.min(LOG.length - 1, Math.floor(f * LOG.length))];
+    if (f >= 1) clearInterval(tick);
+  }, 50);
+  setTimeout(function () { location.replace(TARGET); }, 1600);
+</script>
+</body>
+</html>

@@ -115,5 +115,20 @@
       "image": "https://g.defcon.run/ghost-card.png",
       "image_file": "ghost-card.png"
     }
+  },
+  {
+    "host": "wired",
+    "target_host": "q.defcon.run",
+    "target_path": "/w",
+    "target_query": "",
+    "status_code": "HTTP_302",
+    "priority": 98,
+    "splash_style": "wired",
+    "og": {
+      "title": "Leaked: The DEF CON 34 Run Bib, Revealed",
+      "description": "A source slipped us the design days before organizers planned to reveal it. We're publishing it anyway. EXCLUSIVE: the official DEF CON 34 race bib, photographed at 3 a.m. in Las Vegas.",
+      "image": "https://wired.defcon.run/wired-card.png",
+      "image_file": "wired-card.png"
+    }
   }
 ]
