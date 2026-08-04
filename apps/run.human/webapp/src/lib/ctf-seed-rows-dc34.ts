@@ -76,6 +76,18 @@ export function buildDc34SeedRows(): Dc34SeedRow[] {
       pointMax: 200, pointFloor: 100, maxSolves: 25, firstBloodBonus: 0,
       floorAfterMax: true, enabled: false, ...ANTI_SPAM,
     })),
+    // KPH phone — the secret red LVCC booth in run.gpx. Flat 250, knobs only.
+    // It is NOT in the flat-5 EGGS set above: this one is a headline find, not
+    // a UI flourish. Claimed through the covert text/css channel with the real
+    // guess "kph", so unlike the grant-only rows below it needs a REAL
+    // answerHash = hashAnswer("kph") — which is why it is knobsOnly here rather
+    // than an insert (this seed deliberately hashes nothing; see header).
+    // ⚠️ Until the row exists in prod the reveal is INERT: the covert fire
+    // decodes fine and then falls through to the decoy sheet, awarding nothing.
+    {
+      challenge: "kph-phone", knobsOnly: true, ...flat(250),
+      enabled: false, ...ANTI_SPAM,
+    },
     // Bot unlocks — grant-only inserts, 250 each (ricky has no unlock).
     ...PERSONAS.map((p): Dc34SeedRow => ({
       challenge: `unlock-${p}`, answerType: "static", answerHash: ZERO_HASH,

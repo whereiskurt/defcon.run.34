@@ -15,6 +15,7 @@
     import { rainbowUnlocked, toggleForcedArch } from '$lib/stores/rainbow';
     import { toggleDeuce } from '$lib/stores/deuce';
     import { togglePayphones } from '$lib/stores/payphone';
+    import { toggleKph } from '$lib/stores/kph';
     import { ARCH_SEARCH_WORDS } from '$lib/components/map/rainbow-geometry';
 
     let keyBuf: number[] = [];
@@ -39,6 +40,13 @@
                 // resets on fire so "ddd" doesn't immediately toggle it back off.
                 if (typed.endsWith('dd')) {
                     toggleForcedArch(ARCH_SEARCH_WORDS['dd']);
+                    typed = '';
+                }
+                // Type "kph" anywhere → toggle the secret red LVCC payphone
+                // (desktop twin of the geocoder `kph` search, which covers
+                // mobile). Independent of the public #-#-# booth reveal.
+                if (typed.endsWith('kph')) {
+                    toggleKph();
                     typed = '';
                 }
             }
