@@ -198,36 +198,208 @@
 .dc34-rabbit-grid dt { color: #8a8aa0; }
 .dc34-rabbit-grid dd { margin: 0; color: #e4e4ef; font-variant-numeric: tabular-nums; }
 
-/* B-Sides shuttle popup — same dark card as the rabbit popup, livery-dot header. */
-.dc34-shuttle-popup.mapboxgl-popup .mapboxgl-popup-content {
-    background: #14141c;
-    color: #e4e4ef;
-    border: 1px solid #2a2a3a;
-    border-radius: 8px;
-    padding: 10px 12px;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+/* ---------------------------------------------------------------------------
+   B-Sides Las Vegas shuttle layer — cartoon bus markers + "ground transport"
+   ticket popup.
+
+   The markers follow the KPH payphone's playbook (DOM marker, bob, coloured
+   glow) rather than the symbol-layer route, because a symbol layer cannot hover,
+   cannot animate, and needs a pre-rasterised icon per livery.
+   --------------------------------------------------------------------------- */
+.dc34-shuttle {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    line-height: 1;
+    pointer-events: auto;
 }
-.dc34-shuttle-popup.mapboxgl-popup .mapboxgl-popup-close-button { color: #e4e4ef; font-size: 16px; padding: 2px 6px; }
-.dc34-shuttle-popup.mapboxgl-popup-anchor-top .mapboxgl-popup-tip { border-bottom-color: #14141c; }
-.dc34-shuttle-popup.mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip { border-top-color: #14141c; }
-.dc34-shuttle-popup.mapboxgl-popup-anchor-left .mapboxgl-popup-tip { border-right-color: #14141c; }
-.dc34-shuttle-popup.mapboxgl-popup-anchor-right .mapboxgl-popup-tip { border-left-color: #14141c; }
-.dc34-shuttle-head { display: flex; align-items: center; gap: 6px; font-size: 13px; }
-.dc34-shuttle-dot { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 6px currentColor; }
-.dc34-shuttle-sub { color: #8a8aa0; font-size: 10px; margin: 2px 0 7px; }
-.dc34-shuttle-grid { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; font-size: 11px; }
-.dc34-shuttle-grid dt { color: #8a8aa0; }
-.dc34-shuttle-grid dd { margin: 0; color: #e4e4ef; font-variant-numeric: tabular-nums; }
-.dc34-shuttle-more {
-    margin-top: 8px;
+/* ~3x the original 32px glyph. --dc34-shuttle-glow is set per marker to the
+   livery hex so a pink and an orange bus stay apart when they overlap. */
+.dc34-shuttle-art {
+    width: 96px;
+    height: 69px;
+    animation: dc34shuttlebob 2.4s ease-in-out infinite;
+    filter: drop-shadow(0 0 7px var(--dc34-shuttle-glow, #94a3b8)) drop-shadow(0 2px 5px rgba(0, 0, 0, 0.55));
+    transition: transform 0.16s ease-out, filter 0.16s ease-out;
+    transform-origin: 50% 60%;
+}
+.dc34-shuttle-art svg { display: block; width: 100%; height: 100%; overflow: visible; }
+/* Westbound: mirror the vehicle only. The roof board and the "z z" sit outside
+   this group in the SVG precisely so their text never renders backwards. */
+.dc34-shuttle-left .dc34-shuttle-body { transform: scaleX(-1); transform-origin: 50% 50%; }
+.dc34-shuttle:hover .dc34-shuttle-art {
+    transform: scale(1.28);
+    filter: drop-shadow(0 0 13px var(--dc34-shuttle-glow, #94a3b8)) drop-shadow(0 3px 8px rgba(0, 0, 0, 0.6));
+}
+/* A bus that has stopped reporting fades but never disappears. */
+.dc34-shuttle-asleep .dc34-shuttle-art { opacity: 0.55; }
+.dc34-shuttle-asleep:hover .dc34-shuttle-art { opacity: 0.85; }
+/* Fresh telemetry landed — the one moment the layer has news. */
+.dc34-shuttle-hit .dc34-shuttle-art {
+    animation: dc34shuttlebob 2.4s ease-in-out infinite, dc34shuttlehit 0.7s ease-out;
+}
+.dc34-shuttle-label {
+    margin-top: 2px;
+    background: rgba(20, 18, 14, 0.7);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+    color: #f4eddf;
+    border: 1px solid var(--dc34-shuttle-glow, #94a3b8);
+    border-radius: 9px;
+    padding: 2px 8px;
+    white-space: nowrap;
+    font: 600 10px/1.25 ui-monospace, Menlo, monospace;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+}
+.dc34-shuttle-zzz { animation: dc34shuttlezzz 2.6s ease-in-out infinite; }
+.dc34-shuttle-dash { animation: dc34shuttledash 1.1s linear infinite; }
+@keyframes dc34shuttlebob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes dc34shuttlehit { 0% { transform: scale(1); } 38% { transform: scale(1.22); } 100% { transform: scale(1); } }
+@keyframes dc34shuttlezzz { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+@keyframes dc34shuttledash { to { stroke-dashoffset: -14; } }
+@media (prefers-reduced-motion: reduce) {
+    /* The :hover and .dc34-shuttle-hit rules above are more specific, so they
+       have to be named here too or the bus keeps bobbing regardless. */
+    .dc34-shuttle-art,
+    .dc34-shuttle-hit .dc34-shuttle-art,
+    .dc34-shuttle-zzz,
+    .dc34-shuttle-dash { animation: none; }
+}
+
+/* --- the "ground transport" ticket popup --- */
+.dc34-shuttle-popup.mapboxgl-popup .mapboxgl-popup-content {
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
+    border: none;
+}
+.dc34-shuttle-popup.mapboxgl-popup .mapboxgl-popup-close-button { color: #1a1610; font-size: 17px; padding: 1px 6px; z-index: 4; }
+.dc34-shuttle-popup .mapboxgl-popup-tip { display: none; }
+.dc34-ticket {
+    width: 430px;
+    max-width: 86vw;
+    background: #f4eddf;
+    color: #1a1610;
+    border-radius: 5px;
+    position: relative;
+    overflow: hidden;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    box-shadow: 0 14px 38px rgba(0, 0, 0, 0.55);
+    display: grid;
+    grid-template-columns: 1fr 132px;
+}
+/* Security-tint guilloche across the stock. */
+.dc34-ticket::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.16;
+    background:
+        repeating-linear-gradient(48deg, transparent 0 5px, #c4622d 5px 5.7px),
+        repeating-linear-gradient(-48deg, transparent 0 5px, #6f7f5c 5px 5.7px);
+}
+.dc34-ticket-main { padding: 13px 15px 14px; position: relative; }
+.dc34-ticket-stub {
+    position: relative;
+    padding: 13px 10px 12px;
+    text-align: center;
+    background: #e6d9c0;
+    border-left: 2px dashed #c1ae8b;
+}
+/* Punched perforation. The holes are dark so they read against the basemap. */
+.dc34-ticket-stub::before {
+    content: "";
+    position: absolute;
+    left: -7px;
+    top: 0;
+    bottom: 0;
+    width: 13px;
+    background: radial-gradient(circle at 50% 50%, #24211c 0 3.4px, transparent 3.4px) 0 6px / 13px 15px repeat-y;
+}
+.dc34-ticket-hd {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    border-bottom: 2px solid #1a1610;
+    padding-bottom: 6px;
+    margin-bottom: 9px;
+}
+.dc34-ticket-who { font-family: ui-rounded, "Arial Rounded MT Bold", system-ui, sans-serif; font-size: 12px; }
+.dc34-ticket-no { font-size: 9px; letter-spacing: 0.1em; color: #4a4034; }
+.dc34-ticket-issuer { font-size: 7.5px; letter-spacing: 0.18em; color: #4a4034; margin-bottom: 7px; position: relative; }
+.dc34-ticket-roller {
+    background: #14120e;
+    color: #dfa83c;
+    border-radius: 2px;
+    padding: 8px 10px;
+    margin-bottom: 10px;
+    font-size: 13.5px;
+    letter-spacing: 0.1em;
+    text-align: center;
+    border: 1px solid #2e2a22;
+    text-shadow: 0 0 9px rgba(223, 168, 60, 0.55);
+    position: relative;
+    overflow: hidden;
+}
+.dc34-ticket-roller small { display: block; font-size: 7.5px; letter-spacing: 0.17em; color: #7c7160; margin-bottom: 3px; text-shadow: none; }
+.dc34-ticket-roller::after { content: ""; position: absolute; left: 0; right: 0; top: 62%; height: 1px; background: rgba(0, 0, 0, 0.5); }
+.dc34-ticket-fields { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: 10px; margin: 0; position: relative; }
+.dc34-ticket-fields dt { color: #4a4034; letter-spacing: 0.09em; }
+.dc34-ticket-fields dd { margin: 0; font-variant-numeric: tabular-nums; text-align: right; }
+.dc34-ticket-dest { margin: 10px 0 0; padding-top: 8px; border-top: 1px dashed #c1ae8b; font-size: 10.5px; line-height: 1.35; position: relative; }
+.dc34-ticket-lbl { font-size: 7.5px; letter-spacing: 0.17em; color: #4a4034; display: block; }
+.dc34-ticket-planet { color: #c4622d; }
+.dc34-ticket-fine { font-size: 7px; letter-spacing: 0.05em; color: #4a4034; margin-top: 8px; line-height: 1.4; position: relative; }
+.dc34-ticket-more {
+    position: relative;
+    margin-top: 7px;
     background: none;
     border: none;
     padding: 0;
-    color: #8ab4f8;
-    font-size: 10px;
+    color: #c4622d;
+    font-family: inherit;
+    font-size: 9.5px;
+    letter-spacing: 0.05em;
     cursor: pointer;
 }
-.dc34-shuttle-more:hover { text-decoration: underline; }
+.dc34-ticket-more:hover { text-decoration: underline; }
+.dc34-ticket-more:focus-visible { outline: 2px solid #c4622d; outline-offset: 2px; }
+.dc34-shuttle-qr { width: 96px; height: 96px; display: block; margin: 0 auto 7px; background: #fff; padding: 5px; border-radius: 2px; }
+.dc34-ticket-stubhd { font-size: 7.5px; letter-spacing: 0.16em; color: #4a4034; margin-bottom: 7px; }
+.dc34-ticket-stubcap { font-size: 7.5px; letter-spacing: 0.12em; color: #4a4034; line-height: 1.35; }
+.dc34-ticket-stubno { font-size: 8px; letter-spacing: 0.1em; color: #4a4034; margin-top: 8px; }
+.dc34-ticket-void { filter: saturate(0.5); }
+.dc34-ticket-void .dc34-ticket-main,
+.dc34-ticket-void .dc34-ticket-stub { opacity: 0.84; }
+.dc34-ticket-stamp {
+    position: absolute;
+    /* Anchored over the MAIN panel, never the stub. Sitting it on the right put
+       it straight across the QR, which is the one thing on this ticket that has
+       to stay scannable. Landing on "LAST TELEMETRY" instead is also the field
+       it is actually commenting on. */
+    left: 34px;
+    top: 146px;
+    transform: rotate(-13deg);
+    border: 2.5px solid #b23a2e;
+    color: #b23a2e;
+    font-family: ui-rounded, "Arial Rounded MT Bold", system-ui, sans-serif;
+    font-size: 15px;
+    letter-spacing: 0.05em;
+    padding: 3px 9px;
+    border-radius: 3px;
+    opacity: 0.82;
+    pointer-events: none;
+    z-index: 3;
+}
+@media (max-width: 520px) {
+    /* The stub is the joke, so it stays — the fields column gives up the room. */
+    .dc34-ticket { grid-template-columns: 1fr 108px; }
+    .dc34-shuttle-qr { width: 82px; height: 82px; }
+}
 
 /* Deuce stop popup content — rides the dc34-route-popup dark card; RTC livery. */
 .dc34-deuce-stop { display: flex; flex-direction: column; gap: 3px; }

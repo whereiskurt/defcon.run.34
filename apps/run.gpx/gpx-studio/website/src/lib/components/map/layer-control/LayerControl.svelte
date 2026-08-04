@@ -17,7 +17,7 @@
         DEFAULT_ON_FOLDER,
     } from '../public-overlays';
     import { LAYER, storedVisible, setLayerVisible } from '$lib/stores/layer-visibility';
-    import { requestedLayers, resolveRunnersVisible } from '$lib/stores/layer-url';
+    import { requestedLayers, resolveRunnersVisible, resolveShuttlesLinked } from '$lib/stores/layer-url';
     import { MyConRunsLayer, myConRunGroups } from '../my-con-runs';
     import { CommunityRoutesLayer, communityRoutes } from '../community-routes';
     import { HeatmapLayer, heatmapState } from '../heatmap-layer';
@@ -42,7 +42,7 @@
     import { deuceShown } from '$lib/stores/deuce';
     import { ShuttleLayer } from '$lib/components/map/shuttle-layer';
     import { fireShuttleEgg } from '$lib/components/map/shuttle-egg';
-    import { shuttlesShown } from '$lib/stores/shuttle';
+    import { shuttlesShown, revealShuttlesFromLink } from '$lib/stores/shuttle';
     import { payphonesShown } from '$lib/stores/payphone';
     import { kphShown } from '$lib/stores/kph';
     import { fireKphEgg } from '$lib/components/map/kph-egg';
@@ -388,15 +388,21 @@
         });
         // BSides Las Vegas shuttles: hidden live-fleet layer (search "bsides" /
         // "shuttle", or type "bsides"). Unlike the Deuce next door nothing here
-        // is simulated — it polls the real fleet through the run.gpx proxy. Each
-        // reveal fires the covert bsides-shuttle egg (fire-once per load guard in
-        // shuttle-egg.ts). Same single-subscription safety as ghostMode above.
+        // is simulated — it polls the real fleet through the run.gpx proxy.
+        //
+        // ONLY AN 'earned' REVEAL PAYS. Finding the layer yourself fires the
+        // covert bsides-shuttle award (fire-once per load guard in
+        // shuttle-egg.ts); arriving on a ?layers=shuttles link shows the buses
+        // and awards nothing, or the first person to paste that link in a chat
+        // would hand the flag to everyone who clicked it. Same
+        // single-subscription safety as ghostMode above.
         if (shuttleLayer) shuttleLayer.remove();
         shuttleLayer = new ShuttleLayer(_map);
-        shuttlesShown.subscribe((on) => {
-            void shuttleLayer?.setVisible(on);
-            if (on) fireShuttleEgg();
+        shuttlesShown.subscribe((reveal) => {
+            void shuttleLayer?.setVisible(reveal !== false);
+            if (reveal === 'earned') fireShuttleEgg();
         });
+        if (resolveShuttlesLinked(requestedLayers())) revealShuttlesFromLink();
         let first = true;
         _map.on('style.import.load', () => {
             if (!first) return;
