@@ -60,6 +60,14 @@ export const LAYER = {
      * ever loaded the map.
      */
     runners: 'runners',
+    /**
+     * The hidden B-Sides shuttle fleet (`ShuttleLayer`). Listed here ONLY so
+     * `?layers=shuttles` has a spelling — it is deliberately not a persisted
+     * preference and never appears in the Map Layers panel, because it is an
+     * easter egg whose normal way in is searching "bsides" or typing it.
+     * See `resolveShuttlesLinked` in layer-url.ts and `stores/shuttle.ts`.
+     */
+    shuttles: 'shuttles',
 } as const;
 
 /** Key prefixes, exported so a load can prune ids whose layer no longer exists. */

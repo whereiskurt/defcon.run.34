@@ -59,6 +59,7 @@ const LITERAL_TOKENS = new Set<string>([
     LAYER.heatDc33,
     LAYER.heatDc34,
     LAYER.runners,
+    LAYER.shuttles,
 ]);
 
 export type LayerSelection = {
@@ -136,4 +137,20 @@ export function resolveRunnersVisible(
     stored: boolean
 ): boolean {
     return requested?.keys.has(LAYER.runners) ? true : stored;
+}
+
+/**
+ * Whether this page load was deep-linked to the hidden B-Sides shuttle layer.
+ *
+ * Shuttles follow the ordinary one-way rule rather than the runners exception:
+ * the layer is default-OFF and has no stored preference at all (it is an easter
+ * egg, not a toggle), so "the link did not name me" simply means "stay hidden".
+ *
+ * ⚠️ The CALLER must reveal via `revealShuttlesFromLink()`, not the normal
+ * toggle. A link reveal deliberately does NOT fire the covert `bsides-shuttle`
+ * award — otherwise pasting the link into a chat would hand the flag to everyone
+ * who opened it, and the egg would stop being earned. See `stores/shuttle.ts`.
+ */
+export function resolveShuttlesLinked(requested: LayerSelection | null): boolean {
+    return requested?.keys.has(LAYER.shuttles) === true;
 }
