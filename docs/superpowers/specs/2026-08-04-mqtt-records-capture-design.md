@@ -277,11 +277,13 @@ precedent: non-core admin groups deliberately get nothing under `/admin/*` or
 every group.
 
 ```ts
-export const RECORDS_GROUPS = [...ADMIN_GROUPS, "gpxadmin"] as const;  // admin, runadmin, gpxadmin
+export const RECORDS_GROUPS = ADMIN_GROUPS;  // admin, runadmin
 ```
 
-**Dependency:** `gpxadmin` is not a group run.auth issues today. Either it gets created, or
-Shannon is granted `runadmin`. Not a blocker for building.
+`gpxadmin` was considered and **dropped** — it is not a group run.auth issues today, and
+Shannon is being granted `runadmin` instead. Keeping the constant as its own named export
+(rather than using `ADMIN_GROUPS` inline) means a future third group is a one-line change
+at a single site.
 
 ### 4.2 Operations
 
@@ -367,6 +369,39 @@ The failure is **silent** — the map simply gets sparse, and nothing alarms.
 - Snapshots share the records bucket under a distinct prefix, so they inherit the same
   no-expiry lifecycle and the same IAM.
 
+### 5.4 Operator reset: write `{}` to the snapshot
+
+The snapshot doubles as the reset control. An operator who writes an empty JSON object to
+the snapshot key clears the node database.
+
+**The naive version of this does not work**, and the reason is worth stating so nobody
+"simplifies" it back later. `initNodeDb` writes the local file every 5 s and `flushNodeDb`
+writes again on shutdown. If restore-from-snapshot only happened at boot, then an operator
+writing `{}` and restarting would have their `{}` overwritten by the outgoing task's
+snapshot before the new task ever read it. The reset would silently never happen.
+
+So the snapshot tick performs a **read-before-write**:
+
+1. `GET` the current snapshot.
+2. If it decodes to an **empty object** and the in-memory DB is **non-empty**, treat it as
+   an operator reset request: clear the in-memory DB and the local file, and **skip this
+   cycle's `PUT`** so the `{}` stays authoritative for any concurrently-booting task.
+3. Otherwise `PUT` the current DB as normal.
+
+Consequences, all intentional:
+
+- The reset takes effect **without a restart**, within one snapshot interval (≤5 min).
+- The boot path and the tick path agree: restoring from `{}` also yields an empty DB.
+- It converges. After a reset the DB is empty, so the next tick sees "remote empty, local
+  empty", does not re-trigger, and resumes normal snapshotting as traffic repopulates.
+- A `GET` failure is **fail-safe**: no reset is inferred, a warning is logged, and the
+  `PUT` still proceeds so a transient S3 error cannot cost a backup.
+- A snapshot that is legitimately `{}` because no nodes have been seen makes the reset a
+  no-op, which is harmless.
+
+The only residual race is an operator writing `{}` in the same instant as a `PUT`, which
+loses the request; re-issuing it works. This is acceptable for a manual operator action.
+
 ---
 
 ## 6. Decisions made
@@ -410,6 +445,9 @@ Test-first throughout. The first test earns its keep immediately:
 - **Audit (B)** — the audit row is written before the URL is returned.
 - **Snapshot round-trip (C)** — a restored `nodes.json` equals the snapshot; an empty local
   file triggers restore, a populated one does not.
+- **Operator reset (C)** — a remote `{}` with a populated DB clears it AND skips the `PUT`;
+  once clear, the next tick does not re-trigger and resumes normal snapshotting; a `GET`
+  failure never resets and never blocks the `PUT`.
 
 ---
 
@@ -439,4 +477,4 @@ Deploys go through the `deploy.yml` GitHub Actions workflow — never a local
   2.6 MB/hour. Extrapolated it would not reach the ceiling for ~23 days and deploys restart
   the task well before that. Unrelated to this project, but worth knowing so future growth
   is not misattributed to the recorder.
-- **`gpxadmin` does not exist** as a run.auth group (§4.1).
+- **Shannon needs `runadmin`** granted in run.auth before self-serve is usable (§4.1).
