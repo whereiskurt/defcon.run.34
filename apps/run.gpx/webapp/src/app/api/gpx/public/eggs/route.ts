@@ -207,6 +207,21 @@ const DEFAULT_EGGS: EggModal[] = [
     coverGraffiti: { text: "7425678", tone: "violet" },
     links: [mapLink(36.1055201, -115.1503087)],
   },
+  {
+    // The secret all-red booth in the middle of the LVCC. Revealed only by
+    // typing/searching "kph" in the studio; that reveal also fires the
+    // 250-point `kph-phone` covert award. No cover photo — the red art is it.
+    id: "dc34-payphone-kph",
+    eyebrow: "Out of Order",
+    title: "☎️ The Red Phone",
+    descriptionHtml:
+      "<p>This one doesn't ring for everyone. Talk to a <strong>sophisticated AI " +
+      "platform</strong> to reveal your CTF flag.</p>" +
+      '<p><strong>Call it:</strong> <a href="tel:+19453690089">1-945-369-0089</a></p>',
+    address: "Las Vegas Convention Center",
+    accent: "#E11D48",
+    links: [mapLink(36.1316, -115.1512)],
+  },
 ];
 
 export async function GET() {

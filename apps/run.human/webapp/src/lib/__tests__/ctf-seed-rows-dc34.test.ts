@@ -6,10 +6,20 @@ describe("buildDc34SeedRows", () => {
   const byName = new Map(rows.map((r) => [r.challenge, r]));
 
   it("emits the full DC34 set", () => {
-    // 5 eggs + 6 personas(+ricky) + 5 otp chains + 4 phones + 5 unlocks +
-    // jack-egg + exceptional-run + bib-pickup = 28, per the LOCKED value table.
-    expect(rows).toHaveLength(28);
-    expect(new Set(rows.map((r) => r.challenge)).size).toBe(28);
+    // 5 eggs + 6 personas(+ricky) + 5 otp chains + 4 phones + kph-phone +
+    // 5 unlocks + jack-egg + exceptional-run + bib-pickup = 29, per the
+    // LOCKED value table.
+    expect(rows).toHaveLength(29);
+    expect(new Set(rows.map((r) => r.challenge)).size).toBe(29);
+  });
+
+  it("kph-phone is a knobsOnly flat 250 (real answerHash lives on the prod row)", () => {
+    // knobsOnly matters: it is claimed by guessing "kph" through the covert
+    // channel, so an insert here would have to fabricate an answerHash and
+    // this seed deliberately hashes nothing.
+    const row = byName.get("kph-phone");
+    expect(row).toMatchObject({ knobsOnly: true, pointMax: 250, pointFloor: 250 });
+    expect(row?.answerHash).toBeUndefined();
   });
 
   it("bib-pickup is a grant-only flat 200 that is NOT repeatable", () => {
