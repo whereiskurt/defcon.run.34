@@ -170,6 +170,14 @@ jobs:
           TG_APPLY_EXTRA=()
           if [[ -n "$TARGET" ]]; then TG_APPLY_EXTRA+=("-target=$TARGET"); fi
 
+          # Real exit status of the apply(s). MUST be captured immediately after each
+          # pipeline: `${PIPESTATUS[0]}` only describes the MOST RECENT pipeline, so
+          # reading it once after the loop reports only the LAST module. That silently
+          # shipped a broken deploy on 2026-08-04 — `ecs-task` died on a state lock,
+          # `ecs-service` then succeeded with "No changes", PIPESTATUS[0] was 0, and
+          # the workflow went GREEN while ECS kept serving the previous image.
+          exit_code=0
+
           # If modules are specified, apply each targeted unit directory.
           # A module entry may be a bare name (region-relative -> region/$REGION/$MODULE)
           # OR a path containing "/" (relative to live/site, e.g. "global/cloudfront")
@@ -189,17 +197,25 @@ jobs:
               fi
               echo "=== Applying $DIR ${TG_APPLY_EXTRA[*]} ==="
               (cd "$DIR" && terragrunt apply --no-color --non-interactive "${TG_APPLY_EXTRA[@]}" -auto-approve) 2>&1 | tee -a apply_output.txt
+              module_exit=${PIPESTATUS[0]}
+              # Remember the first failure but keep going, so the job summary still
+              # reports every module rather than stopping at the first broken one.
+              if [[ "$module_exit" -ne 0 ]]; then
+                echo "::error::terragrunt apply FAILED for $DIR (exit $module_exit)"
+                [[ "$exit_code" -eq 0 ]] && exit_code=$module_exit
+              fi
             done
           # If only region specified, apply all in that region
           elif [[ -n "$REGION" ]]; then
             echo "Applying all modules in region [$REGION]..."
             (cd "region/$REGION" && terragrunt run apply --all --no-color --non-interactive -- -auto-approve) 2>&1 | tee apply_output.txt
+            exit_code=${PIPESTATUS[0]}
           # Otherwise apply everything
           else
             echo "Applying all modules in all regions..."
             terragrunt run apply --all --no-color --non-interactive -- -auto-approve 2>&1 | tee apply_output.txt
+            exit_code=${PIPESTATUS[0]}
           fi
-          exit_code=${PIPESTATUS[0]}
 
           # Truncate if too long for summary (max ~65k chars)
           if [ $(wc -c < apply_output.txt) -gt 60000 ]; then
