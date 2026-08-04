@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useState } from "react";
 import type { FlashProgress } from "@/types/serial";
 import type { DeviceHardware, DeviceFamily } from "@/types/device";
 import { getDeviceFamily } from "@/types/device";
@@ -63,7 +63,16 @@ export function useFlash(): UseFlashReturn {
   // isFlashing / isComplete / isError reflect the correct delegate. Defaults
   // to "esp32" — both delegates begin at INITIAL_FLASH_PROGRESS so the
   // pre-first-call state is family-neutral.
-  const activeFamilyRef = useRef<DeviceFamily>("esp32");
+  //
+  // This MUST be state, not a ref. It is read during render to choose which
+  // delegate to expose, and a ref write does not schedule a re-render — so
+  // after dispatching to a different family the UI kept rendering the PREVIOUS
+  // family's progress/isComplete/isError until some unrelated update happened
+  // to re-render it. Switching from an ESP32 flash to an nRF52 one (or back)
+  // could therefore surface the wrong device's outcome. Reading a mutable ref
+  // during render also makes the render impure, which React's concurrent
+  // rendering and StrictMode double-render are free to tear on.
+  const [activeFamily, setActiveFamily] = useState<DeviceFamily>("esp32");
 
   const flash = useCallback(
     async (
@@ -73,7 +82,9 @@ export function useFlash(): UseFlashReturn {
       version?: string
     ) => {
       const family = getDeviceFamily(device);
-      activeFamilyRef.current = family;
+      // Schedules a re-render, so the exposed delegate switches at dispatch
+      // time rather than whenever the next unrelated render happens to land.
+      setActiveFamily(family);
       if (family === "esp32") {
         return esp32.flash(transport as ESPLoader, device, appendLog, version);
       }
@@ -87,7 +98,7 @@ export function useFlash(): UseFlashReturn {
     nrf52.reset();
   }, [esp32, nrf52]);
 
-  const active = activeFamilyRef.current === "esp32" ? esp32 : nrf52;
+  const active = activeFamily === "esp32" ? esp32 : nrf52;
 
   return {
     progress: active.progress,
