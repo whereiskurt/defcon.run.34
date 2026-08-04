@@ -5,11 +5,11 @@ import type { DeviceConfigPayload } from "@/types/config";
 const payload: DeviceConfigPayload = {
   mqtt: { server: "mqtt.defcon.run", port: 4433, username: "abc123", password: "s3cret", tls: true, root: "msh/US" },
   channels: [
-    { name: "dc.run", psk: "Wjt8kzHci9lqdS4tBzSF2VbQd86u6U3nhHaBl7V5TGE=", role: "PRIMARY", positionPrecision: 32 },
-    { name: "DEFCONnect", psk: "OEu8wB3AItGBvza4YSHh+5a3LlW/dCJ+nWr7SNZMsaE=", role: "SECONDARY", positionPrecision: 14 },
-    { name: "HackerComms", psk: "6IzsaoVhx1ETWeWuu0dUWMLqItvYJLbRzwgTAKCfvtY=", role: "SECONDARY", positionPrecision: 0 },
-    { name: "NodeChat", psk: "TiIdi8MJG+IRnIkS8iUZXRU+MHuGtuzEasOWXp4QndU=", role: "SECONDARY", positionPrecision: 0 },
-    { name: "LongFast", psk: "AQ==", role: "SECONDARY", positionPrecision: 0 },
+    { name: "dc.run", psk: "Wjt8kzHci9lqdS4tBzSF2VbQd86u6U3nhHaBl7V5TGE=", role: "PRIMARY", positionPrecision: 32, uplinkEnabled: true, downlinkEnabled: true },
+    { name: "DEFCONnect", psk: "OEu8wB3AItGBvza4YSHh+5a3LlW/dCJ+nWr7SNZMsaE=", role: "SECONDARY", positionPrecision: 14, uplinkEnabled: false, downlinkEnabled: false },
+    { name: "HackerComms", psk: "6IzsaoVhx1ETWeWuu0dUWMLqItvYJLbRzwgTAKCfvtY=", role: "SECONDARY", positionPrecision: 0, uplinkEnabled: false, downlinkEnabled: false },
+    { name: "NodeChat", psk: "TiIdi8MJG+IRnIkS8iUZXRU+MHuGtuzEasOWXp4QndU=", role: "SECONDARY", positionPrecision: 0, uplinkEnabled: false, downlinkEnabled: false },
+    { name: "LongFast", psk: "AQ==", role: "SECONDARY", positionPrecision: 0, uplinkEnabled: false, downlinkEnabled: false },
   ],
   identity: { longName: "rabbit_abc1", shortName: "RABB" },
   radio: { region: "US", modemPreset: "SHORT_TURBO", channelNum: 31, hopLimit: 3 },
@@ -33,6 +33,15 @@ describe("toReadableText", () => {
       expect(txt).toContain(v);
     }
     expect(txt).toMatch(/TLS:\s*on/i);
+  });
+
+  it("shows MQTT uplink/downlink on for dc.run and off for every other channel", () => {
+    const blocks = toReadableText(payload).split(/ {2}Channel \d+ \(/).slice(1);
+    expect(blocks).toHaveLength(5);
+    expect(blocks[0]).toContain("MQTT uplink: on   MQTT downlink: on");
+    for (const b of blocks.slice(1)) {
+      expect(b).toContain("MQTT uplink: off   MQTT downlink: off");
+    }
   });
 });
 
@@ -58,6 +67,16 @@ describe("toCliScript", () => {
     expect(sh).toContain("--set-owner 'rabbit_abc1'");
     expect(sh).toContain("--set-ringtone 'ax:d=4,o=5,b=100:8g,8g'");
     expect(sh).toMatch(/keep this file private/i);
+  });
+
+  it("sets uplink/downlink true only on channel 0", () => {
+    const sh = toCliScript(payload);
+    expect(sh).toContain("--ch-set uplink_enabled true --ch-set downlink_enabled true --ch-index 0");
+    for (const i of [1, 2, 3, 4]) {
+      expect(sh).toContain(
+        `--ch-set uplink_enabled false --ch-set downlink_enabled false --ch-index ${i}`
+      );
+    }
   });
 
   it("single-quote-escapes embedded quotes safely", () => {

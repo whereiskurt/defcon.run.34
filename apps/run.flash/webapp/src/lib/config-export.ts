@@ -20,6 +20,7 @@ export function toReadableText(p: DeviceConfigPayload): string {
       `    Name: ${c.name}`,
       `    PSK (base64): ${c.psk}`,
       `    Position precision: ${c.positionPrecision ?? 0} (32=exact, 0=off)`,
+      `    MQTT uplink: ${c.uplinkEnabled ? "on" : "off"}   MQTT downlink: ${c.downlinkEnabled ? "on" : "off"}`,
     ].join("\n");
   return [
     `DEF CON run — Meshtastic manual setup`,
@@ -94,6 +95,7 @@ export function toCliScript(p: DeviceConfigPayload): string {
     lines.push(
       `meshtastic --ch-set name ${q(c.name)} --ch-set psk ${q(`base64:${c.psk}`)} --ch-index ${i}`,
       `meshtastic --ch-set module_settings.position_precision ${c.positionPrecision ?? 0} --ch-index ${i}`,
+      `meshtastic --ch-set uplink_enabled ${!!c.uplinkEnabled} --ch-set downlink_enabled ${!!c.downlinkEnabled} --ch-index ${i}`,
     );
   });
   return lines.join("\n") + "\n";
