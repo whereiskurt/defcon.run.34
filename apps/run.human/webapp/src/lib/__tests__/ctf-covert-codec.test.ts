@@ -40,6 +40,21 @@ describe("sao splash covert payload (pinned — keep infra site.hcl covert_v in 
   });
 });
 
+/**
+ * The secret red KPH payphone in run.gpx's studio map hardcodes its covert `v`
+ * (apps/run.gpx/gpx-studio/website/src/lib/components/map/kph-egg.ts) — a
+ * separate app + bundle, so it can't import this module. This golden pins it.
+ * Revealing the booth (type or search "kph") fires it for 250 points.
+ */
+const KPH_PHONE_COVERT_V = "519304316278516300587786913994762451";
+
+describe("kph payphone covert payload (pinned — keep run.gpx kph-egg.ts in sync)", () => {
+  it("encodeFlag('kph-phone','kph') matches the value the studio hardcodes", () => {
+    expect(encodeFlag("kph-phone", "kph")).toBe(KPH_PHONE_COVERT_V);
+    expect(decodeFlag(KPH_PHONE_COVERT_V)).toEqual({ challenge: "kph-phone", guess: "kph" });
+  });
+});
+
 // Valid (challenge, guess) pairs spanning ascii, unicode, digits, spaces, empty.
 const PAIRS: Array<{ challenge: string; guess: string }> = [
   { challenge: "dc34-egg", guess: "1337" },

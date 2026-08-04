@@ -9,6 +9,7 @@ import { ARCH_SEARCH_WORDS } from './rainbow-geometry';
 import { coffeeUnlocked } from '$lib/stores/coffee';
 import { toggleDeuce } from '$lib/stores/deuce';
 import { togglePayphones } from '$lib/stores/payphone';
+import { toggleKph } from '$lib/stores/kph';
 import { installBands } from './z-bands';
 
 const { treeFileView, elevationProfile, bottomPanelSize, rightPanelSize, distanceUnits } = settings;
@@ -109,6 +110,9 @@ export class MapboxGLMap {
                     // PayPhones: phreak keywords toggle the hidden booths
                     // (mobile-friendly twin of the #-#-# gesture).
                     if (/\b(2600|phones?|1800)\b/i.test(query)) togglePayphones();
+                    // The secret red LVCC booth answers ONLY to "kph" — kept
+                    // out of the phreak-keyword set above on purpose.
+                    if (/\bkph\b/i.test(query)) toggleKph();
                     // Per-arch shortcuts: searching a keyword *toggles* that
                     // arch on/off (weed→NuWu, dd→Double Down, vegas→LV sign).
                     for (const [word, archId] of Object.entries(ARCH_SEARCH_WORDS)) {

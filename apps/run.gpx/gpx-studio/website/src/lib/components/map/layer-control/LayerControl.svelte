@@ -41,6 +41,8 @@
     import { fireDeuceEgg } from '$lib/components/map/deuce-egg';
     import { deuceShown } from '$lib/stores/deuce';
     import { payphonesShown } from '$lib/stores/payphone';
+    import { kphShown } from '$lib/stores/kph';
+    import { fireKphEgg } from '$lib/components/map/kph-egg';
     import { ghostMode } from '$lib/stores/ghost';
     import { rainbowUnlocked, forcedArchIds } from '$lib/stores/rainbow';
     import { coffeeUnlocked } from '$lib/stores/coffee';
@@ -360,6 +362,13 @@
         if (payPhone) payPhone.remove();
         payPhone = new PayPhone(_map);
         payphonesShown.subscribe((on) => payPhone?.setVisible(on));
+        // The secret red KPH booth at the LVCC: its own store (typed/searched
+        // "kph" only), and unlike the public booths the reveal DOES fire a
+        // covert award — kph-phone, 250pts, fire-once per load in kph-egg.ts.
+        kphShown.subscribe((on) => {
+            payPhone?.setSecretVisible(on);
+            if (on) fireKphEgg();
+        });
         coffeeUnlocked.subscribe((on) => {
             void coffeeCup?.setUnlocked(on);
             if (on) fireCoffeeEgg();
