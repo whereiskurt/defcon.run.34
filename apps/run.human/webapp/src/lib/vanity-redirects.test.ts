@@ -53,17 +53,23 @@ describe("loadVanityRedirects", () => {
     expect(all.find((r) => r.host === "g")!.targetUrl).toBe("https://q.defcon.run/g");
     expect(all.find((r) => r.host === "g")!.splash).toBe("ghost");
     expect(all.find((r) => r.host === "g")!.statusCode).toBe("HTTP_302");
+    // wired. is the fake-scoop troll — a "leaked DEF CON 34 bib" unfurl whose
+    // resolver code `w` lands on the rickroll. The rickroll is the punchline
+    // here, not a placeholder, so this row is not meant to be retargeted.
+    expect(all.find((r) => r.host === "wired")!.targetUrl).toBe("https://q.defcon.run/w");
+    expect(all.find((r) => r.host === "wired")!.splash).toBe("wired");
+    expect(all.find((r) => r.host === "wired")!.statusCode).toBe("HTTP_302");
   });
 
   it("returns hosts sorted by priority", () => {
     const hosts = all.map((r) => r.host);
-    expect(hosts).toEqual(["r", "h", "sao", "donate", "b", "f", "p", "g"]);
+    expect(hosts).toEqual(["r", "h", "sao", "donate", "b", "f", "p", "g", "wired"]);
   });
 
   it("uses only splash styles Terraform knows how to render", () => {
     // splash_style selects a template in cloudfront-redirect/assets — an unknown
     // value silently falls back to the hackers splash.
-    const known = new Set(["hackers", "countdown", "bib", "flash", "phone", "ghost"]);
+    const known = new Set(["hackers", "countdown", "bib", "flash", "phone", "ghost", "wired"]);
     for (const r of all) expect(known.has(r.splash), `splash ${r.splash}`).toBe(true);
   });
 
