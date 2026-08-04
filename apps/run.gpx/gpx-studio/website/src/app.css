@@ -198,6 +198,37 @@
 .dc34-rabbit-grid dt { color: #8a8aa0; }
 .dc34-rabbit-grid dd { margin: 0; color: #e4e4ef; font-variant-numeric: tabular-nums; }
 
+/* B-Sides shuttle popup — same dark card as the rabbit popup, livery-dot header. */
+.dc34-shuttle-popup.mapboxgl-popup .mapboxgl-popup-content {
+    background: #14141c;
+    color: #e4e4ef;
+    border: 1px solid #2a2a3a;
+    border-radius: 8px;
+    padding: 10px 12px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+}
+.dc34-shuttle-popup.mapboxgl-popup .mapboxgl-popup-close-button { color: #e4e4ef; font-size: 16px; padding: 2px 6px; }
+.dc34-shuttle-popup.mapboxgl-popup-anchor-top .mapboxgl-popup-tip { border-bottom-color: #14141c; }
+.dc34-shuttle-popup.mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip { border-top-color: #14141c; }
+.dc34-shuttle-popup.mapboxgl-popup-anchor-left .mapboxgl-popup-tip { border-right-color: #14141c; }
+.dc34-shuttle-popup.mapboxgl-popup-anchor-right .mapboxgl-popup-tip { border-left-color: #14141c; }
+.dc34-shuttle-head { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.dc34-shuttle-dot { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 6px currentColor; }
+.dc34-shuttle-sub { color: #8a8aa0; font-size: 10px; margin: 2px 0 7px; }
+.dc34-shuttle-grid { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; font-size: 11px; }
+.dc34-shuttle-grid dt { color: #8a8aa0; }
+.dc34-shuttle-grid dd { margin: 0; color: #e4e4ef; font-variant-numeric: tabular-nums; }
+.dc34-shuttle-more {
+    margin-top: 8px;
+    background: none;
+    border: none;
+    padding: 0;
+    color: #8ab4f8;
+    font-size: 10px;
+    cursor: pointer;
+}
+.dc34-shuttle-more:hover { text-decoration: underline; }
+
 /* Deuce stop popup content — rides the dc34-route-popup dark card; RTC livery. */
 .dc34-deuce-stop { display: flex; flex-direction: column; gap: 3px; }
 .dc34-deuce-stop strong { color: #ffd200; font-size: 13px; }

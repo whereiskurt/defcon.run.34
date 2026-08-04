@@ -16,6 +16,7 @@
     import { toggleDeuce } from '$lib/stores/deuce';
     import { togglePayphones } from '$lib/stores/payphone';
     import { toggleKph } from '$lib/stores/kph';
+    import { toggleShuttles } from '$lib/stores/shuttle';
     import { ARCH_SEARCH_WORDS } from '$lib/components/map/rainbow-geometry';
 
     let keyBuf: number[] = [];
@@ -47,6 +48,13 @@
                 // mobile). Independent of the public #-#-# booth reveal.
                 if (typed.endsWith('kph')) {
                     toggleKph();
+                    typed = '';
+                }
+                // Type "bsides" anywhere → toggle the live BSides Las Vegas
+                // shuttle layer (desktop twin of the geocoder `bsides`/`shuttle`
+                // search, which covers mobile).
+                if (typed.endsWith('bsides')) {
+                    toggleShuttles();
                     typed = '';
                 }
             }

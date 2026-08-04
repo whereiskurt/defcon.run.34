@@ -40,6 +40,9 @@
     import { DeuceLayer } from '$lib/components/map/deuce-layer';
     import { fireDeuceEgg } from '$lib/components/map/deuce-egg';
     import { deuceShown } from '$lib/stores/deuce';
+    import { ShuttleLayer } from '$lib/components/map/shuttle-layer';
+    import { fireShuttleEgg } from '$lib/components/map/shuttle-egg';
+    import { shuttlesShown } from '$lib/stores/shuttle';
     import { payphonesShown } from '$lib/stores/payphone';
     import { kphShown } from '$lib/stores/kph';
     import { fireKphEgg } from '$lib/components/map/kph-egg';
@@ -89,6 +92,7 @@
     let theSpot: TheSpot | undefined;
     let payPhone: PayPhone | undefined;
     let deuceLayer: DeuceLayer | undefined;
+    let shuttleLayer: ShuttleLayer | undefined;
 
     // Task 8 (popup -> day-assign bridge): the file whose con-day assign
     // dialog is open, opened from a run-track popup's "Add as accomplishment"
@@ -381,6 +385,17 @@
         deuceShown.subscribe((on) => {
             void deuceLayer?.setVisible(on);
             if (on) fireDeuceEgg();
+        });
+        // BSides Las Vegas shuttles: hidden live-fleet layer (search "bsides" /
+        // "shuttle", or type "bsides"). Unlike the Deuce next door nothing here
+        // is simulated — it polls the real fleet through the run.gpx proxy. Each
+        // reveal fires the covert bsides-shuttle egg (fire-once per load guard in
+        // shuttle-egg.ts). Same single-subscription safety as ghostMode above.
+        if (shuttleLayer) shuttleLayer.remove();
+        shuttleLayer = new ShuttleLayer(_map);
+        shuttlesShown.subscribe((on) => {
+            void shuttleLayer?.setVisible(on);
+            if (on) fireShuttleEgg();
         });
         let first = true;
         _map.on('style.import.load', () => {
