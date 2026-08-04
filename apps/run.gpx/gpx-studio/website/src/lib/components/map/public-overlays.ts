@@ -21,6 +21,7 @@ import {
 } from '$lib/stores/layer-visibility';
 import { requestedLayers } from '$lib/stores/layer-url';
 import { addInBand } from '$lib/components/map/z-bands';
+import { RouteHitRouter } from './route-hit';
 import {
     coreWidth,
     glowWidth,
@@ -452,9 +453,18 @@ export class PublicOverlaysLayer {
     private listeners: { id: string; type: 'click' | 'mouseenter' | 'mouseleave' | 'mousemove'; fn: any }[] = [];
     // fileId -> [[minLon,minLat],[maxLon,maxLat]] for fit-on-toggle (Kurt 2026-07-04).
     private routeBounds = new Map<string, [[number, number], [number, number]]>();
+    /** Radius-based click routing for the thin route lines — see route-hit.ts. */
+    private routeHits: RouteHitRouter;
 
     constructor(map: mapboxgl.Map) {
         this.map = map;
+        // Pins outrank routes at the exact click point, so tapping a POI or a
+        // check-in that happens to sit on a route still opens the pin's popup.
+        this.routeHits = new RouteHitRouter(map, () => [
+            CHECKINS_PIN_LAYER,
+            CHECKINS_CLUSTER_LAYER,
+            ...getGroupsSnapshot().flatMap((g) => g.maps.map((m) => poiLayerId(m.fileId))),
+        ]);
         this.popup = new mapboxgl.Popup({
             closeButton: true,
             closeOnClick: true,
@@ -1152,12 +1162,15 @@ export class PublicOverlaysLayer {
                     this.map.getCanvas().style.cursor = '';
                     this.hoverPopup.remove();
                 };
-                this.map.on('click', core, onClick);
+                // Click goes through the radius router, NOT `map.on('click', core)`:
+                // the core line is only 3-8px wide, far under the 44px touch target.
+                // Hover stays bound to the line itself — it is a desktop-only cue and
+                // a radius-based hover would fire far from anything the pointer is on.
+                this.routeHits.register(core, onClick);
                 this.map.on('mouseenter', core, onEnter);
                 this.map.on('mousemove', core, onMove);
                 this.map.on('mouseleave', core, onLeave);
                 this.listeners.push(
-                    { id: core, type: 'click', fn: onClick },
                     { id: core, type: 'mouseenter', fn: onEnter },
                     { id: core, type: 'mousemove', fn: onMove },
                     { id: core, type: 'mouseleave', fn: onLeave }
@@ -1374,6 +1387,7 @@ export class PublicOverlaysLayer {
         try {
             for (const l of this.listeners) this.map.off(l.type, l.id, l.fn);
             this.listeners = [];
+            this.routeHits.destroy();
             this.popup.remove();
             this.hoverPopup.remove();
             for (const group of getGroupsSnapshot()) {
