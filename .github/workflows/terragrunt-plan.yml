@@ -135,6 +135,13 @@ jobs:
           REGION="${{ inputs.region }}"
           MODULES="${{ inputs.modules }}"
 
+          # Real exit status of the plan(s). MUST be captured immediately after each
+          # pipeline: `${PIPESTATUS[0]}` only describes the MOST RECENT pipeline, so
+          # reading it once after the loop reports only the LAST module and a failure
+          # in any earlier one is silently swallowed. (Same defect fixed in
+          # terragrunt-apply.yml, where it shipped a broken deploy on 2026-08-04.)
+          exit_code=0
+
           # If specific region and modules, plan each module directory
           if [[ -n "$REGION" && -n "$MODULES" ]]; then
             echo "Planning modules [$MODULES] in region [$REGION]..."
@@ -143,17 +150,25 @@ jobs:
               MODULE=$(echo "$MODULE" | xargs)  # trim whitespace
               echo "=== Planning $MODULE in $REGION ==="
               (cd "region/$REGION/$MODULE" && terragrunt plan --no-color) 2>&1 | tee -a plan_output.txt
+              module_exit=${PIPESTATUS[0]}
+              # Remember the first failure but keep going, so the PR comment still
+              # covers every module rather than stopping at the first broken one.
+              if [[ "$module_exit" -ne 0 ]]; then
+                echo "::error::terragrunt plan FAILED for region/$REGION/$MODULE (exit $module_exit)"
+                [[ "$exit_code" -eq 0 ]] && exit_code=$module_exit
+              fi
             done
           # If only region specified, plan all in that region
           elif [[ -n "$REGION" ]]; then
             echo "Planning all modules in region [$REGION]..."
             (cd "region/$REGION" && terragrunt run plan --all --no-color) 2>&1 | tee plan_output.txt
+            exit_code=${PIPESTATUS[0]}
           # Otherwise plan everything
           else
             echo "Planning all modules in all regions..."
             terragrunt run plan --all --no-color 2>&1 | tee plan_output.txt
+            exit_code=${PIPESTATUS[0]}
           fi
-          exit_code=${PIPESTATUS[0]}
 
           # Truncate if too long for PR comment (max ~65k chars)
           if [ $(wc -c < plan_output.txt) -gt 60000 ]; then

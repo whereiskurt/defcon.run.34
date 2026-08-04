@@ -34,8 +34,6 @@
     "util": "^0.12.5"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.4",
-    "vitest": "^4.0.18",
     "@tailwindcss/postcss": "^4.2.1",
     "@types/node": "^25.3.2",
     "@types/react": "^19.2.14",
@@ -45,6 +43,7 @@
     "eslint": "^9.39.3",
     "eslint-config-next": "^16.1.6",
     "tailwindcss": "^4.2.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
   }
 }
