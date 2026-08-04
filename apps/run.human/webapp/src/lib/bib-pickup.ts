@@ -1,12 +1,22 @@
 import { getBibForPickup, type BibForPickup } from "@/entities/bib";
+import { BibPickupPass } from "@/entities/social";
 import { judgeSolve, defaultStore } from "@/lib/ctf-judge";
 
 /**
- * Bib pickup — the first self-scan.
+ * Bib pickup — the first self-scan, AFTER an operator has primed the bib.
  *
- * At the pickup table a runner says their bib, a volunteer shows it to them,
- * and then the runner scans it. If the scan resolves to their OWN QR and this
- * is the first time, the bib is theirs: render it and award the pickup.
+ * Two scans by two people:
+ *   1. PRIME — an operator (QR_ADMIN_GROUPS) scans the runner's bib QR. That is
+ *      an ordinary social scan that additionally mints a durable BibPickupPass
+ *      (see lib/social-scan.ts). Bibs are primed in bulk the day before the con.
+ *   2. REDEEM — the runner scans their OWN QR. The pass is what unlocks the bib
+ *      screen and the award.
+ *
+ * The pass gate was added 2026-08-04. Originally the first self-scan alone paid
+ * out, on the theory that a volunteer had just shown the runner their bib — but
+ * nothing actually required the volunteer, and four runners awarded themselves
+ * 200 by scanning their own QR out of curiosity. A self-scan on its own is now
+ * worth nothing.
  *
  * ── Why the CTF ledger pays the award ───────────────────────────────────────
  * The derived score is `runStreak + socialStreak + ctfStreak + flagPoints`, and
@@ -41,7 +51,8 @@ import { judgeSolve, defaultStore } from "@/lib/ctf-judge";
  *   - the runner has no bib (nothing to pick up),
  *   - the `bib-pickup` Ctf row is unseeded or disabled (judgeSolve non-solve),
  *   - they already picked up (the explicit first-ness check above),
- *   - the bib read or the ledger read throws.
+ *   - NO operator has primed their bib (the pass gate),
+ *   - the bib read, the ledger read, or the pass read throws.
  * A missing seed row therefore means the feature is dormant, NOT that scanning
  * breaks. Seeding is still part of shipping: until the row exists, nobody can
  * ever see the screen.
@@ -66,6 +77,7 @@ export async function judgeBibPickup(
     loadBib?: typeof getBibForPickup;
     solve?: typeof judgeSolve;
     hasScoreFor?: (a: { challenge: string; user: string }) => Promise<boolean>;
+    hasPass?: (userId: string) => Promise<boolean>;
   } = {}
 ): Promise<BibPickupAward | null> {
   const loadBib = deps.loadBib ?? getBibForPickup;
@@ -73,6 +85,10 @@ export async function judgeBibPickup(
   const hasScoreFor =
     deps.hasScoreFor ??
     ((a) => defaultStore.hasScoreFor!(a));
+  const hasPass =
+    deps.hasPass ??
+    (async (u: string) =>
+      Boolean((await BibPickupPass.get({ userId: u }).go()).data));
 
   try {
     const bib = await loadBib(userId);
@@ -85,6 +101,13 @@ export async function judgeBibPickup(
     if (await hasScoreFor({ challenge: BIB_PICKUP_CHALLENGE, user: userId })) {
       return null;
     }
+
+    // THE GUARD: an operator must have primed this bib first (they scanned the
+    // runner's QR at the table, minting a BibPickupPass). Without it a runner
+    // awards themselves 200 by scanning their own QR — which four of them did
+    // before this existed. Ordered AFTER first-ness so someone who already
+    // collected gets the ordinary message whether or not they were re-primed.
+    if (!(await hasPass(userId))) return null;
 
     const result = await solve(
       {

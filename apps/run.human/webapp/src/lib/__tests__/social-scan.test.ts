@@ -30,6 +30,9 @@ function makeFakeStore(users: SocialUser[]) {
       points: number;
     }>,
     deltas: [] as Array<[number, number]>,
+    passes: [] as Array<{ userId: string; grantedBy: string }>,
+    bibs: new Map<string, "none" | "ready" | "picked_up">(),
+    bibReads: [] as string[],
     byToken,
     byHash,
   };
@@ -64,6 +67,13 @@ function makeFakeStore(users: SocialUser[]) {
     },
     async scoreDelta(oldScore, newScore) {
       state.deltas.push([oldScore, newScore]);
+    },
+    async bibStatus(userId) {
+      state.bibReads.push(userId);
+      return state.bibs.get(userId) ?? "none";
+    },
+    async mintPickupPass(userId, grantedBy) {
+      state.passes.push({ userId, grantedBy });
     },
   };
 
@@ -228,5 +238,115 @@ describe("judgeScan", () => {
       fake.store
     );
     expect(result).toEqual({ ok: false, code: "not_found" });
+  });
+});
+
+/**
+ * Bib priming (2026-08-04). An operator scanning a runner's bib QR leaves a
+ * durable BibPickupPass so the runner's LATER self-scan can redeem the 200.
+ *
+ * The load-bearing case is "THE 409 TRAP" below. SocialPair burns an unordered
+ * pair for the whole PT day, so if minting only happened on the success path,
+ * an operator re-scanning a bib they already scanned today would mint NOTHING
+ * and that runner could never redeem. Priming must be repeatable even though
+ * the social pair is not — which is why the mint sits BEFORE the pair claim.
+ */
+describe("judgeScan — bib priming", () => {
+  let fake: ReturnType<typeof makeFakeStore>;
+
+  beforeEach(() => {
+    fake = makeFakeStore([
+      { userId: "scanner", displayName: "Scanner", socialScore: 3 },
+      { userId: "owner", displayName: "Bunny", socialScore: 7 },
+    ]);
+    fake.state.byToken.set(TOKEN, {
+      userId: "owner",
+      displayName: "Bunny",
+      socialScore: 7,
+    });
+  });
+
+  const prime = () =>
+    judgeScan(
+      { scannerId: "scanner", token: TOKEN, nowMs: NOW, operator: true },
+      fake.store
+    );
+
+  it("an operator scanning a bib-holder mints a pass and reports bib:ready", async () => {
+    fake.state.bibs.set("owner", "ready");
+    const result = await prime();
+
+    expect(result).toMatchObject({ ok: true, bibStatus: "ready" });
+    expect(fake.state.passes).toEqual([
+      { userId: "owner", grantedBy: "scanner" },
+    ]);
+  });
+
+  it("THE 409 TRAP: a same-day re-scan still mints and still reports bib:ready", async () => {
+    fake.state.bibs.set("owner", "ready");
+    await prime();
+    const second = await prime();
+
+    expect(second).toMatchObject({
+      ok: false,
+      code: "already_today",
+      bibStatus: "ready",
+      ownerName: "Bunny",
+    });
+    expect(fake.state.passes).toHaveLength(2);
+  });
+
+  it("reports picked_up and mints NOTHING for a runner who already collected", async () => {
+    fake.state.bibs.set("owner", "picked_up");
+    const result = await prime();
+
+    expect(result).toMatchObject({ ok: true, bibStatus: "picked_up" });
+    expect(fake.state.passes).toEqual([]);
+  });
+
+  it("mints nothing and reports no bib for a runner with no bib", async () => {
+    const result = await prime();
+
+    expect(result).toMatchObject({ ok: true });
+    expect((result as { bibStatus?: string }).bibStatus).toBeUndefined();
+    expect(fake.state.passes).toEqual([]);
+  });
+
+  it("a NON-operator never mints, and never even reads bib status", async () => {
+    fake.state.bibs.set("owner", "ready");
+    await judgeScan(
+      { scannerId: "scanner", token: TOKEN, nowMs: NOW },
+      fake.store
+    );
+
+    expect(fake.state.passes).toEqual([]);
+    // Ordinary runner-to-runner scans must pay nothing extra on the hot path.
+    expect(fake.state.bibReads).toEqual([]);
+  });
+
+  it("an operator self-scan mints nothing — self is rejected before the mint", async () => {
+    fake.state.byToken.set(TOKEN, { userId: "scanner" });
+    fake.state.bibs.set("scanner", "ready");
+    const result = await prime();
+
+    expect(result).toEqual({ ok: false, code: "self" });
+    expect(fake.state.passes).toEqual([]);
+    expect(fake.state.bibReads).toEqual([]);
+  });
+
+  it("a priming failure never fails the scan itself", async () => {
+    fake.state.bibs.set("owner", "ready");
+    const broken = {
+      ...fake.store,
+      bibStatus: async () => {
+        throw new Error("dynamo is having a day");
+      },
+    };
+    const result = await judgeScan(
+      { scannerId: "scanner", token: TOKEN, nowMs: NOW, operator: true },
+      broken
+    );
+
+    expect(result).toMatchObject({ ok: true, ownerId: "owner" });
   });
 });

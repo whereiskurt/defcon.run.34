@@ -13,6 +13,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  */
 
 vi.mock("@/entities/bib", () => ({ getBibForPickup: vi.fn() }));
+vi.mock("@/entities/social", () => ({ BibPickupPass: { get: vi.fn() } }));
 vi.mock("@/lib/ctf-judge", () => ({
   judgeSolve: vi.fn(),
   defaultStore: { hasScoreFor: vi.fn() },
@@ -26,14 +27,16 @@ const BIB = { runnerCode: "BIB-RXRN", nameOnBib: "KPHKPH2", hasSponsored: true }
 let loadBib: any;
 let solve: any;
 let hasScoreFor: any;
+let hasPass: any;
 
 const run = (userId = "me-uuid") =>
-  judgeBibPickup(userId, { loadBib, solve, hasScoreFor });
+  judgeBibPickup(userId, { loadBib, solve, hasScoreFor, hasPass });
 
 beforeEach(() => {
   loadBib = vi.fn().mockResolvedValue(BIB);
   solve = vi.fn().mockResolvedValue({ solved: true, points: 200 });
   hasScoreFor = vi.fn().mockResolvedValue(false);
+  hasPass = vi.fn().mockResolvedValue(true);
 });
 
 describe("judgeBibPickup", () => {
@@ -84,6 +87,40 @@ describe("judgeBibPickup", () => {
   it("degrades to null when the ledger read throws", async () => {
     hasScoreFor.mockRejectedValue(new Error("nope"));
     await expect(run()).resolves.toBeNull();
+  });
+
+  /**
+   * The operator-primed pass (2026-08-04). Before this gate a runner could
+   * award themselves 200 by scanning their own QR out of curiosity, which four
+   * of them did. The award is meant to prove a volunteer handed over a bib, so
+   * a self-scan alone must now be worth nothing.
+   */
+  it("THE GUARD: an unprimed self-scan awards NOTHING", async () => {
+    hasPass.mockResolvedValue(false);
+    expect(await run()).toBeNull();
+    expect(solve).not.toHaveBeenCalled();
+  });
+
+  it("awards once an operator has primed the bib", async () => {
+    hasPass.mockResolvedValue(true);
+    expect(await run()).toEqual({ points: 200, bib: BIB });
+  });
+
+  it("first-ness still wins over a live pass — re-primed but already collected", async () => {
+    hasScoreFor.mockResolvedValue(true);
+    hasPass.mockResolvedValue(true);
+    expect(await run()).toBeNull();
+    expect(solve).not.toHaveBeenCalled();
+  });
+
+  it("degrades to null when the pass read throws", async () => {
+    hasPass.mockRejectedValue(new Error("dynamo is having a day"));
+    await expect(run()).resolves.toBeNull();
+  });
+
+  it("checks the pass for the CALLER", async () => {
+    await run("someone-else");
+    expect(hasPass).toHaveBeenCalledWith("someone-else");
   });
 
   it("checks first-ness for the CALLER, against the pickup challenge only", async () => {

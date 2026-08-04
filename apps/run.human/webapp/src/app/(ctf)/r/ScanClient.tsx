@@ -30,6 +30,8 @@ type ScanState =
   | { phase: "loading" }
   | { phase: "success"; ownerName: string; remainingToday: number }
   | { phase: "pickup"; bib: BibPickup; points: number }
+  /** Operator primed someone's bib (or found it already collected). */
+  | { phase: "primed"; ownerName: string; collected: boolean }
   | { phase: "error"; code: string; message: string };
 
 /**
@@ -72,6 +74,15 @@ export default function ScanClient({ mode, p, h }: Props) {
         // before the generic res.ok branch or it would render as "connected".
         if (res.ok && json.code === "bib_pickup") {
           setState({ phase: "pickup", bib: json.bib, points: json.points ?? 0 });
+        } else if (res.ok && json.bibStatus) {
+          // Operator primed a bib. Also covers code:"bib_ready" (the social pair
+          // was already spent today) — priming worked, so this must not render
+          // as the ordinary "already connected" error.
+          setState({
+            phase: "primed",
+            ownerName: json.ownerName ?? "runner",
+            collected: json.bibStatus === "picked_up",
+          });
         } else if (res.ok) {
           setState({
             phase: "success",
@@ -140,6 +151,20 @@ export default function ScanClient({ mode, p, h }: Props) {
                 "This is your bib - show this screen to the volunteer."
               )}
             />
+          ) : state.phase === "primed" ? (
+            <>
+              <p className="text-4xl leading-none">
+                {state.collected ? "✅" : "🎽"}
+              </p>
+              <h2 className="font-museo text-2xl font-bold text-foreground">
+                {state.collected ? "Already picked up" : "Bib ready"}
+              </h2>
+              <p className="text-sm text-default-500 max-w-xs">
+                {state.collected
+                  ? `${state.ownerName} already collected their bib.`
+                  : `${state.ownerName} can now scan their own QR to pick up.`}
+              </p>
+            </>
           ) : state.phase === "success" ? (
             <>
               <p className="text-4xl leading-none">🐰🤝🐰</p>

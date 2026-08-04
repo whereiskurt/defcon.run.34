@@ -172,6 +172,16 @@ export default function QrScannerModal({
         setTally((t) => ({ ...t, ok: t.ok + 1 }));
         if (soundRef.current) playBeep(audioCtxRef, 'ok');
         flashNow('ok', `BIB PICKUP! · ${data.bib?.runnerCode ?? ''}`.trim());
+      } else if (res.ok && data.bibStatus) {
+        // Operator priming a bib. Covers BOTH a fresh pair and code:'bib_ready'
+        // (the pair was already spent today) — priming worked either way, so
+        // this must never render as a duplicate or an error.
+        setTally((t) => ({ ...t, ok: t.ok + 1 }));
+        if (soundRef.current) playBeep(audioCtxRef, 'ok');
+        flashNow(
+          'ok',
+          `${data.bibStatus === 'picked_up' ? 'ALREADY PICKED UP' : 'BIB READY'} · ${data.ownerName ?? 'runner'}`
+        );
       } else if (res.ok) {
         setTally((t) => ({ ...t, ok: t.ok + 1 }));
         if (soundRef.current) playBeep(audioCtxRef, 'ok');
