@@ -99,18 +99,50 @@ const FEED_DATE =
   /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})\s*(AM|PM)$/i;
 
 /**
- * Parse the feed's `date` field into epoch ms.
+ * Parse the feed's `date` field as a bare WALL CLOCK, epoch-ms as if it were UTC.
  *
- * The upstream stamp carries no timezone (`8/04/2026 12:45:00 PM`). The fleet is
- * in Las Vegas, so we read it as America/Los_Angeles wall-clock time, which also
- * gets DST right — reading it as UTC would put every summer fix an hour off from
- * every winter one.
+ * Only used by tests that need the raw stamp independent of any zone; the
+ * normalizer uses `parseFeedDate`, which applies FEED_TIME_ZONE.
+ */
+export function parseFeedWallMs(value: unknown): number | null {
+  return parseFeedDate(value, "UTC");
+}
+
+/**
+ * The zone the vendor stamps its `date` field in.
  *
- * Resolving a wall clock to an instant needs the offset, and the offset needs the
- * instant, so we iterate twice: the first pass lands within an hour, the second
+ * ⚠️ IT IS **NOT** LAS VEGAS TIME. The first cut assumed America/Los_Angeles
+ * because the fleet is in Vegas. Checked against the vendor's own HTTP `Date`
+ * header on 2026-08-05 — server clock 15:32:52 GMT, newest stamp "10:17:59 AM" —
+ * Pacific and Mountain are *impossible*: both put the fix in the FUTURE (by 1h45m
+ * and 45m). Only Central (age 15m) and Eastern (age 1h15m) are consistent.
+ *
+ * That bug mattered. Reading an Eastern stamp as Pacific made every fix look up
+ * to three hours NEWER than it was, so a bus dead all morning still rendered
+ * awake and "live".
+ *
+ * WHY EASTERN, given one sample cannot separate it from Central: it is the safe
+ * side of the remaining ambiguity. If the truth is Central, assuming Eastern
+ * under-adds an hour, so a fix reads an hour OLDER than it is — conservative, and
+ * it can never produce a future timestamp. Assuming Central when the truth is
+ * Eastern would do the opposite and make a dead bus look alive. The residual
+ * cost (a live bus possibly reading an hour stale) is neutralised in the layer,
+ * where a bus reporting real speed is never drawn asleep.
+ *
+ * To settle it for good: catch the feed while a bus is actively reporting and
+ * compare its stamp to the response `Date` header — a fix minutes old fits
+ * exactly one offset. Polling on 2026-08-05 could not, because the fleet was
+ * parked and the stamp never advanced.
+ */
+export const FEED_TIME_ZONE = "America/New_York";
+
+/**
+ * Parse a wall-clock stamp in an explicit zone. Kept for the UTC path above;
+ * resolving a wall clock to an instant needs the offset and the offset needs the
+ * instant, so we iterate twice — the first pass lands within an hour, the second
  * settles it (including across a DST boundary).
  */
-export function parseFeedDate(value: unknown, timeZone = "America/Los_Angeles"): number | null {
+export function parseFeedDate(value: unknown, timeZone = FEED_TIME_ZONE): number | null {
   if (typeof value !== "string") return null;
   const m = FEED_DATE.exec(value.trim());
   if (!m) return null;
@@ -184,6 +216,7 @@ function normalize(raw: unknown): GeoJSON.Feature | null {
     colorHex: color.hex,
     hdg,
     kmh: Math.max(0, finiteNumber(props.kmh, 0)),
+    // Wall clock only — the feed's offset is applied by the caller.
     lastFixMs: parseFeedDate(props.date),
   };
 
@@ -195,8 +228,17 @@ function normalize(raw: unknown): GeoJSON.Feature | null {
   };
 }
 
-/** Normalize the whole upstream payload. Total: never throws, never partial-fails. */
-export function shuttleFeatureCollection(raw: unknown): GeoJSON.FeatureCollection {
+/**
+ * Normalize the whole upstream payload. Total: never throws, never partial-fails.
+ *
+ * `serverNowMs` should be the vendor's own `Date` response header — it is the
+ * reference the future-clamp is measured against, and the vendor's clock is the
+ * honest one to compare its own stamps to. Defaults to our clock.
+ */
+export function shuttleFeatureCollection(
+  raw: unknown,
+  serverNowMs: number = Date.now(),
+): GeoJSON.FeatureCollection {
   const empty: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
   if (!raw || typeof raw !== "object") return empty;
   const fc = raw as { type?: unknown; features?: unknown };
@@ -204,8 +246,14 @@ export function shuttleFeatureCollection(raw: unknown): GeoJSON.FeatureCollectio
 
   const features: GeoJSON.Feature[] = [];
   for (const f of fc.features) {
-    const n = normalize(f);
-    if (n) features.push(n);
+    const d = normalize(f);
+    if (!d) continue;
+    const p = d.properties as unknown as ShuttleProperties;
+    // Belt and braces: a fix in the future is always a parsing artefact, never
+    // real, and it would make a dead bus immortal — never older than the stale
+    // threshold, so never drawn asleep.
+    if (p.lastFixMs !== null) p.lastFixMs = Math.min(p.lastFixMs, serverNowMs);
+    features.push(d);
   }
   return { type: "FeatureCollection", features };
 }

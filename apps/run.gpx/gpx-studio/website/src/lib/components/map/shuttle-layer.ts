@@ -58,11 +58,21 @@ export function zoomScale(zoom: number): number {
     return MIN + ((zoom - LO) / (HI - LO)) * (MAX - MIN);
 }
 
-/** Which face a bus wears, from its reported speed and fix age. */
+/**
+ * Which face a bus wears, from its reported speed and fix age.
+ *
+ * SPEED BEATS AGE. A bus reporting real movement is, self-evidently, not
+ * asleep — so it is never drawn asleep even if its stamp looks old. This is the
+ * safety net under the feed's timezone ambiguity: the vendor's stamps are not
+ * Las Vegas time and could still be an hour off (see FEED_TIME_ZONE in the
+ * webapp's bsides-shuttles.ts), and drawing a visibly-moving bus with its eyes
+ * shut would be the most obviously wrong thing on the map.
+ */
 export function faceFor(kmh: number, lastFixMs: number | null, nowMs: number): ShuttleFace {
+    if (kmh > 1) return 'moving';
     if (lastFixMs === null) return 'nofix';
     if (nowMs - lastFixMs > STALE_AFTER_MS) return 'sleeping';
-    return kmh > 1 ? 'moving' : 'parked';
+    return 'parked';
 }
 
 /**
@@ -122,6 +132,20 @@ export class ShuttleLayer {
     private buses = new Map<string, Bus>();
     private visible = false;
     private zoomFn: (() => void) | null = null;
+    private fitPending = false;
+
+    /**
+     * Frame the fleet once it has positions.
+     *
+     * WHY: a shared link cannot hardcode where the buses are. The first one did
+     * — Tuscany at z20 — and the morning B-Sides actually ran them, Shuttle1
+     * drove 2.4 km away and the link pointed at an empty car park. Only used
+     * when the URL names the layer but sets no explicit camera, so a link that
+     * DOES specify `#zoom/lat/lng` still wins.
+     */
+    requestFit() {
+        this.fitPending = true;
+    }
 
     constructor(map: mapboxgl.Map) {
         this.map = map;
@@ -261,6 +285,13 @@ export class ShuttleLayer {
             // A bus that dropped out of the feed entirely comes off the map.
             for (const [id, bus] of this.buses) {
                 if (!seen.has(id)) { bus.marker.remove(); this.buses.delete(id); }
+            }
+            if (this.fitPending && this.visible && this.buses.size > 0) {
+                this.fitPending = false;
+                const bounds = new mapboxgl.LngLatBounds();
+                for (const bus of this.buses.values()) bounds.extend(bus.marker.getLngLat());
+                // maxZoom so a single bus does not slam the camera to street level.
+                this.map.fitBounds(bounds, { padding: 140, maxZoom: 17, duration: 800 });
             }
             shuttleState.update((s) => ({ ...s, available: true, count: this.buses.size }));
         } catch (error) {

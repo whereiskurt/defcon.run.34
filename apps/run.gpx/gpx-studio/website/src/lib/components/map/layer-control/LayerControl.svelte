@@ -17,7 +17,12 @@
         DEFAULT_ON_FOLDER,
     } from '../public-overlays';
     import { LAYER, storedVisible, setLayerVisible } from '$lib/stores/layer-visibility';
-    import { requestedLayers, resolveRunnersVisible, resolveShuttlesLinked } from '$lib/stores/layer-url';
+    import {
+        requestedLayers,
+        resolveRunnersVisible,
+        resolveShuttlesLinked,
+        arrivedWithCamera,
+    } from '$lib/stores/layer-url';
     import { MyConRunsLayer, myConRunGroups } from '../my-con-runs';
     import { CommunityRoutesLayer, communityRoutes } from '../community-routes';
     import { HeatmapLayer, heatmapState } from '../heatmap-layer';
@@ -402,7 +407,13 @@
             void shuttleLayer?.setVisible(reveal !== false);
             if (reveal === 'earned') fireShuttleEgg();
         });
-        if (resolveShuttlesLinked(requestedLayers())) revealShuttlesFromLink();
+        if (resolveShuttlesLinked(requestedLayers())) {
+            // A bare ?layers=shuttles link frames whatever the fleet is doing
+            // right now; a link that names its own #zoom/lat/lng keeps it. Set
+            // BEFORE revealing, because revealing kicks off the first poll.
+            if (!arrivedWithCamera()) shuttleLayer.requestFit();
+            revealShuttlesFromLink();
+        }
         let first = true;
         _map.on('style.import.load', () => {
             if (!first) return;

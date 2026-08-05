@@ -136,6 +136,65 @@ describe("shuttle marker lifecycle (regression: silent no-buses)", () => {
   });
 });
 
+describe("shuttle deep-link framing", () => {
+  const lc = readFileSync(
+    join(__dirname, "../../../gpx-studio/website/src/lib/components/map/layer-control/LayerControl.svelte"),
+    "utf8",
+  );
+  const layer = read("shuttle-layer.ts");
+
+  it("frames the live fleet when the link sets no camera", () => {
+    // The buses move. A hardcoded centre goes stale the moment they leave the
+    // Tuscany — which is exactly what happened on the first morning of the con.
+    expect(lc).toContain("shuttleLayer.requestFit()");
+    expect(layer).toContain("this.map.fitBounds(bounds");
+  });
+
+  it("lets an explicit #zoom/lat/lng in the link win", () => {
+    expect(lc).toContain("if (!arrivedWithCamera()) shuttleLayer.requestFit();");
+  });
+
+  it("reads the ARRIVAL hash, not a live one the map rewrote", () => {
+    // gpx.studio replaceState()s the live camera into location.hash as soon as
+    // the map settles. Reading it inside a load handler therefore always looks
+    // like "the link named a camera", which silently killed the auto-fit.
+    const lu = readFileSync(
+      join(__dirname, "../../../gpx-studio/website/src/lib/stores/layer-url.ts"),
+      "utf8",
+    );
+    expect(lu).toContain("const ARRIVAL_HASH =");
+    expect(lu).toContain("export function arrivedWithCamera()");
+    // The snapshot must be taken at module scope, not inside the function.
+    expect(lu.indexOf("const ARRIVAL_HASH ="))
+      .toBeLessThan(lu.indexOf("export function arrivedWithCamera()"));
+    expect(lc).not.toContain("location.hash");
+  });
+
+  it("requests the fit BEFORE revealing, since revealing starts the poll", () => {
+    expect(lc.indexOf("shuttleLayer.requestFit()"))
+      .toBeLessThan(lc.indexOf("revealShuttlesFromLink();"));
+  });
+
+  it("caps the fit zoom so one bus does not slam to street level", () => {
+    expect(layer).toMatch(/maxZoom:\s*\d+/);
+  });
+});
+
+describe("shuttle face selection", () => {
+  const src = read("shuttle-layer.ts");
+
+  it("never draws a moving bus asleep", () => {
+    // The vendor's stamps are not Las Vegas time and may still be an hour off,
+    // so age alone must not be allowed to override observed speed.
+    const fn = src.slice(src.indexOf("export function faceFor"), src.indexOf("export function facesLeft"));
+    const speedIdx = fn.indexOf("kmh > 1");
+    const staleIdx = fn.indexOf("STALE_AFTER_MS");
+    expect(speedIdx).toBeGreaterThan(-1);
+    expect(staleIdx).toBeGreaterThan(-1);
+    expect(speedIdx, "the speed check must come before the staleness check").toBeLessThan(staleIdx);
+  });
+});
+
 describe("shuttle zoom scaling", () => {
   const src = read("shuttle-layer.ts");
 

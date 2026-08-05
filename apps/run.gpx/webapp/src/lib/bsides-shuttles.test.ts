@@ -2,7 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   shuttleFeatureCollection,
   shuttleColor,
+  parseFeedWallMs,
   parseFeedDate,
+  FEED_TIME_ZONE,
   isStale,
   STALE_AFTER_MS,
   TUSCANY_ANCHOR,
@@ -84,27 +86,55 @@ describe("shuttleColor", () => {
   });
 });
 
-describe("parseFeedDate", () => {
-  it("reads the feed's timezone-less stamp as Las Vegas wall-clock time", () => {
-    // August is PDT (UTC-7): 12:45 PM local == 19:45 UTC.
-    expect(parseFeedDate("8/04/2026 12:45:00 PM")).toBe(Date.parse("2026-08-04T19:45:00Z"));
-    expect(parseFeedDate("8/04/2026 4:15:00 AM")).toBe(Date.parse("2026-08-04T11:15:00Z"));
+describe("feed timestamps", () => {
+  // The vendor's stamps carry no timezone AND are not Las Vegas time. Verified
+  // against its own Date header on 2026-08-05: server 15:32 GMT vs stamp
+  // "10:17:59 AM" makes Pacific and Mountain impossible (fix in the future).
+  // So the offset is derived from the server clock, not assumed.
+  const wall = (s: string) => parseFeedWallMs(s)!;
+
+  it("reads a stamp as a bare wall clock", () => {
+    expect(parseFeedWallMs("8/04/2026 12:45:00 PM")).toBe(Date.parse("2026-08-04T12:45:00Z"));
+    expect(parseFeedWallMs("8/04/2026 4:15:00 AM")).toBe(Date.parse("2026-08-04T04:15:00Z"));
   });
 
   it("handles noon and midnight without rolling the 12-hour clock", () => {
-    expect(parseFeedDate("8/04/2026 12:00:00 PM")).toBe(Date.parse("2026-08-04T19:00:00Z"));
-    expect(parseFeedDate("8/04/2026 12:00:00 AM")).toBe(Date.parse("2026-08-04T07:00:00Z"));
-  });
-
-  it("honors standard time outside DST", () => {
-    // January is PST (UTC-8).
-    expect(parseFeedDate("1/15/2026 12:45:00 PM")).toBe(Date.parse("2026-01-15T20:45:00Z"));
+    expect(parseFeedWallMs("8/04/2026 12:00:00 PM")).toBe(Date.parse("2026-08-04T12:00:00Z"));
+    expect(parseFeedWallMs("8/04/2026 12:00:00 AM")).toBe(Date.parse("2026-08-04T00:00:00Z"));
   });
 
   it("returns null for anything it cannot read", () => {
     for (const junk of [undefined, null, "", "not a date", 42, "13/45/2026 99:99:99 XM"]) {
-      expect(parseFeedDate(junk)).toBeNull();
+      expect(parseFeedWallMs(junk)).toBeNull();
     }
+  });
+
+  it("reads stamps as Eastern, which is the only safe side of the ambiguity", () => {
+    // Verified against the vendor's own Date header (2026-08-05, server
+    // 15:32:52 GMT, stamp "10:17:59 AM"): Pacific and Mountain would put the fix
+    // in the FUTURE, so both are impossible. Eastern is the conservative pick of
+    // the two survivors — it can only ever read a fix as older, never newer.
+    expect(FEED_TIME_ZONE).toBe("America/New_York");
+    const server = Date.parse("2026-08-05T15:32:52Z");
+    const parsed = parseFeedDate("8/05/2026 10:17:59 AM")!;
+    expect(parsed).toBe(Date.parse("2026-08-05T14:17:59Z"));
+    expect(parsed).toBeLessThanOrEqual(server); // never in the future
+    // The shipped bug, pinned: Pacific put this stamp ahead of the server clock.
+    expect(parseFeedDate("8/05/2026 10:17:59 AM", "America/Los_Angeles")!)
+      .toBeGreaterThan(server);
+  });
+
+  it("clamps a future fix rather than letting a dead bus look immortal", () => {
+    const server = Date.parse("2026-08-05T15:00:00Z");
+    const fc = shuttleFeatureCollection({
+      type: "FeatureCollection",
+      features: [{ type: "Feature", id: "gps_1",
+        geometry: { type: "Point", coordinates: [-115.16, 36.11] },
+        properties: { name: "Ahead", date: "8/05/2026 11:59:00 PM" } }],
+    }, server);
+    const p = fc.features[0].properties as unknown as ShuttleProperties;
+    expect(p.lastFixMs).toBe(server);
+    expect(isStale(p.lastFixMs, server)).toBe(false);
   });
 });
 
@@ -136,7 +166,8 @@ describe("shuttleFeatureCollection", () => {
     expect(a.color).toBe("pink");
     expect(a.hdg).toBe(340);
     expect(a.kmh).toBe(0);
-    expect(a.lastFixMs).toBe(Date.parse("2026-08-04T19:45:00Z"));
+    // 12:45 PM Eastern == 16:45Z. (It read 19:45Z while we wrongly assumed Pacific.)
+    expect(a.lastFixMs).toBe(Date.parse("2026-08-04T16:45:00Z"));
 
     expect(b.name).toBe("Shuttle2");
     expect(b.color).toBe("orange");

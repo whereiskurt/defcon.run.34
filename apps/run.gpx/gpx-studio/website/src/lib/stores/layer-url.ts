@@ -140,6 +140,24 @@ export function resolveRunnersVisible(
 }
 
 /**
+ * The hash the visitor ARRIVED with, captured at module load.
+ *
+ * ⚠️ DO NOT read `location.hash` later to answer "did the link specify a
+ * camera?". gpx.studio rewrites the hash with the live `#zoom/lat/lng` via
+ * `history.replaceState` as soon as the map settles, so a hash read from inside
+ * a map `load` handler tells you where the map IS, not what was asked for. This
+ * silently disabled the shuttle auto-fit: every bare `?layers=shuttles` link
+ * looked like it had named its own camera. Module init runs at import, before
+ * the map exists, so this snapshot is the honest one.
+ */
+const ARRIVAL_HASH = typeof location === 'undefined' ? '' : location.hash;
+
+/** Did the visitor's own URL pin a `#zoom/lat/lng` camera? */
+export function arrivedWithCamera(): boolean {
+    return /^#\d/.test(ARRIVAL_HASH);
+}
+
+/**
  * Whether this page load was deep-linked to the hidden B-Sides shuttle layer.
  *
  * Shuttles follow the ordinary one-way rule rather than the runners exception:

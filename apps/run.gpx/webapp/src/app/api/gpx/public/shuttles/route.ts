@@ -73,9 +73,14 @@ export async function GET() {
       console.error("shuttle proxy: upstream returned", res.status);
       return fallback(now);
     }
+    // The vendor's own `Date` header is what pins the feed's timezone — its
+    // stamps carry none, and they are NOT Las Vegas time (see
+    // deriveFeedOffsetHours). Falling back to our clock is close enough; the
+    // two are within a second of each other in practice.
+    const serverNowMs = Date.parse(res.headers.get("date") ?? "") || now;
     // Upstream answers `content-type: text/plain`, so `res.json()` is not safe
     // to rely on — read the text and parse it ourselves.
-    const body = shuttleFeatureCollection(JSON.parse(await res.text()));
+    const body = shuttleFeatureCollection(JSON.parse(await res.text()), serverNowMs);
     cached = { at: now, body };
     return json(body);
   } catch (error) {
