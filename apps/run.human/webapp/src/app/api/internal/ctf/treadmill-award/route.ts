@@ -37,9 +37,14 @@ export async function POST(req: NextRequest) {
   }
 
   let oidcSub = "";
+  let actorIsAdmin = false;
   try {
     const body = await req.json();
     oidcSub = typeof body?.oidcSub === "string" ? body.oidcSub.trim() : "";
+    // run.gpx resolves this from its own session (`services` includes "admin").
+    // Only ever REMOVES a privilege — an operator's solve stops consuming the
+    // non-admin first-blood slot — so a caller cannot use it to gain anything.
+    actorIsAdmin = body?.isAdmin === true;
   } catch {
     /* fall through to 400 */
   }
@@ -53,7 +58,7 @@ export async function POST(req: NextRequest) {
   }
 
   const result = await judgeSolve(
-    { user: userId, challenge: "treadmill", channel: "qr", grant: true },
+    { user: userId, challenge: "treadmill", channel: "qr", grant: true, actorIsAdmin },
     {},
   );
   if (result.solved) {

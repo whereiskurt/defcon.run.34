@@ -90,7 +90,7 @@ export async function POST(request: Request) {
     }
 
     const now = Math.floor(Date.now() / 1000);
-    const result = await syncUserUntagged(token, now - 7 * 24 * 3600);
+    const result = await syncUserUntagged(token, now - 7 * 24 * 3600, isAdmin);
 
     // Rewrite the strip cache while we hold the token, so the strip's
     // follow-up list fetch is both fresh AND free (no strava_sync quota).

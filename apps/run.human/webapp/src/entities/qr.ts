@@ -220,6 +220,13 @@ export const Ctf = new Entity(
       },
       // Internal atomic ordinal allocator (ADD solveCount 1 → n). Default 0.
       solveCount: { type: "number", default: () => 0 },
+      // Second atomic allocator, incremented ONLY for non-admin solvers, so a
+      // real player can still take a 🩸 on a challenge an operator already
+      // solved while testing it. Deliberately separate from `solveCount`: the
+      // scoring curve and the gap-free ordinal must keep counting EVERY solve,
+      // including operators'. No default — an absent value reads as 0, which is
+      // exactly right for every row that predates this.
+      playerSolveCount: { type: "number" },
       // Permissive: effect payload shape varies per challenge.
       effect: { type: "any" },
       maxAttempts: { type: "number" },

@@ -104,6 +104,7 @@ describe("POST /api/internal/ctf/treadmill-award", () => {
         challenge: "treadmill",
         channel: "qr",
         grant: true,
+        actorIsAdmin: false,
       },
       {},
     );
@@ -129,6 +130,24 @@ describe("POST /api/internal/ctf/treadmill-award", () => {
     await POST(request);
     expect(mockJudgeSolve).toHaveBeenCalledWith(
       expect.objectContaining({ challenge: "treadmill" }),
+      {},
+    );
+  });
+
+  it("forwards isAdmin so an operator's test import cannot take the player's first blood", async () => {
+    const { request } = makeReq("s3cret", { oidcSub: "sub-1", isAdmin: true });
+    await POST(request);
+    expect(mockJudgeSolve).toHaveBeenCalledWith(
+      expect.objectContaining({ actorIsAdmin: true }),
+      {},
+    );
+  });
+
+  it("treats a non-boolean isAdmin as false rather than truthy", async () => {
+    const { request } = makeReq("s3cret", { oidcSub: "sub-1", isAdmin: "yes" });
+    await POST(request);
+    expect(mockJudgeSolve).toHaveBeenCalledWith(
+      expect.objectContaining({ actorIsAdmin: false }),
       {},
     );
   });

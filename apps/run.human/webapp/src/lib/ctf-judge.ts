@@ -178,6 +178,16 @@ export interface CtfStore {
   }): Promise<{ claimed: boolean; existing?: PriorAward }>;
   /** Atomic ADD Ctf.solveCount 1 → the new ordinal. Gap-free (claim gates it). */
   allocateOrdinal(challenge: string): Promise<number>;
+  /**
+   * Atomic ADD Ctf.playerSolveCount 1 → the new NON-ADMIN ordinal. Called only
+   * for non-admin solvers, and only once the solve is known to score, so a
+   * capped solve never burns one.
+   *
+   * Optional so an existing store fake without it still satisfies the interface;
+   * `firstBloodFor` treats an absent implementation as "no player ordinal",
+   * which degrades to the original `n === 1` behaviour rather than throwing.
+   */
+  allocatePlayerOrdinal?(challenge: string): Promise<number>;
   /** Patch the freshly-claimed CtfSolve row with its score/ordinal/audit fields. */
   recordScore(args: {
     challenge: string;
@@ -300,6 +310,38 @@ const NON_SOLVE: JudgeResult = {
 };
 
 /**
+ * Who gets the 🩸.
+ *
+ * Originally this was simply `n === 1` — the first solver, whoever they were.
+ * In practice operators solve challenges while testing them, so the badge was
+ * being consumed before any player could reach it (32 of the first 42 first
+ * bloods on DC34 were an operator's). The rule is now ADDITIVE, so nothing is
+ * taken from anyone who already earned one:
+ *
+ *   - the genuinely-first solver still gets it (`n === 1`), operator or not;
+ *   - AND the first NON-ADMIN solver also gets it, however many operators
+ *     solved the challenge before them.
+ *
+ * Two separate counters make that safe under concurrency: `solveCount` keeps
+ * counting every solve (it drives the gap-free ordinal and the scoring curve),
+ * while `playerSolveCount` counts only non-admin solves. Both are atomic ADDs,
+ * so two players racing cannot both read 1.
+ *
+ * Call this ONLY once a solve is known to score — a capped solve returns early
+ * and must not burn a player ordinal.
+ */
+async function firstBloodFor(
+  n: number,
+  actorIsAdmin: boolean,
+  challenge: string,
+  store: CtfStore,
+): Promise<boolean> {
+  if (actorIsAdmin || !store.allocatePlayerOrdinal) return n === 1;
+  const playerN = await store.allocatePlayerOrdinal(challenge);
+  return n === 1 || playerN === 1;
+}
+
+/**
  * Judge a single solve attempt. Trusts the resolved `authUserId` (`user`) passed
  * by the front door — it never reads identity from the guess. Injectable `store`,
  * `now`, and `log` via `deps` (defaults: `defaultStore`, `Date.now()`, `emit`).
@@ -330,6 +372,15 @@ export async function judgeSolve(
      * input.
      */
     grant?: boolean;
+    /**
+     * Is the SOLVER an operator? Distinct from `admin` above, which is the
+     * attempt-cap override: a caller can be an operator without using the
+     * override, and `grant` callers are server-to-server with no session at all.
+     * Used solely to decide whether this solve consumes the non-admin first-blood
+     * slot (see `firstBloodFor`). Defaults false, so an un-updated caller keeps
+     * the original behaviour and can still take a 🩸 as the genuine first solver.
+     */
+    actorIsAdmin?: boolean;
   },
   deps: { store?: CtfStore; now?: number; log?: (o: unknown) => void } = {},
 ): Promise<JudgeResult> {
@@ -338,6 +389,7 @@ export async function judgeSolve(
   const log = deps.log ?? emit;
   const { user, challenge, guess, guessHash, channel, admin = false } = input;
   const grant = input.grant ?? false;
+  const actorIsAdmin = input.actorIsAdmin ?? false;
 
   try {
     // (1) load Ctf; missing or disabled → non-solve (covert renders it as decoy).
@@ -480,7 +532,7 @@ export async function judgeSolve(
       }
       const points = computePoints(n, ctf, now);
       const capped = points === 0;
-      const firstBlood = n === 1;
+      const firstBlood = await firstBloodFor(n, actorIsAdmin, challenge, store);
       const tierCeiling = activeTierCeiling(now, ctf.timeTiers) ?? ctf.pointMax;
       if (store.recordScoreEvent) {
         await store.recordScoreEvent({ challenge, user, bucket: codeHash, ordinal: n, points, tierCeiling, channel });
@@ -526,7 +578,7 @@ export async function judgeSolve(
       }
       const points = computePoints(n, ctf, now);
       const capped = points === 0;
-      const firstBlood = n === 1;
+      const firstBlood = await firstBloodFor(n, actorIsAdmin, challenge, store);
       const tierCeiling = activeTierCeiling(now, ctf.timeTiers) ?? ctf.pointMax;
       if (store.recordScoreEvent) {
         await store.recordScoreEvent({ challenge, user, bucket: otpHash, ordinal: n, points, tierCeiling, channel });
@@ -580,7 +632,7 @@ export async function judgeSolve(
       // (R4) score + record the ledger row.
       const points = computePoints(n, ctf, now);
       const capped = points === 0;
-      const firstBlood = n === 1;
+      const firstBlood = await firstBloodFor(n, actorIsAdmin, challenge, store);
       const tierCeiling = activeTierCeiling(now, ctf.timeTiers) ?? ctf.pointMax;
       if (store.recordScoreEvent) {
         await store.recordScoreEvent({ challenge, user, bucket, ordinal: n, points, tierCeiling, channel });
@@ -621,7 +673,7 @@ export async function judgeSolve(
     // (7) score, record.
     const points = computePoints(n, ctf, now);
     const capped = points === 0; // n > maxSolves
-    const firstBlood = n === 1;
+    const firstBlood = await firstBloodFor(n, actorIsAdmin, challenge, store);
     const tierCeiling = activeTierCeiling(now, ctf.timeTiers) ?? ctf.pointMax;
     await store.recordScore({
       challenge,
@@ -779,6 +831,16 @@ export const defaultStore: CtfStore = {
       .add({ solveCount: 1 })
       .go({ response: "all_new" });
     return (res.data as { solveCount?: number }).solveCount ?? 0;
+  },
+
+  async allocatePlayerOrdinal(challenge) {
+    // Same atomic-ADD shape as allocateOrdinal, on the separate non-admin
+    // counter. An absent attribute ADDs from 0, so rows written before this
+    // existed need no migration to start counting.
+    const res = await Ctf.patch({ challenge })
+      .add({ playerSolveCount: 1 })
+      .go({ response: "all_new" });
+    return (res.data as { playerSolveCount?: number }).playerSolveCount ?? 0;
   },
 
   async recordScore({

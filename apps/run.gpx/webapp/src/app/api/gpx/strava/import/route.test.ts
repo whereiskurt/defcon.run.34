@@ -72,7 +72,10 @@ describe("POST /api/gpx/strava/import", () => {
     expect(mocks.importActivityForConDay).toHaveBeenCalledWith(
       expect.objectContaining({ userId: "u1" }),
       expect.objectContaining({ id: 7 }),
-      "2026-08-07"
+      "2026-08-07",
+      // This session has services ["gpxstudio"] and no "admin", so the solver
+      // counts as a player and may take the non-admin first-blood slot.
+      false
     );
     expect(mocks.consumeQuota).toHaveBeenCalledWith("u1", "gpx_upload", 1, "upload");
     // Task 4 (leaderboard<->runs reconcile trigger).
