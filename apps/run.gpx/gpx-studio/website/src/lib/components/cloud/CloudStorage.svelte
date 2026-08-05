@@ -631,7 +631,9 @@
     function openAddRun() {
         if (!get(isAuthenticated) || !get(hasGpxStudioAccess)) return;
         closeCloudStorage();
-        quickStartOpen.set(true);
+        // Straight to the doors, not the three-card menu: this button already
+        // says "Add run", so the menu would ask the same question twice.
+        quickStartOpen.set('logrun');
     }
 </script>
 

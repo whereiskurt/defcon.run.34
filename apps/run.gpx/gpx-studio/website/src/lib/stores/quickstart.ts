@@ -14,8 +14,16 @@ export type QuickStartAction = 'routes' | 'runners';
 export const quickStartAction = writable<QuickStartAction | null>(null);
 
 /**
- * One-shot request to open the QuickStart hub, fired by the "Add run" button
- * that now lives in the top menu bar (the corner launcher was moved there).
- * QuickStartHub opens its hub view and resets this to false.
+ * One-shot request to open the QuickStart hub, carrying WHICH screen to open.
+ * QuickStartHub honours it and resets this to null.
+ *
+ * Was a plain boolean. It now names a target because the two callers want
+ * different things: the in-studio buttons (menu bar, mobile FAB, My Routes
+ * footer) open the three-card hub, but the `?addrun` deep link from
+ * run.defcon.run comes from someone who already pressed a button labelled
+ * "+Activity" — making them pick "Record Activity" out of three cards is asking
+ * the same question twice.
  */
-export const quickStartOpen = writable<boolean>(false);
+export type QuickStartTarget = 'hub' | 'logrun';
+
+export const quickStartOpen = writable<QuickStartTarget | null>(null);
