@@ -41,6 +41,7 @@
         stravaRunRemoved,
     } from '$lib/stores/strava-strip';
     import { refreshMyConRuns, requestConRunReveal } from '$lib/stores/my-con-runs';
+    import TreadmillGlyph from './TreadmillGlyph.svelte';
     import {
         ChevronDown,
         ChevronLeft,
@@ -49,7 +50,6 @@
         LoaderCircle,
         Check,
         X,
-        Footprints,
     } from '@lucide/svelte';
 
     const canShow = $derived($isAuthenticated && $hasGpxStudioAccess);
@@ -605,18 +605,11 @@
                                             />
                                         </svg>
                                     {:else}
-                                        <!-- Indoor/treadmill: no route to draw. A placeholder
-                                             keeps the card the same height as its neighbours so
-                                             the carousel doesn't jump, and says WHY it's blank
-                                             rather than showing an empty box. -->
-                                        <div
-                                            class="flex h-[56px] w-full flex-col items-center justify-center rounded bg-accent/40 text-muted-foreground"
-                                        >
-                                            <Footprints size={18} />
-                                            <span class="mt-0.5 text-[10px] font-medium"
-                                                >no map</span
-                                            >
-                                        </div>
+                                        <!-- Indoor/treadmill: no route to draw. The ELKENTARO 2000
+                                             fills the same 130x56 slot as the polyline, so the
+                                             cards stay a uniform height and a GPS-less run reads
+                                             as "indoor, on purpose" rather than as a broken card. -->
+                                        <TreadmillGlyph muted={tagged} />
                                     {/if}
                                     <div class="mt-1 flex items-center gap-1.5">
                                         <span
