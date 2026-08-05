@@ -12,6 +12,8 @@ import {
 import { conDayRemaining } from "@/lib/con-day-quota";
 import { countConDayRuns } from "@/lib/con-day-usage";
 import { reconcileBestEffort } from "@/lib/gpx-reconcile";
+import { qualifiesForTreadmillFlag } from "@/lib/treadmill-flag";
+import { awardTreadmillFlagBestEffort } from "@/lib/treadmill-award";
 
 /**
  * Strava date-banded ingestion worker (v1.7 Phase 31b).
@@ -36,6 +38,13 @@ export type StravaActivity = {
   start_date_local: string;
   moving_time: number;
   map?: { summary_polyline?: string | null };
+  /**
+   * Strava's explicit indoor marker (treadmill, trainer). Always sent by the
+   * API; we simply never read it before the ELKENTARO 2000 flag. Optional here
+   * because cached snapshots written before this field was declared won't carry
+   * it — `isTreadmillActivity` falls back to the missing-polyline signal.
+   */
+  trainer?: boolean;
 };
 type StreamSet = {
   latlng?: { data: [number, number][] };
@@ -218,6 +227,15 @@ async function importActivity(
     ...(opts?.conDay ? { conDay: opts.conDay } : {}),
     status: "active",
   }).go();
+
+  // ELKENTARO 2000: an indoor run recorded Aug 3–10 earns a 250pt flag. Hooked
+  // HERE because every import path funnels through this function (strip tap,
+  // Sync now, con-day sync, batch worker), so there is one place to be right.
+  // Fire-and-forget: awarding is idempotent server-side and must never break
+  // the import that earned it.
+  if (qualifiesForTreadmillFlag(activity)) {
+    awardTreadmillFlagBestEffort(user.userId);
+  }
 
   return { fileId, fileName };
 }
