@@ -169,6 +169,22 @@ export function isStale(lastFixMs: number | null | undefined, nowMs: number): bo
   return nowMs - lastFixMs > STALE_AFTER_MS;
 }
 
+/**
+ * Map the vendor's fleet names onto ours for the map label.
+ *
+ * The vendor calls them `Shuttle1`, `Shuttle2`, which on a map covered in other
+ * DEF CON layers says nothing about whose shuttle it is. `BSides1` does. The
+ * ticket popup's OPERATOR field reads the same value, so both follow.
+ *
+ * Only the exact `Shuttle<n>` shape is rewritten — anything else the vendor ever
+ * puts in `name` passes through untouched rather than being mangled by a
+ * too-clever rule. Casing follows BSidesLV's own ("BSides Las Vegas").
+ */
+export function displayName(vendorName: string): string {
+  const m = /^shuttle\s*(\d+)$/i.exec(vendorName.trim());
+  return m ? `BSides${m[1]}` : vendorName;
+}
+
 function finiteNumber(v: unknown, fallback: number): number {
   return typeof v === "number" && Number.isFinite(v) ? v : fallback;
 }
@@ -202,7 +218,9 @@ function normalize(raw: unknown): GeoJSON.Feature | null {
   if (!id) return null;
 
   const color = shuttleColor(props.icon);
-  const name = typeof props.name === "string" && props.name.trim() ? props.name.trim() : "Shuttle";
+  const vendorName =
+    typeof props.name === "string" && props.name.trim() ? props.name.trim() : "Shuttle";
+  const name = displayName(vendorName);
 
   // Heading normalized into 0-359 so `icon-rotate` never gets a negative or a
   // value past a full turn.
