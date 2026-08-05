@@ -49,6 +49,7 @@
         LoaderCircle,
         Check,
         X,
+        Footprints,
     } from '@lucide/svelte';
 
     const canShow = $derived($isAuthenticated && $hasGpxStudioAccess);
@@ -589,19 +590,34 @@
                                     disabled={tagged}
                                     onclick={() => openPopover(a)}
                                 >
-                                    <svg viewBox="0 0 130 56" class="w-full">
-                                        <path
-                                            d={polylineToSvgPath(
-                                                decodePolyline(a.summaryPolyline),
-                                                130,
-                                                56
-                                            )}
-                                            fill="none"
-                                            stroke={tagged ? 'currentColor' : '#fc4c02'}
-                                            stroke-width="2.5"
-                                            class={tagged ? 'text-muted-foreground' : ''}
-                                        />
-                                    </svg>
+                                    {#if a.hasGps}
+                                        <svg viewBox="0 0 130 56" class="w-full">
+                                            <path
+                                                d={polylineToSvgPath(
+                                                    decodePolyline(a.summaryPolyline),
+                                                    130,
+                                                    56
+                                                )}
+                                                fill="none"
+                                                stroke={tagged ? 'currentColor' : '#fc4c02'}
+                                                stroke-width="2.5"
+                                                class={tagged ? 'text-muted-foreground' : ''}
+                                            />
+                                        </svg>
+                                    {:else}
+                                        <!-- Indoor/treadmill: no route to draw. A placeholder
+                                             keeps the card the same height as its neighbours so
+                                             the carousel doesn't jump, and says WHY it's blank
+                                             rather than showing an empty box. -->
+                                        <div
+                                            class="flex h-[56px] w-full flex-col items-center justify-center rounded bg-accent/40 text-muted-foreground"
+                                        >
+                                            <Footprints size={18} />
+                                            <span class="mt-0.5 text-[10px] font-medium"
+                                                >no map</span
+                                            >
+                                        </div>
+                                    {/if}
                                     <div class="mt-1 flex items-center gap-1.5">
                                         <span
                                             class="rounded bg-accent px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground"
