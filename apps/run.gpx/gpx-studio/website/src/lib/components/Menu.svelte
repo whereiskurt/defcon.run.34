@@ -567,7 +567,7 @@
         {#if $isAuthenticated && $hasGpxStudioAccess}
             <button
                 class="add-run-glow hidden md:flex items-center gap-1.5 rounded-full font-semibold ml-2"
-                onclick={() => quickStartOpen.set(true)}
+                onclick={() => quickStartOpen.set('hub')}
                 aria-label="+Activity"
             >
                 <Footprints size="18" />
@@ -588,7 +588,7 @@
     <button
         class="add-run-fab add-run-glow md:hidden absolute right-4 z-30 flex items-center gap-1.5 rounded-full font-semibold px-4 py-2.5 shadow-lg pointer-events-auto transition-[bottom] duration-200"
         style="bottom: max(1.5rem, calc(var(--dc34-strip-h, 0px) + 0.5rem))"
-        onclick={() => quickStartOpen.set(true)}
+        onclick={() => quickStartOpen.set('hub')}
         aria-label="+Activity"
     >
         <Footprints size="18" />

@@ -5,8 +5,14 @@
     // con days at any time for non-admins; only fullness (remaining<=0) disables
     // a chip, and re-saving the file's own current day is always allowed even
     // when that day is full.
-    import { getConDayUsage, updateCloudFile, type CloudFile, type ConDayUsage } from '$lib/cloud-sync';
+    import {
+        getConDayUsage,
+        updateCloudFile,
+        type CloudFile,
+        type ConDayUsage,
+    } from '$lib/cloud-sync';
     import { guessConDay, isUnlimitedQuota } from '$lib/logic/strava-strip-pure';
+    import { conDayChipLabel } from '$lib/logic/con-day-confirm';
     import { refreshMyConRuns } from '$lib/stores/my-con-runs';
     import { isAdmin } from '$lib/stores/auth';
     import { CalendarCheck } from '@lucide/svelte';
@@ -31,13 +37,12 @@
 
     const selectedUsage = $derived(usage.find((u) => u.date === selected) ?? null);
     const currentUsage = $derived(usage.find((u) => u.date === file.conDay) ?? null);
-
-    function shortDate(date: string): string {
-        return new Date(date + 'T12:00:00').toLocaleDateString(undefined, {
-            month: 'short',
-            day: 'numeric',
-        });
-    }
+    /**
+     * Days that have happened — matching every other picker — PLUS this file's
+     * own current day even if that filter would drop it, so a file can never
+     * open in its own editor with its tag missing from the list.
+     */
+    const offerableDays = $derived(usage.filter((d) => d.selectable || d.date === file.conDay));
 
     async function load() {
         loading = true;
@@ -98,13 +103,19 @@
                 <h2 class="text-base font-semibold">Save as defcon.run Activity</h2>
             </div>
             <p class="mt-0.5 text-xs text-muted-foreground">Which DEF CON day is this run for?</p>
-            <p class="text-xs text-muted-foreground">Counts as a DEF CON accomplishment on the leaderboard</p>
+            <p class="text-xs text-muted-foreground">
+                Counts as a DEF CON accomplishment on the leaderboard
+            </p>
 
             {#if loading}
-                <div class="flex items-center gap-2 py-6 text-sm text-muted-foreground">Loading…</div>
+                <div class="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+                    Loading…
+                </div>
             {:else}
                 {#if file.conDay}
-                    <p class="mt-3 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                    <p
+                        class="mt-3 flex items-center justify-between gap-2 text-xs text-muted-foreground"
+                    >
                         <span>Currently: {currentUsage?.label ?? file.conDay}</span>
                         <button
                             class="shrink-0 font-medium text-primary underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
@@ -117,18 +128,19 @@
                 {/if}
 
                 <div class="mt-3 flex flex-wrap gap-1.5">
-                    {#each usage as day (day.date)}
+                    {#each offerableDays as day (day.date)}
                         {@const isCurrent = day.date === file.conDay}
                         {@const full = day.remaining <= 0 && !isCurrent}
                         <button
-                            class="rounded-full border px-3 py-1 text-sm transition {selected === day.date
+                            class="rounded-full border px-3 py-1 text-sm transition {selected ===
+                            day.date
                                 ? 'border-primary bg-primary text-primary-foreground'
                                 : 'hover:bg-accent'} {full ? 'cursor-not-allowed opacity-40' : ''}"
                             disabled={full}
                             title={full ? 'full' : undefined}
                             onclick={() => (selected = day.date)}
                         >
-                            {day.label.slice(0, 3)} <small>{shortDate(day.date)}</small>
+                            {conDayChipLabel(day)}
                         </button>
                     {/each}
                 </div>
@@ -153,8 +165,8 @@
                         {#if isUnlimitedQuota(selectedUsage.remaining, selectedUsage.count)}
                             Unlimited · {selectedUsage.label}
                         {:else}
-                            {selectedUsage.count} of {selectedUsage.count +
-                                selectedUsage.remaining} runs · {selectedUsage.label}
+                            {selectedUsage.count} of {selectedUsage.count + selectedUsage.remaining}
+                            runs · {selectedUsage.label}
                         {/if}
                     </p>
                 {/if}

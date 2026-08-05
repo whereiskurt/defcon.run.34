@@ -11,21 +11,7 @@
  * server remains the source of truth for validity + quota.
  */
 
-/**
- * Fixed offset for the con window — August 2026 is entirely PDT (UTC-7). Kept in
- * sync with `CON_TZ_OFFSET_HOURS` in the webapp `con-days.ts`.
- */
-const CON_TZ_OFFSET_HOURS = -7;
-
-/**
- * Convert an epoch-ms instant to its YYYY-MM-DD calendar date in the con's local
- * timezone. Shifting the instant by the fixed offset and reading UTC fields gives
- * the con-local date without pulling in Intl/timezone data.
- */
-function conLocalDate(epochMs: number): string {
-    const shifted = new Date(epochMs + CON_TZ_OFFSET_HOURS * 3600_000);
-    return shifted.toISOString().slice(0, 10);
-}
+import { conLocalDate } from './con-day-confirm';
 
 /**
  * Best-guess con-local calendar date (YYYY-MM-DD) from a GPX string's first

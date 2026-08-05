@@ -68,10 +68,13 @@
             }
         });
 
-        // Deep link from run.defcon.run's profile button bar: ?addrun opens
-        // the QuickStart hub, same as the menu-bar "Add run" button.
+        // Deep link from run.defcon.run's profile button bar: ?addrun goes
+        // STRAIGHT to Record Activity, not to the three-card hub. Whoever
+        // followed this link already pressed a button labelled "+Activity";
+        // making them pick "Record Activity" out of three cards asks it twice.
+        // It is also where the Connect Strava hand-off returns to.
         if (page.url.searchParams.has('addrun')) {
-            quickStartOpen.set(true);
+            quickStartOpen.set('logrun');
         }
 
         // Deep link ?layers=routes,rabbits,heat:dc34,… preselects an EXACT set of map
