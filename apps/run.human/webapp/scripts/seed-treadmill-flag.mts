@@ -25,6 +25,12 @@
  *     given, so a re-run cannot silently reset solveCount/ordinals.
  *   - Reads the row back after writing and prints it.
  *
+ * STATUS: the live `treadmill` row was already created in prod on 2026-08-05
+ * (pk "$run#challenge_treadmill", sk "$ctf_1", solveCount 0) and verified by
+ * letting ElectroDB compose the key and read it back. This script is kept for
+ * re-seeding another region/environment; against prod it will refuse to run
+ * without --force, which is the intended behaviour.
+ *
  * Usage:
  *   npx tsx scripts/seed-treadmill-flag.mts                # dry run
  *   npx tsx scripts/seed-treadmill-flag.mts --confirm      # create
@@ -63,9 +69,22 @@ async function main() {
     console.log(`\nNo existing "${CHALLENGE}" row — this will create one.`);
   }
 
+  // FLAT 250 for every solver. `computePoints` (lib/ctf-scoring.ts) scores from
+  // pointMax/pointFloor — NOT from the `points` attribute — so setting `points`
+  // alone awards the wrong number. Equal ceiling and floor make `span` 0, which
+  // makes the linear per-solve decline a no-op: every ordinal scores 250.
+  //
+  // These are REQUIRED, not merely advisable: the Ctf entity declares no
+  // defaults for pointMax/pointFloor/maxSolves, and computePoints on an
+  // unconfigured row evaluates `pointFloor + (undefined - undefined) * NaN` and
+  // awards NaN.
   const input = {
     challenge: CHALLENGE,
-    points: POINTS,
+    points: POINTS, // legacy/display field, kept consistent
+    pointMax: POINTS,
+    pointFloor: POINTS,
+    maxSolves: 100000, // effectively uncapped, matching the other DC34 flags
+    firstBloodBonus: 0, // everyone gets the same 250; no first-solver premium
     enabled: true,
     // No `answer` on purpose — see the header. Grant-only.
   };
