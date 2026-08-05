@@ -39,15 +39,17 @@ describe("guessConDay", () => {
   it("uses the exact day when the activity falls on a con day", () => {
     expect(guessConDay("2026-08-07T06:31:00Z", days)).toBe("2026-08-07");
   });
-  it("snaps to the nearest con day before the window", () => {
-    expect(guessConDay("2026-08-01T09:00:00Z", days)).toBe("2026-08-05");
+  // These three previously asserted nearest-con-day SNAPPING. That behaviour was
+  // the bug: the strip shows the last 7+ days, so a pre-con activity turned up
+  // with a con day pre-selected and was one tap from being logged as a con run.
+  it("nulls before the window instead of snapping to the first con day", () => {
+    expect(guessConDay("2026-08-01T09:00:00Z", days)).toBeNull();
   });
-  it("snaps to the nearest con day after the window", () => {
-    expect(guessConDay("2026-08-20T09:00:00Z", days)).toBe("2026-08-10");
+  it("nulls after the window instead of snapping to the last con day", () => {
+    expect(guessConDay("2026-08-20T09:00:00Z", days)).toBeNull();
   });
-  it("breaks ties toward the earlier day", () => {
-    // 2026-08-06T12h is not needed — construct a true tie with a synthetic list.
-    expect(guessConDay("2026-08-07T00:00:00Z", ["2026-08-06", "2026-08-08"])).toBe("2026-08-06");
+  it("nulls on a near-miss rather than picking a neighbouring day", () => {
+    expect(guessConDay("2026-08-07T00:00:00Z", ["2026-08-06", "2026-08-08"])).toBeNull();
   });
   it("nulls on garbage", () => {
     expect(guessConDay("not-a-date", days)).toBeNull();

@@ -27,22 +27,29 @@
         isUnlimitedQuota,
     } from '$lib/logic/strava-strip-pure';
     import {
+        resolveConDayConfirm,
+        pickableConDays,
+        conDayChipLabel,
+        isConDayFull,
+        type ConDayConfirm,
+    } from '$lib/logic/con-day-confirm';
+    import { stravaConnectUrl, addRunReturnUrl } from '$lib/logic/strava-connect';
+    import {
         stravaStripExpanded,
         stravaStripHidden,
         stravaStripPulse,
         stravaRunRemoved,
     } from '$lib/stores/strava-strip';
     import { refreshMyConRuns, requestConRunReveal } from '$lib/stores/my-con-runs';
-    import { ChevronDown, ChevronLeft, ChevronRight, RefreshCw, LoaderCircle, Check, X } from '@lucide/svelte';
-
-    // The studio is served under the region basePath (e.g. /use1/studio/app) but
-    // auth.defcon.run needs the region prefix too — derive it the same way
-    // public-overlays.ts does: everything before '/studio' in the current path.
-    function regionPrefix(): string {
-        if (typeof location === 'undefined') return '';
-        const i = location.pathname.indexOf('/studio');
-        return i > 0 ? location.pathname.slice(0, i) : '';
-    }
+    import {
+        ChevronDown,
+        ChevronLeft,
+        ChevronRight,
+        RefreshCw,
+        LoaderCircle,
+        Check,
+        X,
+    } from '@lucide/svelte';
 
     const canShow = $derived($isAuthenticated && $hasGpxStudioAccess);
 
@@ -72,7 +79,23 @@
 
     const openActivity = $derived(activities.find((a) => a.id === openActivityId) ?? null);
     const selectedUsage = $derived(usage.find((u) => u.date === selectedDay) ?? null);
-    const capped = $derived(!!selectedUsage && selectedUsage.remaining <= 0);
+    const capped = $derived(!!selectedUsage && isConDayFull(selectedUsage));
+    // Only days that have happened. This picker used to list all six con-days,
+    // including future ones, while the upload path's server route rejects a
+    // future day outright — same runner, same decision, different chips.
+    const selectableDays = $derived(pickableConDays(usage));
+    // What we concluded about the open card's own date, so the modal can say
+    // "TODAY" / "catching up on a missed day" / "outside the DEF CON window"
+    // instead of just presenting chips.
+    const openConfirm = $derived<ConDayConfirm | null>(
+        openActivity
+            ? resolveConDayConfirm(
+                  (openActivity.startDateLocal || '').slice(0, 10),
+                  usage,
+                  Date.now()
+              )
+            : null
+    );
 
     async function loadStrip(opts?: { refresh?: boolean }) {
         if (!$hasStrava) return;
@@ -141,7 +164,10 @@
         const el = rootEl;
         if (!el) return;
         const publish = () =>
-            document.documentElement.style.setProperty('--dc34-strip-h', `${el.offsetHeight + 8}px`);
+            document.documentElement.style.setProperty(
+                '--dc34-strip-h',
+                `${el.offsetHeight + 8}px`
+            );
         publish();
         const ro = new ResizeObserver(publish);
         ro.observe(el);
@@ -206,9 +232,13 @@
         popoverMode = a.imported ? 'assign' : 'import';
         popoverError = null;
         removeArmed = false;
+        // Only ever pre-select a day that has actually happened. `guessConDay` no
+        // longer snaps an off-window date to the nearest con-day, so this is null
+        // whenever the activity isn't from a con day — leaving the chips empty and
+        // forcing a deliberate pick rather than offering a one-tap mis-tag.
         selectedDay = guessConDay(
             a.startDateLocal,
-            usage.map((u) => u.date)
+            pickableConDays(usage).map((u) => u.date)
         );
     }
 
@@ -235,7 +265,9 @@
                 }
                 // Purely the PUT — no strip re-fetch, no Strava quota touched.
                 await updateCloudFile(a.fileId, { conDay: day });
-                activities = activities.map((act) => (act.id === a.id ? { ...act, conDay: day } : act));
+                activities = activities.map((act) =>
+                    act.id === a.id ? { ...act, conDay: day } : act
+                );
                 revealFileId = a.fileId;
             } else {
                 const imported = await importStravaActivity(a.id, day);
@@ -295,7 +327,10 @@
                 successMessage = null;
             }, 4000);
         } catch (e) {
-            error = e instanceof StravaSyncError || e instanceof Error ? e.message : 'Strava sync failed';
+            error =
+                e instanceof StravaSyncError || e instanceof Error
+                    ? e.message
+                    : 'Strava sync failed';
         } finally {
             syncingNow = false;
         }
@@ -415,7 +450,9 @@
                 />
             </svg>
             <span class="text-sm font-semibold"
-                >From Strava · {loadedOnce && weeks > 1 ? `last ${weeks} weeks` : 'last 7 days'}</span
+                >From Strava · {loadedOnce && weeks > 1
+                    ? `last ${weeks} weeks`
+                    : 'last 7 days'}</span
             >
             {#if loadedOnce && !error}
                 <span class="rounded-full bg-accent px-2 py-0.5 text-xs text-muted-foreground"
@@ -467,15 +504,16 @@
                 {#if !$hasStrava}
                     <div class="rounded-lg border border-dashed p-4 text-center">
                         <p class="text-sm text-muted-foreground">
-                            Link your Strava account to import your recent activity onto the
-                            map.
+                            Link your Strava account to import your recent activity onto the map.
                         </p>
                         <button
                             class="mt-3 inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:brightness-110"
                             style="background:#fc4c02"
                             onclick={() =>
-                                (window.location.href =
-                                    'https://auth.defcon.run' + regionPrefix() + '/strava')}
+                                (window.location.href = stravaConnectUrl(
+                                    location.pathname,
+                                    addRunReturnUrl(location.origin, location.pathname)
+                                ))}
                         >
                             Connect Strava
                         </button>
@@ -521,7 +559,8 @@
                         <p
                             class="mb-2 flex items-center gap-1.5 text-sm font-medium text-green-600 dark:text-green-400"
                         >
-                            <Check size={16} /> {successMessage}
+                            <Check size={16} />
+                            {successMessage}
                         </p>
                     {/if}
 
@@ -552,7 +591,11 @@
                                 >
                                     <svg viewBox="0 0 130 56" class="w-full">
                                         <path
-                                            d={polylineToSvgPath(decodePolyline(a.summaryPolyline), 130, 56)}
+                                            d={polylineToSvgPath(
+                                                decodePolyline(a.summaryPolyline),
+                                                130,
+                                                56
+                                            )}
                                             fill="none"
                                             stroke={tagged ? 'currentColor' : '#fc4c02'}
                                             stroke-width="2.5"
@@ -586,7 +629,9 @@
                                     </div>
                                     <p class="mt-1 truncate text-xs font-medium">{a.name}</p>
                                     <p class="text-[11px] text-muted-foreground">
-                                        {formatCardDate(a.startDateLocal)} · {formatKm(a.distanceMeters)}
+                                        {formatCardDate(a.startDateLocal)} · {formatKm(
+                                            a.distanceMeters
+                                        )}
                                     </p>
                                 </button>
                             {/each}
@@ -638,6 +683,27 @@
                 </button>
             </div>
 
+            <!-- Say what we read off the activity BEFORE offering chips: the
+                 date is the activity's own, so the runner is confirming rather
+                 than answering from memory. -->
+            {#if openConfirm?.kind === 'today'}
+                <p class="mb-1.5 mt-3 text-xs font-medium">
+                    Recorded <span class="font-semibold">{openConfirm.label}</span>
+                    <span class="text-[#fc4c02]">— TODAY</span>
+                </p>
+            {:else if openConfirm?.kind === 'missed'}
+                <p class="mb-1.5 mt-3 text-xs font-medium">
+                    Recorded <span class="font-semibold">{openConfirm.label}</span> — catching up on
+                    a missed day.
+                </p>
+            {:else if openConfirm?.kind === 'offcon'}
+                <p
+                    class="mb-1.5 mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-xs"
+                >
+                    Recorded <span class="font-semibold">{shortDate(openConfirm.date)}</span> — outside
+                    the DEF CON window (Aug 5–10). Pick a day to tag it anyway.
+                </p>
+            {/if}
             <p class="mb-1.5 mt-3 text-xs font-medium text-muted-foreground">
                 {popoverMode === 'assign' ? 'Which DEF CON day is this run for?' : 'Which day?'}
             </p>
@@ -645,19 +711,19 @@
                 Counts as a DEF CON accomplishment on the leaderboard
             </p>
             <div class="flex flex-wrap gap-1.5">
-                {#each usage as day (day.date)}
+                {#each selectableDays as day (day.date)}
                     <button
                         class="rounded-full border px-3 py-1 text-sm transition {selectedDay ===
                         day.date
                             ? 'border-[#fc4c02] bg-[#fc4c02] text-white'
-                            : 'hover:bg-accent'} {day.remaining <= 0
+                            : 'hover:bg-accent'} {isConDayFull(day)
                             ? 'cursor-not-allowed opacity-40'
                             : ''}"
-                        disabled={day.remaining <= 0}
-                        title={day.remaining <= 0 ? 'full' : undefined}
+                        disabled={isConDayFull(day)}
+                        title={isConDayFull(day) ? 'full' : undefined}
                         onclick={() => (selectedDay = day.date)}
                     >
-                        {day.label.slice(0, 3)} {shortDate(day.date)}
+                        {conDayChipLabel(day)}
                     </button>
                 {/each}
             </div>
@@ -682,8 +748,8 @@
                     {#if isUnlimitedQuota(selectedUsage.remaining, selectedUsage.count)}
                         Unlimited · {selectedUsage.label}
                     {:else}
-                        {selectedUsage.remaining} of {selectedUsage.count +
-                            selectedUsage.remaining} left · {selectedUsage.label}
+                        {selectedUsage.remaining} of {selectedUsage.count + selectedUsage.remaining}
+                        left · {selectedUsage.label}
                     {/if}
                 </p>
             {/if}

@@ -14,6 +14,7 @@ import { useSession, signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import { Link2, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
 import { FaStrava } from 'react-icons/fa';
+import { safeReturnTo } from '@/lib/safe-return-to';
 
 const basePath = process.env.NODE_ENV === 'production'
   ? `/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}`
@@ -24,9 +25,23 @@ function StravaLinkContent() {
   const { data: session, status } = useSession();
   const searchParams = useSearchParams();
 
+  /**
+   * Where to land after OAuth. `callbackUrl` was hardcoded to '/', so a runner
+   * who started linking from the gpx studio's "Connect Strava" door finished on
+   * this app's homepage — in a tab they had opened to log a run, with no way
+   * back. `?returnTo=` is validated against a defcon.run allowlist
+   * (`safeReturnTo`); anything else collapses to '/' as before, because an
+   * unchecked caller-supplied redirect is an open-redirect primitive.
+   */
+  const callbackUrl = safeReturnTo(
+    searchParams?.get('returnTo') ?? null,
+    typeof window === 'undefined' ? 'https://auth.defcon.run' : window.location.origin,
+    { allowLocalhost: process.env.NODE_ENV !== 'production' }
+  );
+
   const handleStravaLink = async () => {
     setIsLinking(true);
-    await signIn('strava', { callbackUrl: '/' });
+    await signIn('strava', { callbackUrl });
   };
 
   const autoLink = searchParams?.get('autoLink') !== null;
