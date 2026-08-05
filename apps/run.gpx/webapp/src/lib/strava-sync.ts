@@ -171,8 +171,13 @@ async function importActivity(
     `/activities/${activity.id}/streams?keys=latlng,altitude,time&key_by_type=true`,
     user.accessToken
   );
-  const latlng = streams?.latlng?.data;
-  if (!latlng || latlng.length === 0) return null; // no GPS (e.g. treadmill)
+  // No GPS (e.g. treadmill). Previously this returned null and the activity was
+  // counted as "skipped" — so an indoor run could never be logged at all. It is
+  // now imported as a distance-only activity: a valid GPX carrying the name but
+  // an empty <trkseg>, and NO bounds (see below). Distance and moving time are
+  // real and still score; there is simply no line to draw on the map.
+  const latlng = streams?.latlng?.data ?? [];
+  const hasGps = latlng.length > 0;
 
   const gpx = buildGpx(activity.name, latlng, streams?.altitude?.data, streams?.time?.data);
   const fileId = uuidv4();
@@ -195,11 +200,16 @@ async function importActivity(
     bucket: BUCKET,
     key,
     fileSize: Buffer.byteLength(gpx),
-    trackCount: 1,
+    trackCount: hasGps ? 1 : 0,
     waypointCount: 0,
     totalDistance: activity.distance,
     totalElevation: activity.total_elevation_gain,
-    bounds: bounds(latlng),
+    // OMIT bounds for a GPS-less import — `bounds([])` would spread Math.min()
+    // over an empty array and store {minLat: Infinity, maxLat: -Infinity, …},
+    // a degenerate box that map consumers would try to fit to. The attribute is
+    // optional, and both the con-runs layer and the public maps route already
+    // handle a missing one.
+    ...(hasGps ? { bounds: bounds(latlng) } : {}),
     source: "strava",
     publicShareEligible: false, // raw import — must be Converted before public sharing
     stravaActivityId: String(activity.id),
@@ -351,7 +361,7 @@ export async function syncUserUntagged(
       try {
         const created = await importActivity(user, activity);
         if (created) imported++;
-        else skipped++; // no GPS
+        else skipped++; // defensive: importActivity only nulls on an unexpected path
       } catch (e) {
         console.error(`[strava-sync] import failed activity ${activity.id}`, e);
         skipped++;
@@ -612,33 +622,48 @@ export type StripActivity = {
   startDateLocal: string;
   distanceMeters: number;
   movingTimeSeconds: number;
+  /** Empty string when the activity has no GPS track — see `hasGps`. */
   summaryPolyline: string;
+  /**
+   * False for treadmill/indoor activities, which Strava returns with no
+   * `map.summary_polyline` and no `latlng` stream. The card renderer shows a
+   * "no map" placeholder for these instead of drawing a route thumbnail.
+   */
+  hasGps: boolean;
   imported: boolean;
   fileId?: string;
   conDay?: string | null;
 };
 
-/** Pure: shape Strava activities for the strip, dropping GPS-less ones. */
+/**
+ * Pure: shape Strava activities for the strip.
+ *
+ * This USED to `.filter(a => !!a.map?.summary_polyline)` — dropping GPS-less
+ * activities entirely. A treadmill run therefore never appeared in the strip at
+ * all: no card, so no way to select or tag it, and no explanation for why it was
+ * missing. GPS-less activities are now kept and flagged, because distance and
+ * moving time are still real data worth logging even with no route to draw.
+ */
 export function toStripActivities(
   activities: StravaActivity[],
   index: Map<string, { fileId: string; conDay?: string }>
 ): StripActivity[] {
-  return activities
-    .filter((a) => !!a.map?.summary_polyline)
-    .map((a) => {
-      const entry = index.get(String(a.id));
-      return {
-        id: a.id,
-        name: a.name,
-        type: a.type,
-        startDateLocal: a.start_date_local,
-        distanceMeters: a.distance,
-        movingTimeSeconds: a.moving_time,
-        summaryPolyline: a.map!.summary_polyline as string,
-        imported: index.has(String(a.id)),
-        ...(entry ? { fileId: entry.fileId, conDay: entry.conDay ?? null } : {}),
-      };
-    });
+  return activities.map((a) => {
+    const entry = index.get(String(a.id));
+    const polyline = a.map?.summary_polyline ?? "";
+    return {
+      id: a.id,
+      name: a.name,
+      type: a.type,
+      startDateLocal: a.start_date_local,
+      distanceMeters: a.distance,
+      movingTimeSeconds: a.moving_time,
+      summaryPolyline: polyline,
+      hasGps: !!polyline,
+      imported: index.has(String(a.id)),
+      ...(entry ? { fileId: entry.fileId, conDay: entry.conDay ?? null } : {}),
+    };
+  });
 }
 
 /** Fetch one activity's detail (authoritative metadata for a single import). */
@@ -661,7 +686,8 @@ export async function importActivityForConDay(
 export interface UserStravaSyncSummary {
   /** Activities imported as new routes this call. */
   imported: number;
-  /** Activities skipped: already in the folder (dedupe) or no GPS stream. */
+  /** Activities skipped — in practice already imported (dedupe). GPS-less
+   *  activities are NO LONGER skipped; they import as distance-only. */
   skipped: number;
   /** Per-con-day budget left AFTER this call (for the "N of 10" line). */
   conDayRemaining: number;
@@ -676,8 +702,9 @@ export interface UserStravaSyncSummary {
  * `conDay`. Deduped by stravaActivityId; bounded by the remaining per-con-day
  * budget (both doors share the same count, so switching can't bypass the cap);
  * each imported activity also consumes one lifetime `gpx_upload` (the atomic hard
- * ceiling), refunded when an activity turns out to have no GPS. Stops early when
- * either budget is exhausted.
+ * ceiling), refunded when an import fails. Stops early when either budget is
+ * exhausted. GPS-less activities import as distance-only rather than being
+ * skipped, so they consume budget like any other run.
  */
 export async function syncUserToConDay(
   user: StravaUserToken,
@@ -714,7 +741,7 @@ export async function syncUserToConDay(
       files.push(created);
       budget--;
     } else {
-      // No GPS or write error — refund the lifetime unit and count as skipped.
+      // Write error — refund the lifetime unit and count as skipped.
       await restoreQuota(user.userId, "gpx_upload", 1);
       skipped++;
     }

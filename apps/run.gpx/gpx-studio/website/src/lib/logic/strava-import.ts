@@ -17,12 +17,7 @@ import { fileActions } from '$lib/logic/file-actions';
 import { boundsManager } from '$lib/logic/bounds';
 import { selection } from '$lib/logic/selection';
 import { autoSaveManager } from '$lib/auto-save';
-import {
-    getApiBase,
-    loadFromCloud,
-    AuthenticationError,
-    redirectToLogin,
-} from '$lib/cloud-sync';
+import { getApiBase, loadFromCloud, AuthenticationError, redirectToLogin } from '$lib/cloud-sync';
 
 export interface StripActivity {
     id: number;
@@ -31,7 +26,14 @@ export interface StripActivity {
     startDateLocal: string;
     distanceMeters: number;
     movingTimeSeconds: number;
+    /** Empty string for an indoor/treadmill activity — check `hasGps` first. */
     summaryPolyline: string;
+    /**
+     * False for treadmill/indoor activities (no GPS track). The card shows a
+     * "no map" placeholder instead of a route thumbnail; the activity is still
+     * selectable and importable as a distance-only run.
+     */
+    hasGps: boolean;
     imported: boolean;
     // Present only when `imported` — `conDay` is a date string once tagged, or
     // null for an untagged import (server: fileId?: string; conDay?: string | null).

@@ -103,7 +103,12 @@ describe("GET /api/gpx/strava/activities", () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body.activities.map((a: { id: number }) => a.id)).toEqual([1, 2]);
+    // id 3 is the treadmill entry (no summary_polyline). It used to be dropped
+    // here, leaving indoor runs invisible and unselectable in the strip.
+    expect(body.activities.map((a: { id: number }) => a.id)).toEqual([1, 2, 3]);
+    expect(body.activities[2].hasGps).toBe(false);
+    expect(body.activities[2].distanceMeters).toBe(3000);
+    expect(body.activities[0].hasGps).toBe(true);
     expect(body.activities[1].imported).toBe(true);
     expect(body.activities[1].fileId).toBe("file-2");
     expect(body.activities[1].conDay).toBe("2026-08-07");

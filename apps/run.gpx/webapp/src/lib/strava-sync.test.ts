@@ -175,18 +175,20 @@ describe("toStripActivities", () => {
     map: { summary_polyline: "abc" },
   };
 
-  it("maps fields, flags imported, and drops GPS-less activities", () => {
+  it("maps fields, flags imported, and KEEPS GPS-less activities", () => {
+    // GPS-less activities used to be dropped here, which made a treadmill run
+    // silently absent from the strip — no card, so no way to select it.
     const acts = [
       base,
-      { ...base, id: 2, map: { summary_polyline: "" } }, // treadmill → dropped
-      { ...base, id: 3, map: undefined }, // no map → dropped
+      { ...base, id: 2, map: { summary_polyline: "" } }, // treadmill
+      { ...base, id: 3, map: undefined }, // no map at all
       { ...base, id: 4 },
     ];
     const out = toStripActivities(
       acts,
       new Map([["4", { fileId: "file-4", conDay: "2026-08-07" }]])
     );
-    expect(out.map((a) => a.id)).toEqual([1, 4]);
+    expect(out.map((a) => a.id)).toEqual([1, 2, 3, 4]);
     expect(out[0]).toEqual({
       id: 1,
       name: "Morning Run",
@@ -195,11 +197,30 @@ describe("toStripActivities", () => {
       distanceMeters: 5400,
       movingTimeSeconds: 1890,
       summaryPolyline: "abc",
+      hasGps: true,
       imported: false,
     });
-    expect(out[1].imported).toBe(true);
-    expect(out[1].fileId).toBe("file-4");
-    expect(out[1].conDay).toBe("2026-08-07");
+    expect(out[3].imported).toBe(true);
+    expect(out[3].fileId).toBe("file-4");
+    expect(out[3].conDay).toBe("2026-08-07");
+  });
+
+  it("flags GPS-less activities with hasGps:false and an empty polyline", () => {
+    // The card renderer keys off hasGps to show a "no map" placeholder instead
+    // of feeding an empty string to the polyline decoder.
+    const out = toStripActivities(
+      [
+        { ...base, id: 2, map: { summary_polyline: "" } },
+        { ...base, id: 3, map: undefined },
+        { ...base, id: 7, map: { summary_polyline: null } },
+      ],
+      new Map()
+    );
+    expect(out.map((a) => a.hasGps)).toEqual([false, false, false]);
+    expect(out.map((a) => a.summaryPolyline)).toEqual(["", "", ""]);
+    // Distance/duration still come through — that IS the treadmill run's data.
+    expect(out[0].distanceMeters).toBe(5400);
+    expect(out[0].movingTimeSeconds).toBe(1890);
   });
 
   it("sets conDay to null (not undefined) for an imported activity with no tag", () => {
