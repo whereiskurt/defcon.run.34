@@ -20,6 +20,15 @@ const STALE_AFTER_MS = 30 * 60 * 1000;
 
 const FALLBACK_HEX = '#94A3B8';
 
+/**
+ * Last-resort position: the Tuscany lot the fleet parks in. Mirrors
+ * TUSCANY_ANCHOR in the webapp's `lib/bsides-shuttles.ts` (separate package, so
+ * it is restated rather than imported). The proxy already anchors positionless
+ * buses, so this only guards a feature arriving with no geometry at all — and a
+ * Marker MUST have a position before it is added to the map or `addTo` throws.
+ */
+const TUSCANY_ANCHOR: [number, number] = [-115.160809, 36.112728];
+
 /** Region prefix = path before '/studio' (mirrors rabbit-layer's rabbitUrl). */
 function shuttleUrl(): string {
     const path = window.location.pathname;
@@ -192,14 +201,22 @@ export class ShuttleLayer {
                 const p = (f.properties ?? {}) as Record<string, unknown>;
                 const id = typeof p.id === 'string' ? p.id : `bus-${seq}`;
                 seen.add(id);
+
+                // ⚠️ POSITION BEFORE MOUNT. `Marker.addTo()` immediately projects
+                // its lngLat, so adding a marker that has never been positioned
+                // throws "Cannot read properties of undefined (reading 'lng')".
+                // That throw lands in the catch below and killed the whole
+                // refresh — the layer switched on and silently drew nothing.
+                const c = (f.geometry as GeoJSON.Point)?.coordinates as [number, number] | undefined;
                 let bus = this.buses.get(id);
                 if (!bus) {
                     bus = this.makeBus(id, seq);
                     this.buses.set(id, bus);
+                    bus.marker.setLngLat(c ?? TUSCANY_ANCHOR);
                     if (this.visible) bus.marker.addTo(this.map);
+                } else if (c) {
+                    bus.marker.setLngLat(c);
                 }
-                const c = (f.geometry as GeoJSON.Point)?.coordinates as [number, number] | undefined;
-                if (c) bus.marker.setLngLat(c);
                 this.render(bus, p, seq);
             }
             // A bus that dropped out of the feed entirely comes off the map.
@@ -207,8 +224,12 @@ export class ShuttleLayer {
                 if (!seen.has(id)) { bus.marker.remove(); this.buses.delete(id); }
             }
             shuttleState.update((s) => ({ ...s, available: true, count: this.buses.size }));
-        } catch {
-            // keep last frame
+        } catch (error) {
+            // Keep the last frame, but SAY SO. A bare `catch {}` here turned a
+            // one-line marker-ordering bug into an invisible failure that shipped
+            // to production: the layer toggled on, drew nothing, and reported
+            // nothing. Never make this silent again.
+            console.error('shuttle layer refresh failed:', error);
         }
     }
 

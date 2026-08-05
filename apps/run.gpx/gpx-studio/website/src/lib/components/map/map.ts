@@ -9,6 +9,7 @@ import { ARCH_SEARCH_WORDS } from './rainbow-geometry';
 import { coffeeUnlocked } from '$lib/stores/coffee';
 import { toggleDeuce } from '$lib/stores/deuce';
 import { toggleShuttles } from '$lib/stores/shuttle';
+import { mountVersionBadge } from '$lib/components/map/version-badge';
 import { togglePayphones } from '$lib/stores/payphone';
 import { toggleKph } from '$lib/stores/kph';
 import { installBands } from './z-bands';
@@ -217,6 +218,9 @@ export class MapboxGLMap {
         map.on('load', () => {
             this._map.set(map); // only set the store after the map has loaded
             window._map = map; // entry point for extensions
+            // Build stamp in the corner, so "it's broken" can be triaged as
+            // "you're on a stale bundle" without a round trip. Idempotent.
+            mountVersionBadge(map.getContainer());
             this.resize();
             scaleControl.setUnit(get(distanceUnits));
 

@@ -16,6 +16,14 @@ ARG REGION_SHORT="use1"
 # Mapbox token for map rendering (public, safe to embed in client bundle)
 ARG PUBLIC_MAPBOX_TOKEN=""
 
+# Release stamp for the studio's on-map build badge. Docker ARGs are per-stage,
+# so VERSION_WEBAPP has to be re-declared here even though a later stage also
+# takes it. Exposed as VITE_ (not PUBLIC_) on purpose: an unset PUBLIC_ var makes
+# SvelteKit fail the whole build, whereas an unset VITE_ var is just undefined
+# and the badge falls back to "dev".
+ARG VERSION_WEBAPP="dev"
+ENV VITE_APP_VERSION=${VERSION_WEBAPP}
+
 WORKDIR /gpx
 
 # First build the gpx library (it has typescript as devDependency and postinstall needs it)

@@ -111,6 +111,31 @@ describe("shuttle glyph", () => {
   });
 });
 
+describe("shuttle marker lifecycle (regression: silent no-buses)", () => {
+  const src = read("shuttle-layer.ts");
+
+  it("positions a marker BEFORE adding it to the map", () => {
+    // mapboxgl.Marker.addTo() projects its lngLat immediately, so adding an
+    // unpositioned marker throws "Cannot read properties of undefined (reading
+    // 'lng')". Shipped once: the throw was swallowed by refresh()'s catch, so
+    // the layer switched on and drew nothing, with no error anywhere.
+    const setIdx = src.indexOf("bus.marker.setLngLat(c ?? TUSCANY_ANCHOR)");
+    const addIdx = src.indexOf("bus.marker.addTo(this.map)");
+    expect(setIdx, "setLngLat-before-addTo call missing").toBeGreaterThan(-1);
+    expect(addIdx, "addTo call missing").toBeGreaterThan(-1);
+    expect(
+      setIdx,
+      "addTo(map) must not precede setLngLat() for a new marker",
+    ).toBeLessThan(addIdx);
+  });
+
+  it("never swallows a refresh error silently", () => {
+    // The bare `catch {}` is what made the above invisible in production.
+    expect(src).not.toMatch(/catch\s*\{\s*\/\/[^\n]*\n\s*\}/);
+    expect(src).toContain("console.error('shuttle layer refresh failed:'");
+  });
+});
+
 describe("shuttle deep link", () => {
   it("does not award the covert flag on a link reveal", () => {
     const lc = readFileSync(

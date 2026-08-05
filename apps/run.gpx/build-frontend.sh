@@ -213,6 +213,14 @@ if [ -f "$WEBAPP_DIR/.env" ]; then
   MAPBOX_TOKEN=$(grep "^MAPBOX_DEFAULT_TOKEN=" "$WEBAPP_DIR/.env" | cut -d'=' -f2)
 fi
 export PUBLIC_MAPBOX_TOKEN="${MAPBOX_TOKEN:-pk.placeholder}"
+# Stamp the release into the studio bundle so a runner reporting "it's broken"
+# can be asked what version they are on — a stale cached bundle and a real bug
+# look identical otherwise. VITE_-prefixed vars reach import.meta.env; unset is
+# safe (the badge falls back to "dev") so this cannot break a local build.
+if [ -f "$WEBAPP_DIR/VERSION" ]; then
+  export VITE_APP_VERSION="$(cat "$WEBAPP_DIR/VERSION" | tr -d '[:space:]')"
+  echo "   stamping studio build as $VITE_APP_VERSION"
+fi
 BASE_PATH=/studio npm run build
 
 echo "5. Copying build output to webapp..."
