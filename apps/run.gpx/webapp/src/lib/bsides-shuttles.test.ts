@@ -3,6 +3,7 @@ import {
   shuttleFeatureCollection,
   shuttleColor,
   parseFeedWallMs,
+  displayName,
   parseFeedDate,
   FEED_TIME_ZONE,
   isStale,
@@ -82,6 +83,22 @@ describe("shuttleColor", () => {
       const c = shuttleColor(junk);
       expect(c.name).toBe("unknown");
       expect(c.hex).toMatch(/^#[0-9A-Fa-f]{6}$/);
+    }
+  });
+});
+
+describe("displayName", () => {
+  it("renames the vendor fleet so the map says whose shuttle it is", () => {
+    expect(displayName("Shuttle1")).toBe("BSides1");
+    expect(displayName("Shuttle2")).toBe("BSides2");
+    expect(displayName("shuttle 3")).toBe("BSides3");
+    expect(displayName("  Shuttle10  ")).toBe("BSides10");
+  });
+
+  it("passes anything that is not Shuttle<n> straight through", () => {
+    // Better an unfamiliar name than a mangled one if the vendor relabels.
+    for (const n of ["Van", "Shuttle", "BSides1", "Bus A", "Shuttle-1", "1Shuttle"]) {
+      expect(displayName(n)).toBe(n);
     }
   });
 });
@@ -166,14 +183,14 @@ describe("shuttleFeatureCollection", () => {
 
     const [a, b] = fc.features.map((f) => f.properties as unknown as ShuttleProperties);
     expect(a.id).toBe("gps_985645");
-    expect(a.name).toBe("Shuttle1");
+    expect(a.name).toBe("BSides1");
     expect(a.color).toBe("pink");
     expect(a.hdg).toBe(340);
     expect(a.kmh).toBe(0);
     // 12:45 PM Central == 17:45Z. (Pacific read it 19:45Z, Eastern 16:45Z.)
     expect(a.lastFixMs).toBe(Date.parse("2026-08-04T17:45:00Z"));
 
-    expect(b.name).toBe("Shuttle2");
+    expect(b.name).toBe("BSides2");
     expect(b.color).toBe("orange");
     expect(b.hdg).toBe(59);
 
@@ -232,7 +249,7 @@ describe("shuttleFeatureCollection", () => {
       features: [null, "nope", 42, FIXTURE.features[0]],
     });
     expect(fc.features).toHaveLength(1);
-    expect((fc.features[0].properties as unknown as ShuttleProperties).name).toBe("Shuttle1");
+    expect((fc.features[0].properties as unknown as ShuttleProperties).name).toBe("BSides1");
   });
 
   it("names an unnamed bus rather than emitting a blank label", () => {
