@@ -198,6 +198,27 @@
 .dc34-rabbit-grid dt { color: #8a8aa0; }
 .dc34-rabbit-grid dd { margin: 0; color: #e4e4ef; font-variant-numeric: tabular-nums; }
 
+/* Build stamp, bottom-left of the map. Deliberately quiet — it only needs to be
+   readable when someone is asked to read it, not to compete with the map. Sits
+   above the scale bar and clears Mapbox's own bottom-left attribution. */
+.dc34-version-badge {
+    position: absolute;
+    left: 8px;
+    /* Clears Mapbox's scale bar, which sits at the very bottom-left. 44px landed
+       on top of it and 66px still grazed its border. */
+    bottom: 88px;
+    z-index: 2;
+    pointer-events: none;
+    padding: 1px 6px;
+    border-radius: 7px;
+    background: rgba(20, 18, 14, 0.55);
+    color: rgba(244, 237, 223, 0.75);
+    border: 1px solid rgba(244, 237, 223, 0.16);
+    font: 500 9.5px/1.5 ui-monospace, Menlo, monospace;
+    letter-spacing: 0.06em;
+    user-select: text;
+}
+
 /* ---------------------------------------------------------------------------
    B-Sides Las Vegas shuttle layer — cartoon bus markers + "ground transport"
    ticket popup.
