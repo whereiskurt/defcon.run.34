@@ -236,11 +236,23 @@
     line-height: 1;
     pointer-events: auto;
 }
-/* ~3x the original 32px glyph. --dc34-shuttle-glow is set per marker to the
-   livery hex so a pink and an orange bus stay apart when they overlap. */
+/* Zoom scale lives here, NOT on .dc34-shuttle: Mapbox writes the marker's
+   translate straight onto that element's inline style and would clobber it. */
+.dc34-shuttle-zoom {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transform: scale(var(--dc34-shuttle-zoomscale, 1));
+    transform-origin: center bottom;
+    transition: transform 0.12s ease-out;
+}
+/* 48px — half the first cut, which covered whole blocks once zoomed out. The
+   zoom scale above takes it down to 24px at city-wide zooms.
+   --dc34-shuttle-glow is set per marker to the livery hex so a pink and an
+   orange bus stay apart when they overlap. */
 .dc34-shuttle-art {
-    width: 96px;
-    height: 69px;
+    width: 48px;
+    height: 35px;
     animation: dc34shuttlebob 2.4s ease-in-out infinite;
     filter: drop-shadow(0 0 7px var(--dc34-shuttle-glow, #94a3b8)) drop-shadow(0 2px 5px rgba(0, 0, 0, 0.55));
     transition: transform 0.16s ease-out, filter 0.16s ease-out;
@@ -268,10 +280,10 @@
     backdrop-filter: blur(2px);
     color: #f4eddf;
     border: 1px solid var(--dc34-shuttle-glow, #94a3b8);
-    border-radius: 9px;
-    padding: 2px 8px;
+    border-radius: 8px;
+    padding: 1px 6px;
     white-space: nowrap;
-    font: 600 10px/1.25 ui-monospace, Menlo, monospace;
+    font: 600 9px/1.25 ui-monospace, Menlo, monospace;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
 }
 .dc34-shuttle-zzz { animation: dc34shuttlezzz 2.6s ease-in-out infinite; }
@@ -287,6 +299,8 @@
     .dc34-shuttle-hit .dc34-shuttle-art,
     .dc34-shuttle-zzz,
     .dc34-shuttle-dash { animation: none; }
+    /* The zoom scale itself must still apply — only the easing goes away. */
+    .dc34-shuttle-zoom { transition: none; }
 }
 
 /* --- the "ground transport" ticket popup --- */
