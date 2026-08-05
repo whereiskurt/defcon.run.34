@@ -111,30 +111,29 @@ export function parseFeedWallMs(value: unknown): number | null {
 /**
  * The zone the vendor stamps its `date` field in.
  *
- * ⚠️ IT IS **NOT** LAS VEGAS TIME. The first cut assumed America/Los_Angeles
- * because the fleet is in Vegas. Checked against the vendor's own HTTP `Date`
- * header on 2026-08-05 — server clock 15:32:52 GMT, newest stamp "10:17:59 AM" —
- * Pacific and Mountain are *impossible*: both put the fix in the FUTURE (by 1h45m
- * and 45m). Only Central (age 15m) and Eastern (age 1h15m) are consistent.
+ * ⚠️ IT IS **NOT** LAS VEGAS TIME — and it is not Eastern either. Both were
+ * shipped wrong before this was pinned; the resolution is empirical, so do not
+ * "correct" it back to Pacific because the fleet is in Vegas.
  *
- * That bug mattered. Reading an Eastern stamp as Pacific made every fix look up
- * to three hours NEWER than it was, so a bus dead all morning still rendered
- * awake and "live".
+ * SETTLED 2026-08-05 by polling while a bus was actively reporting. The device
+ * emits roughly every 70 s, and its stamp tracks the vendor's own HTTP `Date`
+ * header to within seconds — but only under Central:
  *
- * WHY EASTERN, given one sample cannot separate it from Central: it is the safe
- * side of the remaining ambiguity. If the truth is Central, assuming Eastern
- * under-adds an hour, so a fix reads an hour OLDER than it is — conservative, and
- * it can never produce a future timestamp. Assuming Central when the truth is
- * Eastern would do the opposite and make a dead bus look alive. The residual
- * cost (a live bus possibly reading an hour stale) is neutralised in the layer,
- * where a bus reporting real speed is never drawn asleep.
+ *     server 16:01:42 GMT | stamp 11:00:45  ->  Central 57 s   Eastern 61 min
+ *     server 16:02:53 GMT | stamp 11:02:46  ->  Central  7 s   Eastern 60 min
+ *     server 16:04:03 GMT | stamp 11:03:56  ->  Central  7 s   Eastern 60 min
  *
- * To settle it for good: catch the feed while a bus is actively reporting and
- * compare its stamp to the response `Date` header — a fix minutes old fits
- * exactly one offset. Polling on 2026-08-05 could not, because the fleet was
- * parked and the stamp never advanced.
+ * An earlier single sample only ruled out Pacific and Mountain (both put the fix
+ * in the FUTURE) and could not separate Central from Eastern, because the fleet
+ * was parked and the stamp never advanced. Catching it live is what decided it.
+ *
+ * Why it matters in both directions: Pacific made every fix look up to three
+ * hours NEWER, so a bus dead all morning rendered awake. Eastern was an hour too
+ * conservative the other way, drawing a bus that was reporting every 70 seconds
+ * as asleep. Future values are clamped regardless, and the layer additionally
+ * lets observed speed beat age.
  */
-export const FEED_TIME_ZONE = "America/New_York";
+export const FEED_TIME_ZONE = "America/Chicago";
 
 /**
  * Parse a wall-clock stamp in an explicit zone. Kept for the UTC path above;

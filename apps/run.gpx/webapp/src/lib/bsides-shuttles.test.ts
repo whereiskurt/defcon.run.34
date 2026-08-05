@@ -109,19 +109,23 @@ describe("feed timestamps", () => {
     }
   });
 
-  it("reads stamps as Eastern, which is the only safe side of the ambiguity", () => {
-    // Verified against the vendor's own Date header (2026-08-05, server
-    // 15:32:52 GMT, stamp "10:17:59 AM"): Pacific and Mountain would put the fix
-    // in the FUTURE, so both are impossible. Eastern is the conservative pick of
-    // the two survivors — it can only ever read a fix as older, never newer.
-    expect(FEED_TIME_ZONE).toBe("America/New_York");
-    const server = Date.parse("2026-08-05T15:32:52Z");
-    const parsed = parseFeedDate("8/05/2026 10:17:59 AM")!;
-    expect(parsed).toBe(Date.parse("2026-08-05T14:17:59Z"));
-    expect(parsed).toBeLessThanOrEqual(server); // never in the future
-    // The shipped bug, pinned: Pacific put this stamp ahead of the server clock.
-    expect(parseFeedDate("8/05/2026 10:17:59 AM", "America/Los_Angeles")!)
-      .toBeGreaterThan(server);
+  it("reads stamps as Central — pinned against a live-reporting bus", () => {
+    // Settled 2026-08-05 by polling while a bus reported every ~70s: its stamp
+    // tracked the vendor's own Date header to within seconds, but only under
+    // Central. Pacific and Mountain put the fix in the FUTURE; Eastern lagged a
+    // full hour and drew an actively-reporting bus as asleep.
+    expect(FEED_TIME_ZONE).toBe("America/Chicago");
+    const server = Date.parse("2026-08-05T16:04:03Z");
+    const parsed = parseFeedDate("8/05/2026 11:03:56 AM")!;
+    expect(parsed).toBe(Date.parse("2026-08-05T16:03:56Z"));
+    const ageSec = (server - parsed) / 1000;
+    expect(ageSec).toBeGreaterThanOrEqual(0);   // never in the future
+    expect(ageSec).toBeLessThan(60);            // a live report reads as live
+    // The two shipped mistakes, pinned so neither can come back.
+    expect(parseFeedDate("8/05/2026 11:03:56 AM", "America/Los_Angeles")!)
+      .toBeGreaterThan(server);                 // Pacific: fix in the future
+    expect((server - parseFeedDate("8/05/2026 11:03:56 AM", "America/New_York")!) / 60000)
+      .toBeGreaterThan(30);                     // Eastern: live bus reads stale
   });
 
   it("clamps a future fix rather than letting a dead bus look immortal", () => {
@@ -166,8 +170,8 @@ describe("shuttleFeatureCollection", () => {
     expect(a.color).toBe("pink");
     expect(a.hdg).toBe(340);
     expect(a.kmh).toBe(0);
-    // 12:45 PM Eastern == 16:45Z. (It read 19:45Z while we wrongly assumed Pacific.)
-    expect(a.lastFixMs).toBe(Date.parse("2026-08-04T16:45:00Z"));
+    // 12:45 PM Central == 17:45Z. (Pacific read it 19:45Z, Eastern 16:45Z.)
+    expect(a.lastFixMs).toBe(Date.parse("2026-08-04T17:45:00Z"));
 
     expect(b.name).toBe("Shuttle2");
     expect(b.color).toBe("orange");
