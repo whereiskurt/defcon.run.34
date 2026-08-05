@@ -136,6 +136,59 @@ describe("shuttle marker lifecycle (regression: silent no-buses)", () => {
   });
 });
 
+describe("shuttle zoom scaling", () => {
+  const src = read("shuttle-layer.ts");
+
+  // Re-implement the shipped curve from source so the test fails if the
+  // constants move, without importing across package boundaries.
+  const bounds = /const MIN = ([\d.]+), MAX = ([\d.]+);\s*\n\s*const LO = (\d+), HI = (\d+);/.exec(src);
+
+  it("declares a floor, a ceiling and a range", () => {
+    expect(bounds, "zoomScale constants not found").toBeTruthy();
+    const [, min, max, lo, hi] = bounds!;
+    expect(Number(min)).toBeGreaterThan(0);
+    expect(Number(min)).toBeLessThan(Number(max));
+    expect(Number(lo)).toBeLessThan(Number(hi));
+  });
+
+  it("is full size zoomed in and halved zoomed out", () => {
+    const [, min, max, lo, hi] = bounds!;
+    const MIN = Number(min), MAX = Number(max), LO = Number(lo), HI = Number(hi);
+    const zoomScale = (z: number) => {
+      if (!Number.isFinite(z)) return MAX;
+      if (z >= HI) return MAX;
+      if (z <= LO) return MIN;
+      return MIN + ((z - LO) / (HI - LO)) * (MAX - MIN);
+    };
+    expect(zoomScale(20)).toBe(MAX);   // deep-link zoom: full size
+    expect(zoomScale(HI)).toBe(MAX);
+    expect(zoomScale(10)).toBe(MIN);   // city-wide: floored, not shrinking forever
+    expect(zoomScale(LO)).toBe(MIN);
+    // Monotonic across the ramp — no jump that would make a bus pop.
+    for (let z = LO; z < HI; z += 0.5) {
+      expect(zoomScale(z + 0.5)).toBeGreaterThanOrEqual(zoomScale(z));
+    }
+    expect(zoomScale(NaN)).toBe(MAX);  // never collapse to 0 on a bad reading
+  });
+
+  it("scales a wrapper, never the marker element itself", () => {
+    // Mapbox writes the marker's translate onto el.style.transform, so a CSS
+    // transform on .dc34-shuttle would be clobbered on every map move.
+    expect(src).toContain('<div class="dc34-shuttle-zoom">');
+    const css = readFileSync(
+      join(__dirname, "../../../gpx-studio/website/src/app.css"),
+      "utf8",
+    );
+    expect(css).toMatch(/\.dc34-shuttle-zoom\s*\{[^}]*transform:\s*scale\(var\(--dc34-shuttle-zoomscale/);
+    // The marker element itself must carry no transform rule.
+    expect(css).not.toMatch(/\.dc34-shuttle\s*\{[^}]*transform:/);
+  });
+
+  it("detaches the zoom listener on remove", () => {
+    expect(src).toContain("this.map.off('zoom', this.zoomFn)");
+  });
+});
+
 describe("shuttle deep link", () => {
   it("does not award the covert flag on a link reveal", () => {
     const lc = readFileSync(

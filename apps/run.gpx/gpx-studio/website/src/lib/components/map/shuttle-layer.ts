@@ -37,6 +37,27 @@ function shuttleUrl(): string {
     return `${prefix}/api/gpx/public/shuttles`;
 }
 
+/**
+ * How much to scale the bus for the current map zoom.
+ *
+ * WHY THIS EXISTS: a DOM marker is a fixed number of screen pixels at every
+ * zoom, so a bus sized to look right on the Tuscany forecourt covers several
+ * blocks when you zoom out to the whole Strip. Kurt: "on the zoomed out they are
+ * way too big." Scaling with zoom keeps the cartoon readable up close without
+ * letting it swallow the map from a distance.
+ *
+ * Full size from z17 in (roughly "a parking lot on screen"), floor of 0.5 at z12
+ * and below (roughly "the whole valley"), linear between.
+ */
+export function zoomScale(zoom: number): number {
+    const MIN = 0.5, MAX = 1;
+    const LO = 12, HI = 17;
+    if (!Number.isFinite(zoom)) return MAX;
+    if (zoom >= HI) return MAX;
+    if (zoom <= LO) return MIN;
+    return MIN + ((zoom - LO) / (HI - LO)) * (MAX - MIN);
+}
+
 /** Which face a bus wears, from its reported speed and fix age. */
 export function faceFor(kmh: number, lastFixMs: number | null, nowMs: number): ShuttleFace {
     if (lastFixMs === null) return 'nofix';
@@ -100,9 +121,21 @@ export class ShuttleLayer {
     private timer: ReturnType<typeof setInterval> | null = null;
     private buses = new Map<string, Bus>();
     private visible = false;
+    private zoomFn: (() => void) | null = null;
 
     constructor(map: mapboxgl.Map) {
         this.map = map;
+    }
+
+    /**
+     * Publish the zoom scale as a custom property on the map container. One
+     * write per zoom frame, inherited by every marker, rather than touching each
+     * marker element individually.
+     */
+    private applyZoomScale() {
+        this.map
+            .getContainer()
+            .style.setProperty('--dc34-shuttle-zoomscale', String(zoomScale(this.map.getZoom())));
     }
 
     private makeBus(id: string, seq: number): Bus {
@@ -173,9 +206,15 @@ export class ShuttleLayer {
         const sig = `${hex}|${face}|${name}`;
         if (sig !== bus.sig) {
             bus.sig = sig;
+            // The zoom wrapper exists because Mapbox owns `transform` on the
+            // marker element itself (it writes the translate inline), so the
+            // zoom scale cannot live there — it would be overwritten on every
+            // map move.
             bus.el.innerHTML =
+                '<div class="dc34-shuttle-zoom">' +
                 `<div class="dc34-shuttle-art">${shuttleSvg(hex, face)}</div>` +
-                `<div class="dc34-shuttle-label">${name.replace(/[<&>]/g, '')}</div>`;
+                `<div class="dc34-shuttle-label">${name.replace(/[<&>]/g, '')}</div>` +
+                '</div>';
         }
 
         // A genuinely new fix pops the marker. This is the only moment the layer
@@ -237,6 +276,11 @@ export class ShuttleLayer {
         this.visible = visible;
         shuttleState.update((s) => ({ ...s, visible }));
         if (visible) {
+            this.applyZoomScale();
+            if (!this.zoomFn) {
+                this.zoomFn = () => this.applyZoomScale();
+                this.map.on('zoom', this.zoomFn);
+            }
             for (const bus of this.buses.values()) bus.marker.addTo(this.map);
             await this.refresh();
             if (!this.timer) this.timer = setInterval(() => this.refresh(), POLL_MS);
@@ -249,6 +293,7 @@ export class ShuttleLayer {
 
     remove() {
         this.popup.remove();
+        if (this.zoomFn) { this.map.off('zoom', this.zoomFn); this.zoomFn = null; }
         if (this.timer) { clearInterval(this.timer); this.timer = null; }
         for (const bus of this.buses.values()) bus.marker.remove();
         this.buses.clear();
