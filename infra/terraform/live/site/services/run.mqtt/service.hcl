@@ -198,15 +198,25 @@ locals {
         ]
       },
 
-      # Container 3: run-mqtt-nginx (64 CPU / 128 MB, essential)
+      # Container 3: run-mqtt-nginx (64 CPU / 160 MB, essential)
       # Serves meshmap HTML + meshobserv writes nodes.json via supervisord
       # nginx listens on port 80 (NLB terminates TLS at 443)
       {
-        name               = "run-mqtt-nginx"
-        image              = "run-mqtt-nginx:${local.versions.nginx}"
-        cpu                = 64
-        memory             = 128
-        memory_reservation = 64
+        name  = "run-mqtt-nginx"
+        image = "run-mqtt-nginx:${local.versions.nginx}"
+        cpu   = 64
+        # 128 -> 160 MB for the node-snapshot work below. meshobserv runs in THIS
+        # container (supervisord, alongside nginx) and now builds an aws-sdk-go
+        # session + S3 client it never had, worth ~5-15 MB RSS on what was the
+        # smallest container in the task. Drawn from the 320 MB of task memory
+        # that was allocated but unassigned, so task_cpu/task_memory are
+        # UNCHANGED and the Fargate tier does not move.
+        #
+        # Sized on inference, not measurement: Container Insights is off on
+        # app-use1-dc34, so only task-wide memory (~29.6% of 2048 MB) is visible,
+        # never this container's own share. Hence headroom rather than a tight fit.
+        memory             = 160
+        memory_reservation = 96
         essential          = true
 
         readonly_root_filesystem = false
@@ -257,7 +267,35 @@ locals {
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/mqtt/channel-psk"
           },
           {
-            name      = "MESHTK_S3_SNAPSHOT_BUCKET"
+            # ⚠️ NO UNDERSCORES, and that is the entire point of this line.
+            #
+            # This was MESHTK_S3_SNAPSHOT_BUCKET, which bound to NOTHING: meshtk
+            # reads env via viper SetEnvKeyReplacer(".","_") + AutomaticEnv, so a
+            # config key `nodesnapshotbucket` is fed by MESHTK_NODESNAPSHOTBUCKET
+            # and an underscored spelling maps to a key that does not exist. It
+            # pointed at a feature that was never built either, so nothing noticed.
+            # Same trap as MESHTK_NODEDBPATH above -- and the same one that still
+            # leaves MESHTK_S3_LOGS_BUCKET dead on the meshtk container, silently
+            # shipping every inspector log to the hardcoded default bucket
+            # (meshtk-blocklist-20250101) instead of the terraform-managed one.
+            # That second bug is NOT fixed here; see the design spec.
+            #
+            # Setting this ARMS the node snapshot: meshobserv restores nodes.json
+            # from S3 on a cold boot and writes it back every 5 minutes. Without
+            # it a task restart drops the node database to whatever re-announces
+            # -- measured 9 of 81 nodes inside 15 minutes, i.e. a blank map for
+            # hours, silently.
+            #
+            # Reusing the logs bucket deliberately: its 30-day expiry can never
+            # fire on an object overwritten every 5 minutes, so the snapshot needs
+            # no bucket of its own. The dedicated mqtt-records bucket arrives with
+            # the capture + presigned-URL work, where lifecycle and blast radius
+            # genuinely differ.
+            #
+            # OPERATOR RESET: write an empty JSON object to this key and the node
+            # database clears within one interval, no restart needed.
+            #   aws s3 cp - s3://<logs_bucket>/snapshots/nodes/nodes.json <<< '{}'
+            name      = "MESHTK_NODESNAPSHOTBUCKET"
             valueFrom = "/{{SITE_LABEL}}/infra/{{REGION_LABEL}}/mqtt/logs_bucket"
           }
         ]
