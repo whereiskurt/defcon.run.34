@@ -89,19 +89,42 @@ type ChallengeLike = {
 };
 
 /**
- * Pure: keep only users with a positive ctfScore, shape the row, and sort by
- * ctfScore descending. Array.prototype.sort is stable (V8/Node), so ties keep
+ * PURE. The CTF slice of a runner's derived score.
+ *
+ * The points-consistency refactor (2026-07-30) made `lib/rescore.ts:rescoreUser`
+ * the SOLE writer of RunUser score fields, and it does NOT write the legacy
+ * `ctfScore` — that field is frozen at 0 forever (scoring-write-invariant.test.ts
+ * enforces nothing ever accrues it again). The live CTF total lives in
+ * `scoreBreakdown` as `ctfStreak + flagPoints`; `runStreak` / `socialStreak` /
+ * `clusterBonus` are NOT CTF and must never be counted here.
+ *
+ * Falls back to the legacy `ctfScore` only for rows that predate rescoring
+ * (no `scoreBreakdown`), so an un-rescored row degrades instead of vanishing.
+ */
+export function ctfScoreOf(u: RunUserItem): number {
+  const b = u.scoreBreakdown;
+  if (b) return (b.ctfStreak ?? 0) + (b.flagPoints ?? 0);
+  return u.ctfScore ?? 0;
+}
+
+/**
+ * Pure: keep only users with a positive CTF score, shape the row, and sort by
+ * that score descending. Array.prototype.sort is stable (V8/Node), so ties keep
  * their incoming order. Non-mutating.
+ *
+ * `LeaderboardRow.ctfScore` carries the DERIVED total (see `ctfScoreOf`), not
+ * the dead RunUser attribute of the same name — the standings table, summary
+ * tiles and CSV all read this one field.
  */
 export function rankByScore(users: RunUserItem[]): LeaderboardRow[] {
   return users
-    .filter((u) => (u.ctfScore ?? 0) > 0)
     .map((u) => ({
       userId: u.userId,
       displayName: u.displayName ?? "",
-      ctfScore: u.ctfScore ?? 0,
+      ctfScore: ctfScoreOf(u),
       ctfSolves: u.ctfSolves ?? 0,
     }))
+    .filter((r) => r.ctfScore > 0)
     .sort((a, b) => b.ctfScore - a.ctfScore);
 }
 
