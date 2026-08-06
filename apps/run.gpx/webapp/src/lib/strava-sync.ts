@@ -174,7 +174,7 @@ export type ImportedFile = { fileId: string; fileName: string };
 async function importActivity(
   user: StravaUserToken,
   activity: StravaActivity,
-  opts?: { conDay?: string }
+  opts?: { conDay?: string; isAdmin?: boolean }
 ): Promise<ImportedFile | null> {
   const streams = await stravaGet<StreamSet>(
     `/activities/${activity.id}/streams?keys=latlng,altitude,time&key_by_type=true`,
@@ -234,7 +234,9 @@ async function importActivity(
   // Fire-and-forget: awarding is idempotent server-side and must never break
   // the import that earned it.
   if (qualifiesForTreadmillFlag(activity)) {
-    awardTreadmillFlagBestEffort(user.userId);
+    // isAdmin only ever WITHHOLDS the non-admin first-blood slot, so defaulting
+    // it false for the batch worker (which has no session) is the safe side.
+    awardTreadmillFlagBestEffort(user.userId, { isAdmin: opts?.isAdmin === true });
   }
 
   return { fileId, fileName };
@@ -347,7 +349,8 @@ const UNTAGGED_IMPORT_CAP = 30;
  */
 export async function syncUserUntagged(
   user: StravaUserToken,
-  afterUnixSeconds: number
+  afterUnixSeconds: number,
+  isAdmin = false
 ): Promise<{ imported: number; skipped: number }> {
   const seen = await getExistingStravaIds(user.userId);
   let imported = 0;
@@ -377,7 +380,7 @@ export async function syncUserUntagged(
         continue;
       }
       try {
-        const created = await importActivity(user, activity);
+        const created = await importActivity(user, activity, { isAdmin });
         if (created) imported++;
         else skipped++; // defensive: importActivity only nulls on an unexpected path
       } catch (e) {
@@ -696,9 +699,10 @@ export async function fetchActivityById(
 export async function importActivityForConDay(
   user: StravaUserToken,
   activity: StravaActivity,
-  conDay: string
+  conDay: string,
+  isAdmin = false
 ): Promise<ImportedFile | null> {
-  return importActivity(user, activity, { conDay });
+  return importActivity(user, activity, { conDay, isAdmin });
 }
 
 export interface UserStravaSyncSummary {
@@ -750,7 +754,10 @@ export async function syncUserToConDay(
 
     let created: ImportedFile | null = null;
     try {
-      created = await importActivity(user, activity, { conDay });
+      created = await importActivity(user, activity, {
+        conDay,
+        isAdmin: quotaTier === "admin",
+      });
     } catch (e) {
       console.error(`[strava-sync] import failed activity ${activity.id}`, e);
     }

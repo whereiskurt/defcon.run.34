@@ -23,6 +23,7 @@ import { humanInternalUrl } from "./gpx-accomplishment";
  */
 export async function awardTreadmillFlag(
   oidcSub: string,
+  opts: { isAdmin?: boolean } = {},
   fetchImpl?: typeof fetch
 ): Promise<void> {
   try {
@@ -34,7 +35,10 @@ export async function awardTreadmillFlag(
         // Header only, never logged (T-50-08).
         "X-Internal-Secret": process.env.AUTH_INTERNAL_SECRET || "",
       },
-      body: JSON.stringify({ oidcSub }),
+      // `isAdmin` stops an operator's test import from consuming the non-admin
+      // first-blood slot. It only ever removes a privilege, so it is safe to
+      // derive from our own session and pass across.
+      body: JSON.stringify({ oidcSub, isAdmin: opts.isAdmin === true }),
     });
   } catch {
     // Best-effort: a flag miss must never break the import.
@@ -42,6 +46,9 @@ export async function awardTreadmillFlag(
 }
 
 /** Fire-and-forget wrapper, mirroring `reconcileBestEffort`'s shape. */
-export function awardTreadmillFlagBestEffort(oidcSub: string): void {
-  void awardTreadmillFlag(oidcSub).catch(() => {});
+export function awardTreadmillFlagBestEffort(
+  oidcSub: string,
+  opts: { isAdmin?: boolean } = {}
+): void {
+  void awardTreadmillFlag(oidcSub, opts).catch(() => {});
 }

@@ -148,7 +148,7 @@ export async function POST(request: Request) {
         );
       }
 
-      const file = await importActivityForConDay(token, activity, conDay);
+      const file = await importActivityForConDay(token, activity, conDay, isAdmin);
       if (!file) {
         // No GPS streams (e.g. treadmill) — already spent a Strava API call,
         // so the unit stays consumed (see refund-policy note above).

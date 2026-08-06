@@ -136,6 +136,11 @@ export default async function ClaimPage({
       guess,
       channel: "qr",
       admin: isCtfAdmin(session),
+      // Separate from `admin` above (the attempt-cap override): this says the
+      // SOLVER is an operator, so their solve does not consume the non-admin
+      // first-blood slot. Operators testing a flag were taking the 🩸 before any
+      // player could reach it.
+      actorIsAdmin: isCtfAdmin(session),
     });
     if (result.solved === true) await rescoreBestEffort(player);
     return <ClaimClient mode="result" result={result} />;
