@@ -28,6 +28,64 @@ const erow = (o: Partial<EnrichedRow> & { userId: string }): EnrichedRow => ({
   ...o,
 });
 
+/**
+ * REGRESSION (2026-08-06): the points-consistency refactor made rescoreUser the
+ * sole score writer and it does NOT write the legacy `ctfScore` — the CTF slice
+ * of the derived score lives in `scoreBreakdown.ctfStreak + .flagPoints`. The
+ * board still filtered/summed `ctfScore`, so every runner was filtered out and
+ * /admin/leaderboard read "0 solvers / 0 points" while the ledger tiles showed
+ * 308 solves. These cases pin the derived read.
+ */
+describe("rankByScore — derived CTF score (points-consistency)", () => {
+  const derived = (
+    userId: string,
+    ctfStreak: number,
+    flagPoints: number,
+    rest: Partial<RunUserItem> = {}
+  ): RunUserItem =>
+    user({ userId, scoreBreakdown: { ctfStreak, flagPoints }, ...rest });
+
+  it("ranks a rescored runner whose legacy ctfScore is 0", () => {
+    const rows = rankByScore([derived("kph", 220, 5000, { ctfScore: 0 })]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].ctfScore).toBe(5220);
+  });
+
+  it("counts ONLY the CTF slice — run/social/cluster points are not CTF", () => {
+    const rows = rankByScore([
+      user({
+        userId: "runner",
+        ctfScore: 0,
+        scoreBreakdown: {
+          runStreak: 900,
+          socialStreak: 400,
+          clusterBonus: 100,
+          ctfStreak: 0,
+          flagPoints: 0,
+        },
+      }),
+    ]);
+    expect(rows).toEqual([]);
+  });
+
+  it("sorts and sums by the derived score across mixed runners", () => {
+    const rows = rankByScore([
+      derived("mid", 30, 100),
+      derived("high", 220, 5000),
+      derived("zero", 0, 0),
+      derived("low", 0, 75),
+    ]);
+    expect(rows.map((r) => r.userId)).toEqual(["high", "mid", "low"]);
+    expect(summarize(rows, [], []).points).toBe(5425);
+    expect(summarize(rows, [], []).solvers).toBe(3);
+  });
+
+  it("falls back to legacy ctfScore for a row that was never rescored", () => {
+    const rows = rankByScore([user({ userId: "old", ctfScore: 40 })]);
+    expect(rows[0].ctfScore).toBe(40);
+  });
+});
+
 describe("rankByScore", () => {
   it("filters out zero / undefined ctfScore and keeps only scorers", () => {
     const rows = rankByScore([

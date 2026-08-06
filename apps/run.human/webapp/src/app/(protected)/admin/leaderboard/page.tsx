@@ -380,7 +380,9 @@ export default async function LeaderboardPage({
       ) : null}
 
       <p className="text-[11.5px] text-default-400">
-        Standings scan RunUser rollups (ctfScore / ctfSolves); badges, summary and
+        Standings scan RunUser and rank by the CTF slice of the derived score
+        (scoreBreakdown.ctfStreak + flagPoints — the legacy ctfScore field is
+        frozen at 0 and no longer written); badges, summary and
         both drills read the CtfSolve <em>and</em> CtfScoreEvent ledgers unioned
         (one scan each, sliced in memory) so OTP/repeatable solves show. CSV export
         is formula-injection-guarded. The q.defcon.run/admin/leaderboard host is
