@@ -29,6 +29,7 @@ const mocks = vi.hoisted(() => ({
   cacheGet: vi.fn(async () => ({ data: null as Record<string, unknown> | null })),
   cacheUpsert: vi.fn(async (_attrs: Record<string, unknown>) => ({})),
   reconcileBestEffort: vi.fn(),
+  awardTreadmillFlagBestEffort: vi.fn(),
 }));
 
 // logEvent is fire-and-forget telemetry; silence it so fetch mocks stay clean.
@@ -37,6 +38,9 @@ vi.mock("./log-event", () => ({ logEvent: vi.fn() }));
 // runStravaSync tests assert ON it directly, rather than incidentally
 // exercising the real (unmocked-here) GpxFile.query.primary path.
 vi.mock("@/lib/gpx-reconcile", () => ({ reconcileBestEffort: mocks.reconcileBestEffort }));
+vi.mock("@/lib/treadmill-award", () => ({
+  awardTreadmillFlagBestEffort: mocks.awardTreadmillFlagBestEffort,
+}));
 // Task 1 (syncUserUntagged) writes through GpxFile.create + S3 — first mock of
 // these in this file, so importActivity's real (unmocked) body can run against
 // real fetch stubs without touching AWS.
@@ -761,5 +765,94 @@ describe("refreshStripCache", () => {
     await refreshStripCache("u1", "tok", 1_754_000_000);
 
     expect(mocks.cacheUpsert).toHaveBeenCalledTimes(1);
+  });
+});
+
+
+/**
+ * Regression: the unattended batch worker must neither import GPS-less
+ * activities nor award the ELKENTARO 2000 flag (2026-08-06).
+ *
+ * Making GPS-less activities importable also exposed them to the EventBridge
+ * batch sync, which had always skipped them. Its 05:00 run imported 68 trackless
+ * activities nobody asked for — WeightTraining, Walk, Yoga, Soccer — and, because
+ * the award hook lives inside importActivity, handed 11 runners a treadmill flag
+ * they never claimed; one of them took the player first-blood badge with it.
+ *
+ * `userInitiated` now gates both behaviours. These tests pin the batch worker on
+ * the OLD behaviour and the user-driven path on the new one.
+ */
+describe("GPS-less imports are user-initiated only", () => {
+  const gpsLessUser: StravaUserToken = { userId: "u1", athleteId: "a1", accessToken: "tok" };
+
+  /** An indoor activity: no summary_polyline, and no latlng stream. */
+  function indoor(id: number): StravaActivity {
+    return {
+      id,
+      name: `indoor-${id}`,
+      type: "WeightTraining",
+      sport_type: "WeightTraining",
+      distance: 0,
+      total_elevation_gain: 0,
+      start_date_local: "2026-08-06T06:00:00Z",
+      moving_time: 1800,
+      trainer: true,
+    };
+  }
+
+  function pageNo(url: string): string | null {
+    return new URL(url, "http://x").searchParams.get("page");
+  }
+
+  beforeEach(() => {
+    mocks.fileQuery.mockReset().mockResolvedValue({ data: [] });
+    mocks.fileCreate.mockClear();
+    mocks.s3Send.mockClear();
+    mocks.awardTreadmillFlagBestEffort.mockClear();
+    // runStravaSync reads these before it will do anything.
+    vi.stubEnv("AUTH_INTERNAL_URL", "http://auth.local");
+    vi.stubEnv("AUTH_INTERNAL_SECRET", "shh");
+    vi.stubEnv("INTERNAL_SYNC_SECRET", undefined);
+    // Streams with NO latlng — what Strava returns for an indoor activity.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const u = String(url);
+        if (u.includes("/api/internal/strava-tokens")) {
+          return stravaResponse({
+            tokens: [{ userId: "u1", athleteId: "a1", accessToken: "tok" }],
+          });
+        }
+        if (u.includes("/athlete/activities")) {
+          return pageNo(u) === "1" ? stravaResponse([indoor(1)]) : stravaResponse([]);
+        }
+        if (u.includes("/streams")) return stravaResponse({});
+        return stravaResponse({});
+      })
+    );
+  });
+
+  it("a USER-INITIATED sync imports it and awards the flag", async () => {
+    const res = await syncUserUntagged(gpsLessUser, 0);
+    expect(res.imported).toBe(1);
+    expect(mocks.fileCreate).toHaveBeenCalledTimes(1);
+    // Written as a distance-only run: no track, no bounds.
+    const attrs = mocks.fileCreate.mock.calls[0][0] as Record<string, unknown>;
+    expect(attrs.trackCount).toBe(0);
+    expect(attrs).not.toHaveProperty("bounds");
+    expect(mocks.awardTreadmillFlagBestEffort).toHaveBeenCalledWith("u1", { isAdmin: false });
+  });
+
+  it("the unattended BATCH worker imports nothing and awards nothing", async () => {
+    // runStravaSync drives syncUser, which calls importActivity with no opts —
+    // the exact path that swept in 68 files and 11 flags on 2026-08-06.
+    await runStravaSync();
+    expect(mocks.fileCreate).not.toHaveBeenCalled();
+    expect(mocks.awardTreadmillFlagBestEffort).not.toHaveBeenCalled();
+  });
+
+  it("passes the operator flag through so a test import cannot take the player first blood", async () => {
+    await syncUserUntagged(gpsLessUser, 0, true);
+    expect(mocks.awardTreadmillFlagBestEffort).toHaveBeenCalledWith("u1", { isAdmin: true });
   });
 });

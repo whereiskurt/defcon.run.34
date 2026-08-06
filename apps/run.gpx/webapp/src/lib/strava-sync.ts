@@ -174,19 +174,41 @@ export type ImportedFile = { fileId: string; fileName: string };
 async function importActivity(
   user: StravaUserToken,
   activity: StravaActivity,
-  opts?: { conDay?: string; isAdmin?: boolean }
+  opts?: {
+    conDay?: string;
+    isAdmin?: boolean;
+    /**
+     * Did a human ask for THIS import? True for the strip's tap-to-import,
+     * Sync-now, and the con-day sync; FALSE for the unattended EventBridge batch
+     * worker, which syncs on every linked user's behalf without being asked.
+     *
+     * Two things hang off it, and both are lessons from 2026-08-06: the
+     * overnight sweep imported 68 GPS-less activities nobody had asked for
+     * (weights, walks, yoga, soccer) and handed 11 runners a treadmill flag they
+     * never claimed — one of them taking the player first-blood badge with it.
+     *
+     *   - GPS-less activities are imported ONLY on a user-initiated call. The
+     *     batch worker skips them exactly as it did before they became
+     *     importable, so it cannot bulk-add trackless files to My Routes.
+     *   - The treadmill flag is awarded ONLY on a user-initiated call. An
+     *     automated sweep must never claim a flag for somebody.
+     */
+    userInitiated?: boolean;
+  }
 ): Promise<ImportedFile | null> {
   const streams = await stravaGet<StreamSet>(
     `/activities/${activity.id}/streams?keys=latlng,altitude,time&key_by_type=true`,
     user.accessToken
   );
-  // No GPS (e.g. treadmill). Previously this returned null and the activity was
-  // counted as "skipped" — so an indoor run could never be logged at all. It is
-  // now imported as a distance-only activity: a valid GPX carrying the name but
-  // an empty <trkseg>, and NO bounds (see below). Distance and moving time are
-  // real and still score; there is simply no line to draw on the map.
+  // No GPS (e.g. treadmill). This used to return null unconditionally, so an
+  // indoor run could never be logged at all. It is now imported as a
+  // distance-only activity — a valid GPX carrying the name but an empty
+  // <trkseg>, and NO bounds (see below) — but only when a human asked for it.
+  // Distance and moving time are real and still score; there is simply no line
+  // to draw on the map.
   const latlng = streams?.latlng?.data ?? [];
   const hasGps = latlng.length > 0;
+  if (!hasGps && !opts?.userInitiated) return null; // batch worker: skip, as before
 
   const gpx = buildGpx(activity.name, latlng, streams?.altitude?.data, streams?.time?.data);
   const fileId = uuidv4();
@@ -233,9 +255,9 @@ async function importActivity(
   // Sync now, con-day sync, batch worker), so there is one place to be right.
   // Fire-and-forget: awarding is idempotent server-side and must never break
   // the import that earned it.
-  if (qualifiesForTreadmillFlag(activity)) {
+  if (opts?.userInitiated && qualifiesForTreadmillFlag(activity)) {
     // isAdmin only ever WITHHOLDS the non-admin first-blood slot, so defaulting
-    // it false for the batch worker (which has no session) is the safe side.
+    // it false where it isn't known is the safe side.
     awardTreadmillFlagBestEffort(user.userId, { isAdmin: opts?.isAdmin === true });
   }
 
@@ -380,7 +402,7 @@ export async function syncUserUntagged(
         continue;
       }
       try {
-        const created = await importActivity(user, activity, { isAdmin });
+        const created = await importActivity(user, activity, { isAdmin, userInitiated: true });
         if (created) imported++;
         else skipped++; // defensive: importActivity only nulls on an unexpected path
       } catch (e) {
@@ -702,7 +724,7 @@ export async function importActivityForConDay(
   conDay: string,
   isAdmin = false
 ): Promise<ImportedFile | null> {
-  return importActivity(user, activity, { conDay, isAdmin });
+  return importActivity(user, activity, { conDay, isAdmin, userInitiated: true });
 }
 
 export interface UserStravaSyncSummary {
@@ -757,6 +779,7 @@ export async function syncUserToConDay(
       created = await importActivity(user, activity, {
         conDay,
         isAdmin: quotaTier === "admin",
+        userInitiated: true,
       });
     } catch (e) {
       console.error(`[strava-sync] import failed activity ${activity.id}`, e);
