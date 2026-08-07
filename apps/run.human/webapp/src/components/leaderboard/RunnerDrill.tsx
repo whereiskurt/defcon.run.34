@@ -249,7 +249,10 @@ export default function RunnerDrill({
   const socialTotal = sectionTotal(socialPts, socialConDays);
   const ctfSectionTotal = sectionTotal(ctfTotal, ctfConDays);
 
-  if (!hasRuns && !hasSocial && !hasCtf) {
+  // `hasCluster` belongs in this guard: a cluster-only drill DOES render a
+  // section below, so leaving it out would claim "No runs yet." above visible
+  // content. Every section that can render must be able to veto the empty state.
+  if (!hasRuns && !hasSocial && !hasCtf && !hasCluster) {
     return <p className="text-default-500 text-sm p-2">{emptyLabel}</p>;
   }
 

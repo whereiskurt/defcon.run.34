@@ -156,8 +156,11 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
           cache: 'no-store',
         });
         if (!res.ok) throw new Error(String(res.status));
-        // Back-compat: older/partial cached responses may omit `social`/`ctf` —
-        // treat missing sections as empty rather than throwing.
+        // Back-compat: older/partial cached responses may omit
+        // `social`/`ctf`/`cluster` — treat missing sections as empty rather
+        // than throwing. Every section the API returns must be copied through:
+        // `cluster` was omitted here, so group check-in bonuses rendered in the
+        // "Your standing" modal but never on the board.
         const data: Partial<Drill> = await res.json();
         setDrills((prev) => ({
           ...prev,
@@ -165,12 +168,13 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
             accomplishments: data.accomplishments ?? [],
             social: data.social ?? EMPTY_SOCIAL,
             ctf: data.ctf ?? [],
+            cluster: data.cluster ?? [],
           },
         }));
       } catch {
         setDrills((prev) => ({
           ...prev,
-          [userId]: { accomplishments: [], social: EMPTY_SOCIAL, ctf: [] },
+          [userId]: { accomplishments: [], social: EMPTY_SOCIAL, ctf: [], cluster: [] },
         }));
       } finally {
         setLoadingAccomplishments((prev) => {
