@@ -117,6 +117,22 @@ export type BibForPickup = {
 };
 
 /**
+ * Did this row's owner actually BUY a bib — paid, or pledged to pay at the
+ * table? See BibForPickup.purchased for why a runnerCode is not enough.
+ *
+ * Both halves are unreachable now that run.bib's BIB_SALES_CLOSED is true: it
+ * 403s POST /api/checkout/bib AND a PATCH setting willPayInPerson=true. So a
+ * bib registered today can only ever carry a NAME, which lands here as false —
+ * a late registration can never be primed and can never collect the 200.
+ */
+export function isPurchasedBib(row: {
+  paidAmount?: number;
+  willPayInPerson?: boolean;
+}): boolean {
+  return (row.paidAmount ?? 0) > 0 || row.willPayInPerson === true;
+}
+
+/**
  * Read the caller's bib for the bib-pickup screen (first self-scan), or null
  * when they have no bib / no linked account.
  *
@@ -137,7 +153,7 @@ export async function getBibForPickup(
     runnerCode: row.runnerCode,
     nameOnBib: row.nameOnBib ?? "",
     hasSponsored: (row.paidAmount ?? 0) > 0,
-    purchased: (row.paidAmount ?? 0) > 0 || row.willPayInPerson === true,
+    purchased: isPurchasedBib(row),
   };
 }
 

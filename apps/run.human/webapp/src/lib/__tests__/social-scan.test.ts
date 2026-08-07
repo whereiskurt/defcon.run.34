@@ -321,12 +321,29 @@ describe("judgeScan — bib priming", () => {
     expect(fake.state.passes).toEqual([]);
   });
 
-  it("mints nothing and reports no bib for a runner with no bib", async () => {
+  /**
+   * KURT'S CASE (2026-08-07): a plain run account with NO bib at all, scanned
+   * off their profile QR. The bib machinery must be invisible AND the social
+   * award must land in full — this is the ordinary scan, and the vast majority
+   * of them. Asserts the awards, not just the absence of bib wording, because
+   * "no bib card" would also be true of a scan that silently did nothing.
+   */
+  it("a runner with NO bib is an ordinary scan — no bib wording, full award", async () => {
     const result = await prime();
 
-    expect(result).toMatchObject({ ok: true });
+    expect(result).toMatchObject({ ok: true, ownerName: "Bunny" });
     expect((result as { bibStatus?: string }).bibStatus).toBeUndefined();
     expect(fake.state.passes).toEqual([]);
+    // Both parties credited, both ledger rows written.
+    expect(fake.state.awards).toEqual([
+      { userId: "scanner", social: 1 },
+      { userId: "owner", social: 1 },
+    ]);
+    expect(fake.state.ledgers.map((l) => [l.challenge, l.user])).toEqual([
+      ["social-scan", "scanner"],
+      ["social-scan", "owner"],
+    ]);
+    expect(fake.state.ledgers.every((l) => l.points > 0)).toBe(true);
   });
 
   it("a NON-operator never mints, and never even reads bib status", async () => {
