@@ -52,10 +52,13 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Priming succeeded even though the social pair is spent for the day ──────
-  // An operator working through a box of bibs re-scans people constantly; a red
-  // 409 would read as "that didn't work" when in fact the bib IS primed. Only
-  // operator scans of an actual bib-holder land here — a runner's own duplicate
-  // scan still gets the ordinary 409 below.
+  // The mint sits before the pair claim, so a scan can prime a bib while the
+  // pair itself is already burned for the day (an operator who connected with
+  // this runner earlier, before their bib was bought). A red 409 would read as
+  // "that didn't work" when the bib IS now primed. Narrow by construction: only
+  // a scan that ACTUALLY primed carries a bibStatus, so a re-scan of someone
+  // already primed — and every runner's own duplicate scan — takes the ordinary
+  // 409 below.
   if (result.code === "already_today" && result.bibStatus) {
     return NextResponse.json({
       code: "bib_ready",
