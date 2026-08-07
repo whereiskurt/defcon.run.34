@@ -142,19 +142,33 @@ jobs:
           # terragrunt-apply.yml, where it shipped a broken deploy on 2026-08-04.)
           exit_code=0
 
-          # If specific region and modules, plan each module directory
-          if [[ -n "$REGION" && -n "$MODULES" ]]; then
-            echo "Planning modules [$MODULES] in region [$REGION]..."
+          # If modules are specified, plan each targeted unit directory.
+          # A module entry may be a bare name (region-relative -> region/$REGION/$MODULE)
+          # OR a path containing "/" (relative to live/site, e.g. "global/cloudfront")
+          # which lets a single global unit be planned in isolation without a region.
+          # This mirrors terragrunt-apply.yml exactly, and deliberately so: a change
+          # you cannot PLAN in isolation is one you end up applying unreviewed, which
+          # is the opposite of what scoping a global unit is for.
+          if [[ -n "$MODULES" ]]; then
+            echo "Planning modules [$MODULES]${REGION:+ in region [$REGION]}..."
             IFS=',' read -ra MODULE_LIST <<< "$MODULES"
             for MODULE in "${MODULE_LIST[@]}"; do
               MODULE=$(echo "$MODULE" | xargs)  # trim whitespace
-              echo "=== Planning $MODULE in $REGION ==="
-              (cd "region/$REGION/$MODULE" && terragrunt plan --no-color) 2>&1 | tee -a plan_output.txt
+              if [[ "$MODULE" == */* ]]; then
+                DIR="$MODULE"                    # path relative to live/site (e.g. global/cloudfront)
+              elif [[ -n "$REGION" ]]; then
+                DIR="region/$REGION/$MODULE"     # region-relative bare name
+              else
+                echo "ERROR: bare module '$MODULE' needs a region; pass a path like global/$MODULE instead." >&2
+                exit 1
+              fi
+              echo "=== Planning $DIR ==="
+              (cd "$DIR" && terragrunt plan --no-color) 2>&1 | tee -a plan_output.txt
               module_exit=${PIPESTATUS[0]}
               # Remember the first failure but keep going, so the PR comment still
               # covers every module rather than stopping at the first broken one.
               if [[ "$module_exit" -ne 0 ]]; then
-                echo "::error::terragrunt plan FAILED for region/$REGION/$MODULE (exit $module_exit)"
+                echo "::error::terragrunt plan FAILED for $DIR (exit $module_exit)"
                 [[ "$exit_code" -eq 0 ]] && exit_code=$module_exit
               fi
             done
