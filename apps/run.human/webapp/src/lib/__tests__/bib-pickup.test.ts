@@ -19,9 +19,14 @@ vi.mock("@/lib/ctf-judge", () => ({
   defaultStore: { hasScoreFor: vi.fn() },
 }));
 
-import { judgeBibPickup, BIB_PICKUP_CHALLENGE } from "../bib-pickup";
+import { judgeBibPickup, judgeBibPrime, BIB_PICKUP_CHALLENGE } from "../bib-pickup";
 
-const BIB = { runnerCode: "BIB-RXRN", nameOnBib: "KPHKPH2", hasSponsored: true };
+const BIB = {
+  runnerCode: "BIB-RXRN",
+  nameOnBib: "KPHKPH2",
+  hasSponsored: true,
+  purchased: true,
+};
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 let loadBib: any;
@@ -69,6 +74,18 @@ describe("judgeBibPickup", () => {
 
   it("does nothing for a runner with no bib, and does NOT burn the award", async () => {
     loadBib.mockResolvedValue(null);
+    expect(await run()).toBeNull();
+    expect(solve).not.toHaveBeenCalled();
+    expect(hasScoreFor).not.toHaveBeenCalled();
+  });
+
+  /**
+   * A durable pass minted before the purchase gate existed must not pay out for
+   * a bib nobody bought — 2 such passes were live when the gate landed.
+   */
+  it("does nothing for a bib row nobody bought, even with a live pass", async () => {
+    loadBib.mockResolvedValue({ ...BIB, purchased: false });
+    hasPass.mockResolvedValue(true);
     expect(await run()).toBeNull();
     expect(solve).not.toHaveBeenCalled();
     expect(hasScoreFor).not.toHaveBeenCalled();
@@ -126,6 +143,81 @@ describe("judgeBibPickup", () => {
   it("checks first-ness for the CALLER, against the pickup challenge only", async () => {
     await run("someone-else");
     expect(hasScoreFor).toHaveBeenCalledWith({
+      challenge: BIB_PICKUP_CHALLENGE,
+      user: "someone-else",
+    });
+  });
+});
+
+/**
+ * The operator side of the same workflow (2026-08-07).
+ *
+ * `ready` used to mean "has a Bib row and has never redeemed the 200", which by
+ * the end of the con was true of 337 of the 353 bib rows — 274 of which were
+ * never bought. Every operator scan therefore rendered "Bib ready" INSTEAD of
+ * the ordinary connection card, so a scan that did award social points looked
+ * like it had done nothing.
+ *
+ * `ready` now means exactly one thing: "this scan is about to prime a bought
+ * bib that nobody has primed yet". Everything else is an ordinary social scan.
+ */
+describe("judgeBibPrime", () => {
+  let primeLoadBib: any;
+  let primeHasPass: any;
+  let primeHasScoreFor: any;
+
+  const prime = (userId = "owner-uuid") =>
+    judgeBibPrime(userId, {
+      loadBib: primeLoadBib,
+      hasPass: primeHasPass,
+      hasScoreFor: primeHasScoreFor,
+    });
+
+  beforeEach(() => {
+    primeLoadBib = vi.fn().mockResolvedValue(BIB);
+    primeHasPass = vi.fn().mockResolvedValue(false);
+    primeHasScoreFor = vi.fn().mockResolvedValue(false);
+  });
+
+  it("is ready for a bought bib nobody has primed yet", async () => {
+    expect(await prime()).toBe("ready");
+  });
+
+  it("is none for a runner with no bib row at all", async () => {
+    primeLoadBib.mockResolvedValue(null);
+    expect(await prime()).toBe("none");
+    expect(primeHasPass).not.toHaveBeenCalled();
+  });
+
+  /**
+   * 274 of 353 live Bib rows carry a runnerCode but were never paid for or
+   * pledged. A placeholder row is not a bib anyone can collect.
+   */
+  it("is none for a bib row that was never bought", async () => {
+    primeLoadBib.mockResolvedValue({ ...BIB, purchased: false });
+    expect(await prime()).toBe("none");
+    expect(primeHasPass).not.toHaveBeenCalled();
+  });
+
+  /**
+   * THE NOISE CASE: an operator re-scanning someone they already primed. The
+   * pass is durable, so there is nothing left to do — this is an ordinary
+   * social scan and must render as one.
+   */
+  it("is none once a pass already exists — re-scanning primes nothing new", async () => {
+    primeHasPass.mockResolvedValue(true);
+    expect(await prime()).toBe("none");
+  });
+
+  it("is none for a runner who already collected", async () => {
+    primeHasScoreFor.mockResolvedValue(true);
+    expect(await prime()).toBe("none");
+  });
+
+  it("reads the pass and the ledger for the SCANNED runner", async () => {
+    await prime("someone-else");
+    expect(primeHasPass).toHaveBeenCalledWith("someone-else");
+    expect(primeHasScoreFor).toHaveBeenCalledWith({
       challenge: BIB_PICKUP_CHALLENGE,
       user: "someone-else",
     });
