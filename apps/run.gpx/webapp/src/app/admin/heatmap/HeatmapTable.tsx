@@ -2,30 +2,29 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { adminApiUrl } from "@/lib/admin-api-base";
-
-type HeatmapRun = {
-  fileId: string;
-  userId: string;
-  fileName: string;
-  conDay?: string;
-  totalDistance?: number;
-  trackCount?: number;
-  source?: string;
-  createdAt: number;
-  hidden: boolean;
-};
+import type { RunShape } from "@/lib/heatmap-shape";
+import RunRow from "./RunRow";
+import ShapeThumb from "./ShapeThumb";
+import type { HeatmapRun, ShapeMap } from "./types";
 
 /**
- * Moderation table for the public heat map. All values render as JSX text nodes
- * (auto-escaped) — never dangerouslySetInnerHTML: file names are user input and
- * the whole point of this screen is that some of them are hostile.
+ * Moderation table for the public heat map.
  *
  * Hide/Delete mutate only the source rows. The public map keeps serving the
  * prebuilt artifact until Regenerate runs, so `pendingChanges` tracks how many
  * moderation actions are waiting and the button says so.
+ *
+ * TWO REQUESTS, NOT ONE. The roster paints the table immediately; the shape
+ * geometry (~300 GPX reads out of S3) arrives on a second request and fills the
+ * thumbnails in. Folding them together would put every one of those reads in
+ * front of first paint on the page an admin reaches for when something is
+ * already wrong.
  */
 export default function HeatmapTable() {
   const [runs, setRuns] = useState<HeatmapRun[]>([]);
+  const [shapes, setShapes] = useState<ShapeMap>({});
+  const [failedShapes, setFailedShapes] = useState<Set<string>>(new Set());
+  const [shapesLoading, setShapesLoading] = useState(true);
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
   const [artifactRunCount, setArtifactRunCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,6 +33,7 @@ export default function HeatmapTable() {
   const [rebuilding, setRebuilding] = useState(false);
   const [pendingChanges, setPendingChanges] = useState(0);
   const [rebuildMsg, setRebuildMsg] = useState<string | null>(null);
+  const [zoom, setZoom] = useState<{ shape: RunShape; run: HeatmapRun } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -54,9 +54,32 @@ export default function HeatmapTable() {
     }
   }, []);
 
+  /**
+   * Shapes are best-effort: a failure here leaves the table fully usable with
+   * empty thumbnails. It must never surface as the page's error banner, which
+   * is reserved for moderation actions that actually failed.
+   */
+  const loadShapes = useCallback(async () => {
+    setShapesLoading(true);
+    try {
+      const res = await fetch(adminApiUrl("/api/gpx/admin/heatmap/shapes"), {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(`shapes ${res.status}`);
+      const data = await res.json();
+      setShapes(data.shapes ?? {});
+      setFailedShapes(new Set<string>(data.failed ?? []));
+    } catch (e) {
+      console.error("[admin/heatmap] shapes:", e);
+    } finally {
+      setShapesLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     void load();
-  }, [load]);
+    void loadShapes();
+  }, [load, loadShapes]);
 
   async function toggleHidden(r: HeatmapRun) {
     setBusy(r.fileId);
@@ -131,6 +154,9 @@ export default function HeatmapTable() {
   if (loading) return <p>Loading…</p>;
 
   const hiddenCount = runs.filter((r) => r.hidden).length;
+  const flaggedCount = runs.filter(
+    (r) => (shapes[r.fileId]?.signals.length ?? 0) > 0
+  ).length;
 
   return (
     <>
@@ -151,6 +177,12 @@ export default function HeatmapTable() {
           <div>
             <strong>{runs.length}</strong> con-day runs · <strong>{hiddenCount}</strong>{" "}
             hidden
+            {!shapesLoading && (
+              <>
+                {" "}
+                · <strong>{flaggedCount}</strong> flagged
+              </>
+            )}
           </div>
           <div style={{ color: "#666" }}>
             Published artifact:{" "}
@@ -158,6 +190,15 @@ export default function HeatmapTable() {
               ? `${artifactRunCount ?? "?"} runs, built ${new Date(generatedAt).toLocaleString()}`
               : "never built"}
           </div>
+          {shapesLoading && (
+            <div style={{ color: "#666" }}>Reading run geometry…</div>
+          )}
+          {!shapesLoading && failedShapes.size > 0 && (
+            <div style={{ color: "#b00" }}>
+              {failedShapes.size} run{failedShapes.size === 1 ? "" : "s"} could not
+              be read from S3 — shown as “!”.
+            </div>
+          )}
           {pendingChanges > 0 && (
             <div style={{ color: "#8a6100", fontWeight: 600 }}>
               {pendingChanges} change{pendingChanges === 1 ? "" : "s"} not yet
@@ -193,6 +234,7 @@ export default function HeatmapTable() {
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
+              <th style={{ padding: "0.4rem", width: 70 }}>Shape</th>
               <th style={{ padding: "0.4rem" }}>Run</th>
               <th style={{ padding: "0.4rem" }}>Owner</th>
               <th style={{ padding: "0.4rem" }}>Day</th>
@@ -204,64 +246,81 @@ export default function HeatmapTable() {
           </thead>
           <tbody>
             {runs.map((r) => (
-              <tr
+              <RunRow
                 key={`${r.userId}:${r.fileId}`}
-                style={{
-                  borderBottom: "1px solid #eee",
-                  opacity: r.hidden ? 0.55 : 1,
-                }}
-              >
-                <td style={{ padding: "0.4rem" }}>{r.fileName}</td>
-                <td
-                  style={{ padding: "0.4rem", fontSize: "0.75rem", color: "#666" }}
-                >
-                  {r.userId}
-                </td>
-                <td style={{ padding: "0.4rem" }}>{r.conDay ?? "—"}</td>
-                <td style={{ padding: "0.4rem" }}>
-                  {r.totalDistance
-                    ? `${(r.totalDistance / 1000).toFixed(1)} km`
-                    : "—"}
-                </td>
-                <td style={{ padding: "0.4rem" }}>{r.source ?? "—"}</td>
-                <td style={{ padding: "0.4rem" }}>
-                  {r.hidden ? (
-                    <span style={{ color: "#b06a00", fontWeight: 600 }}>
-                      Hidden
-                    </span>
-                  ) : (
-                    "On map"
-                  )}
-                </td>
-                <td style={{ padding: "0.4rem", whiteSpace: "nowrap" }}>
-                  <button
-                    onClick={() => void toggleHidden(r)}
-                    disabled={busy === r.fileId}
-                    style={{ padding: "0.25rem 0.6rem", cursor: "pointer" }}
-                  >
-                    {busy === r.fileId ? "…" : r.hidden ? "Unhide" : "Hide"}
-                  </button>
-                  <button
-                    onClick={() => void remove(r)}
-                    disabled={busy === r.fileId}
-                    style={{
-                      padding: "0.25rem 0.6rem",
-                      marginLeft: "0.35rem",
-                      cursor: "pointer",
-                      color: "#fff",
-                      background: "#b00",
-                      border: "1px solid #900",
-                      borderRadius: 4,
-                    }}
-                  >
-                    {busy === r.fileId ? "…" : "Delete"}
-                  </button>
-                </td>
-              </tr>
+                run={r}
+                shape={shapes[r.fileId]}
+                shapesLoading={shapesLoading}
+                shapeFailed={failedShapes.has(r.fileId)}
+                busy={busy === r.fileId}
+                onToggleHidden={() => void toggleHidden(r)}
+                onDelete={() => void remove(r)}
+                onEnlarge={(shape, run) => setZoom({ shape, run })}
+              />
             ))}
           </tbody>
         </table>
       )}
+
+      {zoom && <ZoomOverlay zoom={zoom} onClose={() => setZoom(null)} />}
     </>
+  );
+}
+
+/** Click-to-enlarge. Escape or a backdrop click closes it. */
+function ZoomOverlay({
+  zoom,
+  onClose,
+}: {
+  zoom: { shape: RunShape; run: HeatmapRun };
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.55)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 50,
+        padding: "1rem",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "#fff",
+          borderRadius: 8,
+          padding: "1rem",
+          maxWidth: "min(90vw, 520px)",
+        }}
+      >
+        <div style={{ marginBottom: "0.5rem", wordBreak: "break-word" }}>
+          <strong>{zoom.run.fileName}</strong>
+        </div>
+        <ShapeThumb shape={zoom.shape} size={380} />
+        <div style={{ marginTop: "0.5rem", fontSize: "0.8rem", color: "#666" }}>
+          {zoom.shape.points} points · {zoom.shape.spanMeters} m across ·{" "}
+          {zoom.run.conDay ?? "no con-day"}
+        </div>
+        <button
+          onClick={onClose}
+          style={{ marginTop: "0.75rem", padding: "0.35rem 0.8rem", cursor: "pointer" }}
+        >
+          Close
+        </button>
+      </div>
+    </div>
   );
 }
