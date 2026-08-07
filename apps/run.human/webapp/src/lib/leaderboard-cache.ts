@@ -26,12 +26,21 @@ type CacheState = {
   data: RunUserItem[] | null;
   fetchedAt: number;
   refreshing: boolean;
+  /**
+   * The COLD-path single-flight guard (2026-08-06). `refreshing` has always
+   * covered the stale path, but a cold cache had nothing: every container start
+   * (deploy, restart, scale-out) begins cold, and a con crowd opening the board
+   * together would each fire a full `RunUser` table scan. Now the first caller
+   * scans and the rest await that same promise.
+   */
+  inflight: Promise<RunUserItem[]> | null;
 };
 
 const cache: CacheState = {
   data: null,
   fetchedAt: 0,
   refreshing: false,
+  inflight: null,
 };
 
 /**
@@ -65,11 +74,22 @@ function refreshInBackground(scan: () => Promise<RunUserItem[]>): void {
 export async function getCachedScan(
   scan: () => Promise<RunUserItem[]>
 ): Promise<RunUserItem[]> {
-  // Cold path — the ONLY path that blocks a request on the scan.
+  // Cold path — the ONLY path that blocks a request on the scan, and it blocks
+  // exactly once no matter how many callers arrive together. A rejected scan
+  // caches nothing and clears the guard, so the next caller retries.
   if (cache.data === null) {
-    cache.data = await scan();
-    cache.fetchedAt = Date.now();
-    return cache.data;
+    if (!cache.inflight) {
+      cache.inflight = scan()
+        .then((rows) => {
+          cache.data = rows;
+          cache.fetchedAt = Date.now();
+          return rows;
+        })
+        .finally(() => {
+          cache.inflight = null;
+        });
+    }
+    return cache.inflight;
   }
 
   // Past TTL — serve stale immediately, kick a single background refresh.
@@ -86,4 +106,5 @@ export function __resetLeaderboardCache(): void {
   cache.data = null;
   cache.fetchedAt = 0;
   cache.refreshing = false;
+  cache.inflight = null;
 }

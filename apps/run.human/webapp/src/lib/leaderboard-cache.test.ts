@@ -71,6 +71,38 @@ describe("getCachedScan (60s stale-while-revalidate)", () => {
     expect(scan).toHaveBeenCalledTimes(2);
   });
 
+  /**
+   * The COLD path's single-flight (2026-08-06) — the stale path below has
+   * always had its `refreshing` guard, but a cold cache had none. That is the
+   * worst moment for it: every container start (deploy, restart, scale-out)
+   * begins cold, and a con crowd loading the board together would each fire a
+   * full `RunUser` table scan on a service running one task.
+   */
+  it("single-flight: concurrent COLD calls run exactly one scan", async () => {
+    let resolveScan!: (r: RunUserItem[]) => void;
+    const scan = vi.fn(
+      () => new Promise<RunUserItem[]>((res) => (resolveScan = res))
+    );
+
+    const calls = [getCachedScan(scan), getCachedScan(scan), getCachedScan(scan)];
+    expect(scan).toHaveBeenCalledTimes(1);
+
+    resolveScan(rowsA);
+    expect(await Promise.all(calls)).toEqual([rowsA, rowsA, rowsA]);
+    expect(scan).toHaveBeenCalledTimes(1);
+  });
+
+  it("a failed cold scan rejects waiters and the next call retries", async () => {
+    const failing = vi.fn(async () => {
+      throw new Error("scan failed");
+    });
+    await expect(getCachedScan(failing)).rejects.toThrow("scan failed");
+
+    const ok = vi.fn(async () => rowsA);
+    expect(await getCachedScan(ok)).toBe(rowsA);
+    expect(ok).toHaveBeenCalledTimes(1);
+  });
+
   it("single-flight: a concurrent past-TTL call does not start a second scan", async () => {
     let resolveRefresh: (r: RunUserItem[]) => void = () => {};
     const scan = vi

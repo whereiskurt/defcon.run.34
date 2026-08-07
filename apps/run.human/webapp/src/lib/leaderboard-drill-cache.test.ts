@@ -84,6 +84,78 @@ describe("getCachedDrill", () => {
     expect(loaderB).toHaveBeenCalledTimes(1);
   });
 
+  /**
+   * Single-flight (2026-08-06). The drill route opened from admin-only to every
+   * signed-in runner, so the top-ten rows are now expanded by many people at
+   * once. Without this, N concurrent expansions of the SAME cold row each ran a
+   * full `loadDrill` (5 DynamoDB queries) on a service running one task with
+   * autoscaling off.
+   */
+  describe("single-flight", () => {
+    it("collapses concurrent cold loads for the same user into ONE loader call", async () => {
+      let resolve!: (v: string) => void;
+      const loader = vi.fn(() => new Promise<string>((r) => (resolve = r)));
+
+      const calls = [
+        getCachedDrill("u1", loader),
+        getCachedDrill("u1", loader),
+        getCachedDrill("u1", loader),
+      ];
+      expect(loader).toHaveBeenCalledTimes(1);
+
+      resolve("shared");
+      expect(await Promise.all(calls)).toEqual(["shared", "shared", "shared"]);
+      expect(loader).toHaveBeenCalledTimes(1);
+    });
+
+    it("does NOT collapse different users into one another", async () => {
+      const loaderA = vi.fn(async () => "A");
+      const loaderB = vi.fn(async () => "B");
+
+      const [a, b] = await Promise.all([
+        getCachedDrill("u1", loaderA),
+        getCachedDrill("u2", loaderB),
+      ]);
+
+      expect(a).toBe("A");
+      expect(b).toBe("B");
+    });
+
+    it("a failed load rejects every waiter and does not poison the next call", async () => {
+      const failing = vi.fn(async () => {
+        throw new Error("ddb down");
+      });
+
+      const first = getCachedDrill("u1", failing);
+      const second = getCachedDrill("u1", failing);
+      await expect(first).rejects.toThrow("ddb down");
+      await expect(second).rejects.toThrow("ddb down");
+      expect(failing).toHaveBeenCalledTimes(1); // both waited on the one attempt
+
+      // The failure must not be cached — the next caller retries and succeeds.
+      const ok = vi.fn(async () => "recovered");
+      expect(await getCachedDrill("u1", ok)).toBe("recovered");
+      expect(ok).toHaveBeenCalledTimes(1);
+    });
+
+    it("bustDrillCache mid-flight: the in-flight result is NOT committed", async () => {
+      // A write landing during a load means that load carries pre-write rows.
+      // Committing it would silently lose the bust (read-your-writes breaks) —
+      // mirrors the `generation` guard in scan-cache.ts.
+      let resolve!: (v: string) => void;
+      const slow = vi.fn(() => new Promise<string>((r) => (resolve = r)));
+
+      const inflight = getCachedDrill("u1", slow);
+      bustDrillCache("u1");
+      resolve("pre-write");
+      expect(await inflight).toBe("pre-write"); // the waiter still gets its value
+
+      const fresh = vi.fn(async () => "post-write");
+      expect(await getCachedDrill("u1", fresh)).toBe("post-write");
+      expect(fresh).toHaveBeenCalledTimes(1); // reloaded, not served the stale commit
+    });
+  });
+
   it(`inserting ${DRILL_CACHE_MAX + 1} distinct users evicts the oldest`, async () => {
     for (let i = 0; i < DRILL_CACHE_MAX; i++) {
       await getCachedDrill(`user-${i}`, async () => i);
