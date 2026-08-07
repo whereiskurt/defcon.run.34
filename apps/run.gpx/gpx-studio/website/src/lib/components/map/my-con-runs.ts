@@ -16,6 +16,7 @@ import {
 import { requestedLayers } from '$lib/stores/layer-url';
 import { addInBand } from '$lib/components/map/z-bands';
 import { RouteHitRouter } from './route-hit';
+import { whenStyleReady } from './style-ready';
 import {
     coreWidth,
     glowWidth,
@@ -141,8 +142,7 @@ export class MyConRunsLayer {
 
     /** Resolve once the style (incl. the async basemap import) can accept sources/layers. */
     private whenStyleReady(): Promise<void> {
-        if (this.map.isStyleLoaded()) return Promise.resolve();
-        return new Promise((resolve) => this.map.once('idle', () => resolve()));
+        return whenStyleReady(this.map);
     }
 
     /** Fetch the signed-in runner's con-day manifest and render every run (hidden by default). */

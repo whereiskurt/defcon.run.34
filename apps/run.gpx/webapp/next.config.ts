@@ -17,6 +17,39 @@ const nextConfig: NextConfig = {
   // In dev, no assetPrefix needed
   ...(isDev ? {} : { assetPrefix: `https://${WEBAPP_ORIGIN}/${WEBAPP_PREFIX}` }),
 
+  // ── studio asset caching (fixed 2026-08-07) ────────────────────────────────
+  // The studio ships ~100 files / 1.09 MB compressed behind 108 <link
+  // rel=modulepreload> tags in app.html, and every single one was being
+  // re-downloaded on every page load by every viewer. Two independent reasons,
+  // and this fixes the second one:
+  //
+  //   1. CloudFront's /{region}/* catch-all uses Managed-CachingDisabled, so
+  //      the edge never stored them (see modules/cloudfront — a dedicated
+  //      behavior for this exact path now handles that half).
+  //   2. Next serves everything out of public/ as `public, max-age=0`, so the
+  //      BROWSER never stored them either — a plain reload refetched all 1.09 MB.
+  //
+  // `_app/immutable/` is SvelteKit's content-hashed output: the filename
+  // changes whenever the bytes change, which is precisely the contract
+  // `immutable` requires. Scoped to that subtree deliberately — app.html and
+  // index.html live one level up under /studio/, are NOT content-hashed, and
+  // must keep revalidating or a release would never reach anyone.
+  async headers() {
+    return [
+      {
+        // basePath is prepended automatically, so this matches
+        // /use1/studio/_app/immutable/* in production.
+        source: "/studio/_app/immutable/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+    ];
+  },
+
   // GPX Studio frontend is built to public/studio/ and served as static files
   // With basePath, rewrites are relative to basePath (e.g., /use1/studio/app)
   async rewrites() {

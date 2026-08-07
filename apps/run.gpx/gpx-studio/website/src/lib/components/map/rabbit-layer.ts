@@ -4,6 +4,7 @@ import { dcjackSvg } from './dcjack-svg';
 import { escapeHtml } from './escape-html';
 import { startCue, resetCue, stopCue } from '$lib/stores/refresh-cue';
 import { addInBand } from '$lib/components/map/z-bands';
+import { whenStyleReady } from './style-ready';
 
 const DEFAULT_PIN_COLOR = '#e6007a';
 const SOURCE = 'dc34-rabbits';
@@ -58,8 +59,7 @@ export class RabbitLayer {
     }
 
     private whenStyleReady(): Promise<void> {
-        if (this.map.isStyleLoaded()) return Promise.resolve();
-        return new Promise((resolve) => this.map.once('idle', () => resolve()));
+        return whenStyleReady(this.map);
     }
 
     /** Register a data-URI SVG as a map image (decodes async; no-op if already loaded). */

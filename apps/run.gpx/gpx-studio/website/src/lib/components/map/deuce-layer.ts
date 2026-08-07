@@ -14,6 +14,7 @@ import {
     monorailStates,
 } from './monorail-route';
 import { addInBand } from '$lib/components/map/z-bands';
+import { whenStyleReady } from './style-ready';
 import {
     coreWidth,
     glowWidth,
@@ -101,8 +102,7 @@ export class DeuceLayer {
     }
 
     private whenStyleReady(): Promise<void> {
-        if (this.map.isStyleLoaded()) return Promise.resolve();
-        return new Promise((resolve) => this.map.once('idle', () => resolve()));
+        return whenStyleReady(this.map);
     }
 
     /**

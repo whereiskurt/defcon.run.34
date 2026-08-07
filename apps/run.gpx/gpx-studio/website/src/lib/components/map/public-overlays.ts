@@ -22,6 +22,7 @@ import {
 import { requestedLayers } from '$lib/stores/layer-url';
 import { addInBand } from '$lib/components/map/z-bands';
 import { RouteHitRouter } from './route-hit';
+import { whenStyleReady } from './style-ready';
 import {
     coreWidth,
     glowWidth,
@@ -484,8 +485,7 @@ export class PublicOverlaysLayer {
 
     /** Resolve once the style (incl. the async basemap import) can accept sources/layers. */
     private whenStyleReady(): Promise<void> {
-        if (this.map.isStyleLoaded()) return Promise.resolve();
-        return new Promise((resolve) => this.map.once('idle', () => resolve()));
+        return whenStyleReady(this.map);
     }
 
     /** Fetch the manifest and render every route (hidden until toggled on by the group default). */
@@ -555,6 +555,23 @@ export class PublicOverlaysLayer {
         // to silently drop whichever routes happened to resolve first. Gate on style-ready so
         // every route is added against a ready map, not a race.
         await this.whenStyleReady();
+
+        // START THE FEEDS HERE, not after the routes (fixed 2026-08-07). Both of
+        // these used to be `await`ed one after the other at the very end of this
+        // method, so their two round trips did not even BEGIN until all 17 route
+        // GPXs had been fetched and parsed — which is why `aggregate` and
+        // `checkins` were reliably the last two requests on a cold load. Neither
+        // reads anything the route fan-out produces (they take their visibility
+        // from `requestedLayers()`/`storedVisible()` and their data from their own
+        // feed), so the only thing that ordering ever bought was latency.
+        //
+        // Still gated behind whenStyleReady() above, which is the real
+        // precondition: both add sources/layers via addInBand.
+        //
+        // Not floating — awaited before add() returns. Safe to hold un-awaited in
+        // the meantime because both swallow their own failures, so neither can
+        // reject and strand an unhandled rejection here.
+        const feeds = Promise.all([this.addAggregate(), this.addCheckIns()]);
 
         // Fetch + parse each route's GPX, add a read-only glow+core line layer (initially hidden).
         await Promise.all(
@@ -627,8 +644,9 @@ export class PublicOverlaysLayer {
             groups.flatMap((g) => g.maps.map((m) => publicRouteLayer(m.fileId)))
         );
 
-        await this.addAggregate();
-        await this.addCheckIns();
+        // Started concurrently with the route fan-out above; settle them before
+        // add() reports done so `loaded` still means "everything is on the map".
+        await feeds;
     }
 
     /** Load the "All Runners" aggregate as one hidden, non-attributable line layer. */

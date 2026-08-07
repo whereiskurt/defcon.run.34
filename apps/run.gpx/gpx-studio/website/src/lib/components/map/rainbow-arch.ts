@@ -2,6 +2,7 @@ import mapboxgl from 'mapbox-gl';
 import { buildRainbowFeatures, isArchActiveNow, RAINBOW_ARCHES, pitchOpacity } from './rainbow-geometry';
 import { openEggModal } from './egg-modal';
 import { addInBand } from '$lib/components/map/z-bands';
+import { whenStyleReady } from './style-ready';
 
 const SOURCE = 'dc34-rainbow';
 const LAYER = 'dc34-rainbow-arch';
@@ -44,8 +45,7 @@ export class RainbowArch {
     }
 
     private whenStyleReady(): Promise<void> {
-        if (this.map.isStyleLoaded()) return Promise.resolve();
-        return new Promise((resolve) => this.map.once('idle', () => resolve()));
+        return whenStyleReady(this.map);
     }
 
     private async build() {

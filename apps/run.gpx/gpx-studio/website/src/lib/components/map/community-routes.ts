@@ -23,6 +23,7 @@ import {
 import { requestedLayers } from '$lib/stores/layer-url';
 import { addInBand } from '$lib/components/map/z-bands';
 import { RouteHitRouter } from './route-hit';
+import { whenStyleReady } from './style-ready';
 import {
     coreWidth,
     glowWidth,
@@ -245,8 +246,7 @@ export class CommunityRoutesLayer {
     }
 
     private whenStyleReady(): Promise<void> {
-        if (this.map.isStyleLoaded()) return Promise.resolve();
-        return new Promise((resolve) => this.map.once('idle', () => resolve()));
+        return whenStyleReady(this.map);
     }
 
     /** Fetch the community manifest and render every route (hidden by default).

@@ -4,6 +4,7 @@ import { MatrixRain } from './matrix-rain';
 import { decryptReveal } from './ghost-decrypt';
 import { addInBand } from '$lib/components/map/z-bands';
 import { startCue, resetCue, stopCue } from '$lib/stores/refresh-cue';
+import { whenStyleReady } from './style-ready';
 
 /** "1753757283" (unix secs) → short "2m" / "3h" / "5d" / "just now" label. */
 function sinceLabel(sec: unknown): string {
@@ -59,8 +60,7 @@ export class GhostLayer {
     }
 
     private whenStyleReady(): Promise<void> {
-        if (this.map.isStyleLoaded()) return Promise.resolve();
-        return new Promise((resolve) => this.map.once('idle', () => resolve()));
+        return whenStyleReady(this.map);
     }
 
     private loadImage() {
