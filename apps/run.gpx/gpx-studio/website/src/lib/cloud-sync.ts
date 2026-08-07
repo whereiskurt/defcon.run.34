@@ -763,7 +763,7 @@ export async function updateCloudFileContent(
       throw new Error('Failed to get upload URL');
     }
 
-    const { uploadUrl } = await response.json();
+    const { uploadUrl, versionedKey } = await response.json();
 
     if (!uploadUrl) {
       throw new Error('No upload URL returned');
@@ -778,6 +778,35 @@ export async function updateCloudFileContent(
 
     if (!uploadResponse.ok) {
       throw new Error('Failed to upload file to storage');
+    }
+
+    // Promote the new version onto the file's canonical key.
+    //
+    // The presigned PUT above only ever writes `{fileId}.v{N}.gpx`. EVERY reader
+    // — download/presign, loadFromCloud, files/con-runs, the heat map, the
+    // public aggregate — reads the canonical `{fileId}.gpx`, which is written
+    // exactly once, by saveToCloud at create time. Skipping this step therefore
+    // does not "save a bit late", it never saves at all: the row's fileName
+    // still renames, so the UI looks right while every download serves the
+    // create-time body — for a drawn route, "New File 1" with the single point
+    // it was born with.
+    //
+    // Must throw on failure rather than warn: auto-save only advances its
+    // content hash when this resolves, so a throw is what makes the next cycle
+    // retry instead of assuming the edit is safely stored.
+    if (!versionedKey) {
+      throw new Error('No versioned key returned');
+    }
+
+    const finalizeResponse = await fetch(`${getApiBase()}/files/${fileId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ versionedKey }),
+    });
+
+    if (!finalizeResponse.ok) {
+      throw new Error('Failed to finalize save');
     }
 
     cloudSyncStatus.set('idle');
