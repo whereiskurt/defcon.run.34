@@ -10,8 +10,12 @@
  *   - CtfScoreEvent ledger rows for challenges social-scan + jack-egg where
  *     the user is the subject (counterparties' ledger rows are UNTOUCHED —
  *     their points stay honest)
- *   - RunUser.socialScore → 0; RunUser.ctfScore -= the points on the deleted
- *     ledger rows (NEVER zeroed wholesale — real CTF solves are preserved)
+ *   - RunUser.socialScore → 0 (the cosmetic scan meter, still written), then a
+ *     RE-DERIVE of the real score from the surviving ledger via rescore-raw.mts
+ *     (NEVER zeroed wholesale — real CTF solves and run streak are preserved).
+ *     This replaced an `ADD ctfScore :neg`, which was worse than a no-op: since
+ *     the points-consistency migration `ctfScore` is frozen at 0 and unread, so
+ *     subtracting drove it negative while the derived score kept every point.
  *   - SocialBoard: ADD -1 on the user's current score bucket (score 0 has no
  *     bucket, matching lib/social-rank applyScoreDelta semantics)
  *
@@ -36,6 +40,7 @@
  */
 import { DynamoDB } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocument } from "@aws-sdk/lib-dynamodb";
+import { rescoreUserRaw } from "./rescore-raw.mjs";
 
 const CONFIRM = process.argv.includes("--confirm");
 
@@ -203,7 +208,8 @@ async function main() {
   console.log(
     `\nPlan: delete ${pairs.length} pairs + ${quotas.length} quotas + ` +
       `${eggs.length} eggs + ${ledgers.length} ledger rows; socialScore ` +
-      `${socialScore}→0; ctfScore ${ru.ctfScore ?? 0}→${(ru.ctfScore ?? 0) - ledgerPoints}; ` +
+      `${socialScore}→0; then rescore from the surviving ledger (removes the ` +
+      `${ledgerPoints} pts on the deleted rows); ` +
       `SocialBoard ${socialScore > 0 ? `${scoreBucket(socialScore)} -1` : "(no bucket at score 0)"}`
   );
 
@@ -218,13 +224,28 @@ async function main() {
       console.log(`  deleted ${r.__edb_e__} ${r.sk}`);
     }
   }
+  // socialScore is the one legacy counter still written (the cosmetic scan
+  // meter), so it IS zeroed directly. The points, however, are re-derived from
+  // the surviving ledger — the old `ADD ctfScore :neg` was worse than a no-op:
+  // `ctfScore` has been frozen at 0 since the points-consistency migration, so
+  // subtracting drove it NEGATIVE while the real (derived) score kept every
+  // social point. The deletes above already removed the ledger rows, so the
+  // rescore below is what actually takes the points away.
   await electro.update({
     TableName: ELECTRO_TABLE,
     Key: { pk: ru.pk, sk: ru.sk },
-    UpdateExpression: "SET socialScore = :z, updatedAt = :ua ADD ctfScore :neg",
-    ExpressionAttributeValues: { ":z": 0, ":ua": Date.now(), ":neg": -ledgerPoints },
+    UpdateExpression: "SET socialScore = :z, updatedAt = :ua",
+    ExpressionAttributeValues: { ":z": 0, ":ua": Date.now() },
   });
-  console.log(`  reset RunUser socialScore=0, ctfScore -= ${ledgerPoints}`);
+  console.log(`  reset RunUser socialScore=0`);
+  const rescored = await rescoreUserRaw(electro, ELECTRO_TABLE, userId, {
+    confirm: true,
+  });
+  console.log(
+    `  rescored RunUser: score=${rescored.score} ` +
+      `(socialStreak=${rescored.breakdown.socialStreak} flagPoints=${rescored.breakdown.flagPoints} ` +
+      `runStreak=${rescored.breakdown.runStreak} clusterBonus=${rescored.breakdown.clusterBonus})`
+  );
   if (socialScore > 0) {
     // Find the board row by entity marker + bucket and write via its OWN keys
     // (never hand-compose ElectroDB pk/sk). Missing row → warn; the board is
