@@ -1,9 +1,19 @@
 /**
  * reset-ctf-user.mts — operator script to zero a single player's CTF standing.
  *
- * Deletes every CtfSolve + CtfAttempt row for one user and resets their
- * RunUser.ctfScore / ctfSolves counters to 0 — i.e. "back to zero on the board"
- * so the flag(s) can be re-tested from a clean slate. It also REPORTS (never
+ * Deletes every CtfSolve + CtfAttempt row for one user and then RE-DERIVES that
+ * user's score from the surviving ledger (rescore-raw.mts) — i.e. "back to zero
+ * on the board" so the flag(s) can be re-tested from a clean slate.
+ *
+ * ⚠️ It does NOT zero the score wholesale, and it no longer touches the legacy
+ * `ctfScore` field. Since the points-consistency migration the board reads the
+ * DERIVED `score`/`scoreBreakdown`; zeroing `ctfScore` (what this script used to
+ * do) changed nothing a user could see, and a blanket zero would wrongly strip
+ * the runner's run streak and cluster bonus. Note CtfScoreEvent rows are NOT
+ * deleted here (OTP/repeatable/social live there) — reset-social-user.mts owns
+ * those — so a user with score events keeps their CTF points by design.
+ *
+ * It also REPORTS (never
  * mutates) each affected challenge's Ctf.solveCount so the operator can decide
  * whether the player was the sole solver (a fresh re-solve would then want
  * ordinal 1 / first-blood — handled separately, not by this script).
@@ -38,11 +48,12 @@
  *   cd apps/run.human/webapp
  *   # 1. dry-run — inspect exactly what would be cleared (writes nothing):
  *   AWS_PROFILE=dc34-application npx tsx --env-file=.env scripts/reset-ctf-user.mts --email whereiskurt@gmail.com
- *   # 2. commit the reset (deletes solves/attempts, zeroes the score):
+ *   # 2. commit the reset (deletes solves/attempts, then rescores the user):
  *   AWS_PROFILE=dc34-application npx tsx --env-file=.env scripts/reset-ctf-user.mts --email whereiskurt@gmail.com --confirm
  */
 import { DynamoDB } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocument } from "@aws-sdk/lib-dynamodb";
+import { rescoreUserRaw } from "./rescore-raw.mjs";
 
 const CONFIRM = process.argv.includes("--confirm");
 // Also reset each affected challenge's Ctf.solveCount to 0 — but ONLY for
@@ -226,9 +237,16 @@ async function main() {
     const sc = RESET_SOLVECOUNT
       ? ` and reset solveCount=0 on ${soleSolverCtf.length} sole-solver challenge(s)`
       : "";
+    const preview = await rescoreUserRaw(electro, ELECTRO_TABLE, userId, {
+      confirm: false,
+    });
     console.log(
       `\nDRY-RUN: would delete ${solves.length} CtfSolve + ${attempts.length} CtfAttempt ` +
-        `rows, set ctfScore=0/ctfSolves=0 on ${userId}${sc}.\nRe-run with --confirm to write.`
+        `rows and rescore ${userId}${sc}.\n` +
+        `  NOTE: the score below is computed from the ledger AS IT STANDS NOW ` +
+        `(current score=${preview.score}); the post-delete rescore will be lower ` +
+        `by the value of the ${solves.length} solve row(s) listed above.\n` +
+        `Re-run with --confirm to write.`
     );
     return;
   }
@@ -241,13 +259,20 @@ async function main() {
     await electro.delete({ TableName: ELECTRO_TABLE, Key: { pk: a.pk, sk: a.sk } });
     console.log(`  deleted CtfAttempt ${a.challenge}`);
   }
-  await electro.update({
-    TableName: ELECTRO_TABLE,
-    Key: { pk: ru.pk, sk: ru.sk },
-    UpdateExpression: "SET ctfScore = :z, ctfSolves = :z, updatedAt = :ua",
-    ExpressionAttributeValues: { ":z": 0, ":ua": Date.now() },
+  // Re-derive the score from what SURVIVES the deletions above. Zeroing the
+  // legacy `ctfScore` is NOT enough — nothing reads or writes that field since
+  // the points-consistency migration, so on its own this reset left the player
+  // holding every point. We must NOT blanket-zero either: this user's run
+  // streak and cluster bonus are legitimate and unrelated to the CTF wipe.
+  const rescored = await rescoreUserRaw(electro, ELECTRO_TABLE, userId, {
+    confirm: true,
   });
-  console.log(`  reset RunUser ctfScore=0, ctfSolves=0`);
+  console.log(
+    `  rescored RunUser: score=${rescored.score} ` +
+      `(ctfStreak=${rescored.breakdown.ctfStreak} flagPoints=${rescored.breakdown.flagPoints} ` +
+      `runStreak=${rescored.breakdown.runStreak} clusterBonus=${rescored.breakdown.clusterBonus}), ` +
+      `ctfSolves=${rescored.counts.solves}`
+  );
   if (RESET_SOLVECOUNT) {
     for (const c of soleSolverCtf) {
       await electro.update({
