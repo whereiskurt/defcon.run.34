@@ -172,12 +172,14 @@ const runPoints = (r: Accomplishment) =>
 /**
  * The streak line under a section heading.
  *
- * WHY IT EXISTS: the per-entry chips in every section are COSMETIC. Runs and
- * social scans carry no points at all (accomplishments only light con-days;
- * `social-scan` events are written with `points: 0`), so a runner with a full
- * streak sees a column of "+0 🥕" and concludes the board is broken — which is
- * exactly how this got reported. The real value of those two tracks arrives as
- * a streak bonus, and this is the only place that says so.
+ * WHY IT EXISTS: a RUN's per-entry chip is COSMETIC — an accomplishment only
+ * lights a con-day and carries no points, so a runner with a full streak sees a
+ * column of "+0 🥕" and concludes the board is broken, which is exactly how
+ * this got reported. The real value of that track arrives as a streak bonus,
+ * and this is the only place that says so.
+ *
+ * Social scans were in that boat too until 2026-08-06; each now pays
+ * SOCIAL_SCAN_POINTS, so their chips are real and the streak stacks on top.
  */
 function StreakLine({ days, kind }: { days: number; kind: 'run' | 'social' | 'CTF' }) {
   if (days === 0) return null;

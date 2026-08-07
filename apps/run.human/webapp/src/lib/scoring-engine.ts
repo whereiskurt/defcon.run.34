@@ -1,7 +1,8 @@
 /**
  * Derived scoring engine (points-consistency design, 2026-07-30). PURE — no
  * I/O, no entities. Values a user's ENTIRE ledger against CURRENT config:
- *   score = runStreak + socialStreak + ctfStreak + flagPoints + clusterBonus
+ *   score = runStreak + socialStreak + ctfStreak + flagPoints + socialPoints
+ *           + clusterBonus
  * Solve ORDINALS are frozen history; solve VALUES are recomputed here, so a
  * config retune re-values everyone on their next rescore. The ONLY writer of
  * the result is lib/rescore.ts (enforced by scoring-write-invariant.test.ts).
@@ -47,6 +48,9 @@ export interface UserScore {
     socialStreak: number;
     ctfStreak: number;
     flagPoints: number;
+    /** Flat per-scan social points (see SOCIAL_SCAN_POINTS). Distinct from
+     *  `socialStreak`, which pays for DAYS covered rather than scans made. */
+    socialPoints: number;
     clusterBonus: number;
   };
   days: { run: number; social: number; ctf: number };
@@ -82,8 +86,30 @@ function clusterBonusPoints(awards: EngineClusterAward[], cap: number): number {
   return total;
 }
 
-/** The one non-flag ledger challenge: scan events light social days, worth 0. */
+/** The one non-flag ledger challenge: scan events light social days AND pay. */
 const SOCIAL_CHALLENGE = "social-scan";
+
+/**
+ * What one social scan is worth (Kurt, 2026-08-06).
+ *
+ * Scans used to be worth ZERO each — the social track paid only through the
+ * streak table, so a runner who scanned forty people saw "+0 🥕 · 40 scans" and
+ * reasonably read the board as broken. Every scan now pays this flat amount ON
+ * TOP OF the streak bonus.
+ *
+ * DERIVED, never read from the ledger row's stored `points`. Every social-scan
+ * row written before this change stored 0, and the whole point is that those
+ * re-value on the next rescore rather than needing a data migration. The scan
+ * judge (lib/social-scan.ts) does stamp this value onto NEW rows, but only as
+ * an honest audit trail — nothing scores off it.
+ *
+ * MUTUAL by construction: a successful scan writes one ledger row for the
+ * scanner and one for the person scanned, each in their own partition, so both
+ * parties earn this — "5 per person", not 5 split between them. The pair-day
+ * idempotency gate means the same two runners can only pay each other once per
+ * day; DAILY_SCAN_CAP (50) bounds the rest.
+ */
+export const SOCIAL_SCAN_POINTS = 5;
 
 function flagValue(
   row: { challenge: string; ordinal?: number; at?: string; points?: number },
@@ -141,11 +167,15 @@ export function computeUserScore(input: {
     if (isConDay(day)) runDays.add(day);
   }
 
-  // ── Social track: scan-day events light days; individual scans worth 0. ──
+  // ── Social track: each scan pays a flat rate AND lights its con day. ──
+  // Mirrors the flag track's split: the ACT earns points, the DAY earns streak.
+  // A scan outside the con days therefore still pays but lights nothing.
   const socialDays = new Set<string>();
+  let socialScans = 0;
   const flagRows: { challenge: string; ordinal?: number; at?: string; points?: number }[] = [];
   for (const e of events) {
     if (e.challenge === SOCIAL_CHALLENGE) {
+      socialScans += 1;
       const day = e.bucket.split("#")[0];
       if (isConDay(day)) socialDays.add(day);
       continue;
@@ -181,6 +211,7 @@ export function computeUserScore(input: {
     socialStreak: streakPoints(socialDays.size),
     ctfStreak: streakPoints(ctfDays.size),
     flagPoints,
+    socialPoints: socialScans * SOCIAL_SCAN_POINTS,
     clusterBonus: clusterBonusPoints(clusterAwards, clusterCap),
   };
   return {
@@ -189,6 +220,7 @@ export function computeUserScore(input: {
       breakdown.socialStreak +
       breakdown.ctfStreak +
       breakdown.flagPoints +
+      breakdown.socialPoints +
       breakdown.clusterBonus,
     breakdown,
     days: { run: runDays.size, social: socialDays.size, ctf: ctfDays.size },

@@ -86,6 +86,7 @@ vi.mock("@/lib/cluster-config-store", () => ({
 
 import { GET } from "../route";
 import { __resetDrillCache } from "@/lib/leaderboard-drill-cache";
+import { SOCIAL_SCAN_POINTS } from "@/lib/scoring-engine";
 
 const ACCOMPLISHMENT_ROW = {
   userId: "runner-9",
@@ -234,9 +235,10 @@ describe("GET /api/leaderboard/[userId]/accomplishments", () => {
       { lat: 36.2, lng: -115.2 },
     ]);
 
-    // social rollup.
+    // social rollup — points DERIVED per scan, not read off the row (the
+    // fixture stores `points: 2` and is deliberately ignored).
     expect(body.social.days).toEqual([
-      { day: "2026-07-20", count: 1, points: 2 },
+      { day: "2026-07-20", count: 1, points: SOCIAL_SCAN_POINTS },
     ]);
     expect(body.social.egg).toEqual({ points: 25, at: "2026-07-19T00:00:00Z" });
 

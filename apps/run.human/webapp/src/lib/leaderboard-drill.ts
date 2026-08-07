@@ -9,6 +9,7 @@
  * rows so it stays trivially unit-testable.
  */
 import { conLocalDate, isConDay, streakPoints } from "./con-days";
+import { SOCIAL_SCAN_POINTS } from "./scoring-engine";
 
 export type SocialDayLine = { day: string; count: number; points: number };
 
@@ -53,7 +54,11 @@ export function groupSocial(events: SocialEventLike[]): {
     const day = e.bucket.split("#")[0];
     const cur = byDay.get(day) ?? { count: 0, points: 0 };
     cur.count += 1;
-    cur.points += e.points ?? 0;
+    // DERIVED at the same flat rate the engine pays, NOT the row's stored
+    // `points` — every row written before 2026-08-06 stored 0, and a drill that
+    // renders 0 next to a score that counted 5 is exactly the contradiction
+    // that made the board look broken.
+    cur.points += SOCIAL_SCAN_POINTS;
     byDay.set(day, cur);
   }
 
@@ -293,12 +298,15 @@ export function conDayCount(
  * A drill section's REAL contribution: its own entry points plus that track's
  * streak bonus.
  *
- * WHY THIS EXISTS: runs and social scans are worth ZERO each — accomplishments
- * only light con-days, and `social-scan` events are skipped by the engine
- * before scoring (scoring-engine.ts:148-152). Summing entry points alone gave
- * "+0 🥕 · 4 scans" sitting directly above a "+500 streak bonus" line, which
- * reads as a broken board. These totals sum to the runner's score minus the
- * cluster bonus, rather than to a number that appears nowhere.
+ * WHY THIS EXISTS: runs are worth ZERO each — an accomplishment only lights a
+ * con-day. Summing entry points alone gave "+0 🥕 · 4 runs" sitting directly
+ * above a "+500 streak bonus" line, which reads as a broken board. These totals
+ * sum to the runner's score minus the cluster bonus, rather than to a number
+ * that appears nowhere.
+ *
+ * Social scans were in the same boat until 2026-08-06; they now pay
+ * SOCIAL_SCAN_POINTS each (`groupSocial` derives it), so the social section's
+ * entry points are real and this still adds the streak on top.
  */
 export function sectionTotal(entryPoints: number, conDays: number): number {
   return entryPoints + streakPoints(conDays);
