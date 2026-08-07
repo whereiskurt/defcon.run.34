@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { auth } from "@/config/auth";
 import HeatmapTable from "./HeatmapTable";
+import ConDayBackfillButton from "./ConDayBackfillButton";
 import { isGpxAdmin } from "@/lib/gpx-admin";
 
 /**
@@ -35,6 +36,7 @@ export default async function AdminHeatmapPage() {
         Delete removes the run outright. Neither takes effect publicly until you
         press <strong>Regenerate</strong>.
       </p>
+      <ConDayBackfillButton />
       <HeatmapTable />
     </main>
   );
