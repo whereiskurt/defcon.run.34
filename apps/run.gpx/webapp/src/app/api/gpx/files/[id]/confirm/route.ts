@@ -4,6 +4,7 @@ import { GpxFile } from "@/entities/gpx-file";
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { s3Client, BUCKET } from "@/lib/s3-client";
 import { validateGpxFile } from "@/lib/gpx-validator";
+import { summarizeUploadedGpx } from "@/lib/route-summary";
 import { assertNotLockedLive } from "@/lib/live-lockout";
 import { reconcileBestEffort } from "@/lib/gpx-reconcile";
 
@@ -131,12 +132,60 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    // Validation passed - activate the file
+    // Validation passed — derive the geometry from the bytes, then activate.
+    //
+    // WHY HERE. `POST /api/gpx/files` takes trackCount/totalDistance/
+    // totalElevation from the CLIENT request body and defaults them to 0, and
+    // nothing downstream ever corrected them. The studio does not send a
+    // distance, so every hand-uploaded run stored `totalDistance: 0` and no
+    // bounds at all — 10 of the 71 con-day runs on 2026-08-07, which is exactly
+    // the set that reads as "—" on /admin/heatmap and on the PUBLIC maps route.
+    //
+    // `lib/route-summary.ts` already derived this server-side for Route
+    // templates ("the client NEVER supplies geometry metadata for a route");
+    // that hardening simply never reached GpxFile. This is the same call.
+    //
+    // The leaderboard was never affected: `gpx-reconcile.ts` re-parses the S3
+    // object with `parseTrack` and never reads these attributes. Nothing here
+    // changes anyone's score.
+    //
+    // BEST-EFFORT ON PURPOSE. The file has already passed validation and the
+    // user's upload is complete; a summary that fails or is too large to read
+    // honestly (null — see summarizeUploadedGpx) must not fail the confirm.
+    // In that case the stored values are left alone rather than zeroed, so a
+    // gap stays a visible gap instead of becoming a confident wrong number.
+    let geometry: {
+      trackCount?: number;
+      waypointCount?: number;
+      totalDistance?: number;
+      totalElevation?: number;
+      bounds?: { minLat: number; maxLat: number; minLon: number; maxLon: number };
+    } = {};
+    try {
+      const summary = await summarizeUploadedGpx(file.data.key);
+      if (summary) {
+        geometry = {
+          trackCount: summary.trackCount,
+          waypointCount: summary.waypointCount,
+          totalDistance: summary.totalDistance,
+          totalElevation: summary.totalElevation,
+          // OMIT for a trackless file: `summarizeGpxText` returns undefined
+          // bounds when there are no points, and writing a degenerate box map
+          // consumers would try to fit to is worse than writing none.
+          ...(summary.bounds ? { bounds: summary.bounds } : {}),
+        };
+      } else {
+        console.warn(`[confirm] ${id}: too large to summarize; geometry left as-is`);
+      }
+    } catch (summaryError) {
+      console.error(`[confirm] ${id}: geometry summary failed:`, summaryError);
+    }
+
     const result = await GpxFile.update({
       userId: targetUserId,
       fileId: id,
     })
-      .set({ status: "active" })
+      .set({ status: "active", ...geometry })
       .go({ response: "all_new" });
 
     // LDBR-05 / Task 4 (leaderboard<->runs reconcile): turn an individually-owned
