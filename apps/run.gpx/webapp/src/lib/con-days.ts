@@ -107,3 +107,78 @@ export function guessConDayFromGpx(gpx: string): string | null {
   const date = conLocalDate(t);
   return isConDay(date) ? date : null;
 }
+
+/**
+ * Con days on which a SYNCED Strava activity is tagged automatically
+ * (Kurt, 2026-08-07). Deliberately NARROWER than CON_DAYS: Aug 5 and Aug 10 are
+ * real con days but are not auto-tagged, so a run on either still needs a
+ * manual pick. Kept as its own list rather than a date range so changing the
+ * policy is a one-line edit with no arithmetic to get wrong.
+ *
+ * WHY AUTO-TAG AT ALL: `conDay` is the single gate on both real consumers —
+ * `heatmap-build.ts:isSelected()` requires it, and a run only reaches the
+ * leaderboard through the tagged path. The unattended batch worker left it
+ * undefined, so 240 of 293 synced files were inert: stored, listed, and
+ * counting for nothing.
+ */
+export const AUTO_CON_DAYS: readonly string[] = [
+  "2026-08-06",
+  "2026-08-07",
+  "2026-08-08",
+  "2026-08-09",
+];
+
+/**
+ * Strava `sport_type` values never auto-tagged (Kurt, 2026-08-07: "if it's a
+ * ride we will skip it"). The whole cycling family, since Strava splits it
+ * across many values and excluding only "Ride" would let e-bikes and gravel
+ * rides straight through.
+ *
+ * This is an AUTO-TAG rule only. A runner who deliberately picks a con-day for
+ * a ride in the UI still gets it — the filter exists to stop the UNATTENDED
+ * sweep making that call on their behalf, the same principle as `userInitiated`
+ * on the treadmill flag.
+ */
+export const EXCLUDED_SPORTS: readonly string[] = [
+  "ride",
+  "mountainbikeride",
+  "gravelride",
+  "ebikeride",
+  "emountainbikeride",
+  "virtualride",
+  "handcycle",
+  "velomobile",
+];
+
+/**
+ * The con-day for a synced Strava activity, or null to leave it untagged.
+ *
+ * Takes Strava's `start_date_local` — the athlete's WALL CLOCK start, which the
+ * API sends with a misleading `Z` suffix (a 06:31 local run arrives as
+ * "…T06:31:00Z" whatever timezone they were in). So the calendar date is the
+ * literal first ten characters and NO offset may be applied: running this
+ * through `conLocalDate` would shift a morning run back a day and a late-night
+ * run is already correct without help. That is the opposite of
+ * `guessConDayFromGpx`, which reads a genuine UTC instant and MUST shift.
+ *
+ * `sportType` is Strava's `sport_type`. Cycling is skipped; anything else —
+ * including an unrecognised value — is tagged. That fail-OPEN default is
+ * deliberate: a sport Strava adds tomorrow should not silently stop a real run
+ * from counting, whereas the cost of tagging one unexpected activity is small.
+ *
+ * Returns null for anything unparseable rather than guessing — an untagged file
+ * is merely inert, while a wrongly tagged one puts a run on the wrong day of
+ * the heat map and awards a con-day the runner did not earn.
+ *
+ * THE single auto-tag decision, shared by the live sync and the backfill, so
+ * the two can never disagree about the same row.
+ */
+export function autoConDayFromStrava(
+  startDateLocal: string | null | undefined,
+  sportType?: string | null
+): string | null {
+  if (!startDateLocal || !/^\d{4}-\d{2}-\d{2}T/.test(startDateLocal)) return null;
+  if (sportType && EXCLUDED_SPORTS.includes(sportType.toLowerCase())) return null;
+  const date = startDateLocal.slice(0, 10);
+  return AUTO_CON_DAYS.includes(date) ? date : null;
+}

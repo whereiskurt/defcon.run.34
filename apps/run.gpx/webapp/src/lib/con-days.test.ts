@@ -8,6 +8,9 @@ import {
   isSelectableConDay,
   guessConDayFromGpx,
   isValidDateString,
+  autoConDayFromStrava,
+  AUTO_CON_DAYS,
+  EXCLUDED_SPORTS,
 } from "./con-days";
 
 const ms = (iso: string) => Date.parse(iso);
@@ -128,5 +131,104 @@ describe("guessConDayFromGpx", () => {
   });
   it("returns null on a malformed timestamp", () => {
     expect(guessConDayFromGpx(`<time>not-a-date</time>`)).toBeNull();
+  });
+});
+
+describe("autoConDayFromStrava", () => {
+  it("tags an activity whose local start date is an auto-tag day", () => {
+    expect(autoConDayFromStrava("2026-08-07T06:31:00Z")).toBe("2026-08-07");
+  });
+
+  it("reads start_date_local as WALL CLOCK, applying no timezone shift", () => {
+    // Strava quirk: start_date_local is local time carrying a bogus Z. A 06:31
+    // run is 06:31 where the runner stood. Shifting it by -7h (as we must for a
+    // genuine UTC instant) would roll it back to Aug 6 and mis-tag the day.
+    expect(autoConDayFromStrava("2026-08-07T06:31:00Z")).toBe("2026-08-07");
+    // Same trap at the other end of the day: a 23:30 local run must not roll
+    // FORWARD either...
+    expect(autoConDayFromStrava("2026-08-08T23:30:00Z")).toBe("2026-08-08");
+    // ...nor an early-hours one backwards.
+    expect(autoConDayFromStrava("2026-08-08T00:15:00Z")).toBe("2026-08-08");
+  });
+
+  it.each(["2026-08-06", "2026-08-07", "2026-08-08", "2026-08-09"])(
+    "auto-tags %s",
+    (d) => expect(autoConDayFromStrava(`${d}T12:00:00Z`)).toBe(d)
+  );
+
+  it.each(["2026-08-05", "2026-08-10"])(
+    "does NOT auto-tag %s - a con day, but outside the auto-tag set (Kurt, 2026-08-07)",
+    (d) => expect(autoConDayFromStrava(`${d}T12:00:00Z`)).toBeNull()
+  );
+
+  it("returns null outside the con entirely", () => {
+    expect(autoConDayFromStrava("2026-07-21T12:00:00Z")).toBeNull();
+    expect(autoConDayFromStrava("2026-09-01T12:00:00Z")).toBeNull();
+  });
+
+  it("returns null on missing/malformed input rather than guessing", () => {
+    expect(autoConDayFromStrava(undefined)).toBeNull();
+    expect(autoConDayFromStrava("")).toBeNull();
+    expect(autoConDayFromStrava("not-a-date")).toBeNull();
+    expect(autoConDayFromStrava("08/07/2026")).toBeNull();
+  });
+
+  it("every auto-tag day is a real con day, so the heat map gate accepts it", () => {
+    // isSelected() in heatmap-build.ts tests `conDay in CON_DAYS`. If these two
+    // lists ever drift, auto-tagged runs would be written and then silently
+    // ignored by the heat map - written but invisible.
+    for (const d of AUTO_CON_DAYS) expect(isConDay(d)).toBe(true);
+  });
+});
+
+describe("autoConDayFromStrava - sport filter (Kurt, 2026-08-07)", () => {
+  const day = "2026-08-07T06:31:00Z";
+
+  it.each(["Run", "TrailRun", "VirtualRun", "Walk", "Hike", "Swim", "Workout"])(
+    "tags a %s",
+    (sport) => expect(autoConDayFromStrava(day, sport)).toBe("2026-08-07")
+  );
+
+  it.each([
+    "Ride",
+    "MountainBikeRide",
+    "GravelRide",
+    "EBikeRide",
+    "EMountainBikeRide",
+    "VirtualRide",
+    "Handcycle",
+    "Velomobile",
+  ])("does NOT tag a %s - cycling is excluded", (sport) =>
+    expect(autoConDayFromStrava(day, sport)).toBeNull()
+  );
+
+  it("matches the sport case-insensitively", () => {
+    // Defensive: Strava sends PascalCase, but a mismatch here would silently
+    // tag every ride rather than fail loudly.
+    expect(autoConDayFromStrava(day, "ride")).toBeNull();
+    expect(autoConDayFromStrava(day, "RIDE")).toBeNull();
+    expect(autoConDayFromStrava(day, "mountainbikeride")).toBeNull();
+  });
+
+  it("tags when the sport is unknown or absent - fail OPEN, not closed", () => {
+    // An unrecognised sport_type must not silently drop a real run. Only the
+    // named cycling types are excluded; anything else is let through.
+    expect(autoConDayFromStrava(day, undefined)).toBe("2026-08-07");
+    expect(autoConDayFromStrava(day, "")).toBe("2026-08-07");
+    expect(autoConDayFromStrava(day, "SomeNewSportStravaAdded")).toBe("2026-08-07");
+  });
+
+  it("does not tag a ride even on an auto-tag day, nor a run off one", () => {
+    expect(autoConDayFromStrava("2026-08-08T09:00:00Z", "Ride")).toBeNull();
+    expect(autoConDayFromStrava("2026-08-05T09:00:00Z", "Run")).toBeNull();
+  });
+
+  it("EXCLUDED_SPORTS is the single list both the sync and the backfill read", () => {
+    // If the backfill grew its own copy, a ride tagged live could be untagged by
+    // the backfill (or vice versa) and the two would fight over the same row.
+    expect(EXCLUDED_SPORTS.length).toBeGreaterThan(0);
+    for (const s of EXCLUDED_SPORTS) {
+      expect(autoConDayFromStrava("2026-08-07T06:31:00Z", s)).toBeNull();
+    }
   });
 });

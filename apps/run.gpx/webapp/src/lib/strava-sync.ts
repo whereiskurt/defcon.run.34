@@ -11,6 +11,7 @@ import {
 } from "@/lib/quota-client";
 import { conDayRemaining } from "@/lib/con-day-quota";
 import { countConDayRuns } from "@/lib/con-day-usage";
+import { autoConDayFromStrava } from "@/lib/con-days";
 import { reconcileBestEffort } from "@/lib/gpx-reconcile";
 import { qualifiesForTreadmillFlag } from "@/lib/treadmill-flag";
 import { awardTreadmillFlagBestEffort } from "@/lib/treadmill-award";
@@ -215,6 +216,13 @@ async function importActivity(
   const fileName = `${activity.name}.gpx`;
   const key = `${getUserPrefix(user.userId)}${fileId}.gpx`;
 
+  // An explicitly chosen day always wins; otherwise auto-tag (see the create
+  // below). Rides are excluded from the AUTO path only — a human picking a
+  // con-day for a ride still gets it.
+  const conDay =
+    opts?.conDay ??
+    autoConDayFromStrava(activity.start_date_local, activity.sport_type);
+
   await s3Client.send(
     new PutObjectCommand({
       Bucket: BUCKET,
@@ -244,9 +252,21 @@ async function importActivity(
     source: "strava",
     publicShareEligible: false, // raw import — must be Converted before public sharing
     stravaActivityId: String(activity.id),
-    // Con-day tag (Phase 61): the user-facing sync path tags each imported run to
-    // the chosen con-day; the batch worker leaves it undefined.
-    ...(opts?.conDay ? { conDay: opts.conDay } : {}),
+    // Con-day tag (Phase 61): the user-facing sync path tags each imported run
+    // to the CHOSEN con-day, which always wins.
+    //
+    // AUTO-TAG (Kurt, 2026-08-07): failing that, derive it from the activity's
+    // own local start date when that lands on an AUTO_CON_DAYS day. The batch
+    // worker used to leave this undefined, and `conDay` is the single gate on
+    // both consumers — heatmap-build's isSelected() requires it, and only a
+    // tagged run reaches the leaderboard. The result was 240 of 293 synced
+    // files stored, listed, and counting for nothing.
+    //
+    // Derived from `start_date_local` (see autoConDayFromStrava for the
+    // wall-clock trap) rather than "now": the batch sweeps a rolling 7-day
+    // window, so import time can be days after the run and would tag the
+    // wrong day — or a con day for a run that happened before the con.
+    ...(conDay ? { conDay } : {}),
     status: "active",
   }).go();
 
@@ -802,4 +822,130 @@ export async function syncUserToConDay(
     quotaRemaining,
     files,
   };
+}
+
+
+// ---------------------------------------------------------------------------
+// Con-day backfill (Kurt, 2026-08-07)
+// ---------------------------------------------------------------------------
+
+/** What one backfill pass did. Every row lands in exactly one bucket. */
+export type ConDayBackfillResult = {
+  candidates: number;
+  tagged: number;
+  /** Fetched fine, but not an auto-tag day (or it is a ride). */
+  notEligible: number;
+  /** Runner has no usable Strava link any more - cannot ask Strava anything. */
+  noToken: number;
+  /** Strava returned nothing for the id (deleted activity, revoked scope). */
+  notFound: number;
+  failed: number;
+  byDay: Record<string, number>;
+  dryRun: boolean;
+};
+
+/**
+ * Recover `conDay` on rows the unattended sweep imported UNTAGGED, by asking
+ * Strava for each activity's `start_date_local` + `sport_type` again.
+ *
+ * WHY IT IS NEEDED AT ALL: `syncAllUsers` dedupes on `stravaActivityId` BEFORE
+ * calling `importActivity` (the `seen.has(...)` guard), so the auto-tag added
+ * alongside this can only ever fire on activities not yet imported. The rolling
+ * 7-day window will keep re-seeing Aug 6's runs for a week and skip every one
+ * of them. Without this pass those rows stay untagged permanently - and
+ * `conDay` is the sole gate on both the heat map and the leaderboard.
+ *
+ * WHY THE `since` BOUND MATTERS: an activity that HAPPENED on an auto-tag day
+ * cannot have been imported before that day, so rows created earlier are ruled
+ * out with no API call at all. On the 2026-08-07 backlog that skipped 188 of
+ * 240 rows for free, leaving 52 worth asking about.
+ *
+ * The tag decision is `autoConDayFromStrava` - the SAME pure function the live
+ * sync uses - so a backfilled row and a freshly synced one can never disagree.
+ *
+ * Idempotent: only ever touches rows that currently have no `conDay`, so a
+ * second pass finds nothing to do. Failures are counted, never fatal, so one
+ * bad activity cannot strand the rest. Defaults to DRY RUN - writing must be
+ * asked for explicitly.
+ */
+export async function backfillConDayTags(opts: {
+  dryRun?: boolean;
+  /** Only consider rows created at/after this epoch-ms. */
+  since: number;
+  /** Safety valve on Strava calls per pass. */
+  limit?: number;
+}): Promise<ConDayBackfillResult> {
+  const dryRun = opts.dryRun !== false;
+  const limit = opts.limit ?? 500;
+
+  const scan = await GpxFile.scan
+    .where(
+      (attr, op) =>
+        `${op.eq(attr.source, "strava")} AND ${op.notExists(attr.conDay)} AND ${op.gte(attr.createdAt, opts.since)} AND ${op.ne(attr.userId, "GLOBAL")}`
+    )
+    .go({ pages: "all" });
+
+  const rows = scan.data.slice(0, limit);
+  const out: ConDayBackfillResult = {
+    candidates: rows.length,
+    tagged: 0,
+    notEligible: 0,
+    noToken: 0,
+    notFound: 0,
+    failed: 0,
+    byDay: {},
+    dryRun,
+  };
+
+  // One token per runner, not per row: 52 rows across 22 runners is 22 token
+  // calls, and a runner whose link is gone short-circuits their whole set.
+  const tokens = new Map<string, StravaUserToken | null>();
+
+  for (const row of rows) {
+    const userId = row.userId as string;
+    try {
+      if (!tokens.has(userId)) {
+        tokens.set(userId, await fetchSingleUserStravaToken(userId));
+      }
+      const token = tokens.get(userId);
+      if (!token) {
+        out.noToken++;
+        continue;
+      }
+
+      const activity = await stravaGet<StravaActivity>(
+        `/activities/${row.stravaActivityId}`,
+        token.accessToken
+      );
+      if (!activity) {
+        out.notFound++;
+        continue;
+      }
+
+      const day = autoConDayFromStrava(
+        activity.start_date_local,
+        activity.sport_type
+      );
+      if (!day) {
+        out.notEligible++;
+        continue;
+      }
+
+      if (!dryRun) {
+        await GpxFile.update({ userId, fileId: row.fileId as string })
+          .set({ conDay: day })
+          .go();
+      }
+      out.tagged++;
+      out.byDay[day] = (out.byDay[day] ?? 0) + 1;
+    } catch (e) {
+      console.error(
+        `[con-day-backfill] failed row ${row.fileId} (activity ${row.stravaActivityId})`,
+        e
+      );
+      out.failed++;
+    }
+  }
+
+  return out;
 }
