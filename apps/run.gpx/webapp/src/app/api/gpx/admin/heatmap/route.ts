@@ -5,6 +5,7 @@ import { GpxFile } from "@/entities/gpx-file";
 import { s3Client, BUCKET } from "@/lib/s3-client";
 import { CON_DAYS } from "@/lib/con-days";
 import { heatmapArtifactKey } from "@/lib/heatmap-artifact";
+import { resolveOwners } from "@/lib/owner-directory";
 import { isGpxAdmin } from "@/lib/gpx-admin";
 
 const CON_DAY_DATES = new Set(CON_DAYS.map((d) => d.date));
@@ -43,8 +44,18 @@ export async function GET() {
       )
       .go({ pages: "all" });
 
-    const runs = scan.data
-      .filter((r) => !!r.conDay && CON_DAY_DATES.has(r.conDay))
+    const selected = scan.data.filter(
+      (r) => !!r.conDay && CON_DAY_DATES.has(r.conDay)
+    );
+
+    // Names come from run.human (run.gpx stores no runner profile of its own —
+    // see lib/owner-directory.ts). Dedupe first: ~300 runs are typically ~60
+    // runners. Best-effort — an unresolved id renders exactly as it did before.
+    const owners = await resolveOwners([
+      ...new Set(selected.map((r) => r.userId)),
+    ]);
+
+    const runs = selected
       .map((r) => ({
         fileId: r.fileId,
         userId: r.userId,
@@ -53,8 +64,10 @@ export async function GET() {
         totalDistance: r.totalDistance,
         trackCount: r.trackCount,
         source: r.source,
+        stravaActivityId: r.stravaActivityId,
         createdAt: r.createdAt,
         hidden: r.heatmapHidden === true,
+        owner: owners.get(r.userId),
       }))
       .sort((a, b) => b.createdAt - a.createdAt);
 
