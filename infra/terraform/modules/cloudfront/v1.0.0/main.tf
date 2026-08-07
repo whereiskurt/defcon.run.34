@@ -737,6 +737,57 @@ resource "aws_cloudfront_distribution" "main" {
     }
   }
 
+  # gpx.studio's content-hashed bundle: /{region}/studio/_app/immutable/*
+  #
+  # ORDERING IS LOAD-BEARING, same as the behavior above: the /{region}/*
+  # wildcard that follows uses Managed-CachingDisabled. Authored below it this
+  # never matches and nothing changes.
+  #
+  # WHY: the studio ships ~100 files / 1.09 MB compressed behind 108
+  # <link rel=modulepreload> tags in app.html. On the wildcard behavior every one
+  # of them was a full origin round trip, on EVERY page load, for EVERY viewer —
+  # three consecutive identical requests for the same content-hashed chunk all
+  # returned a cloudfront MISS. That traffic lands on a single 0.25-vCPU Fargate
+  # task (run.gpx desired_count = 1, autoscaling off) which then gzips 1.6 MB of
+  # mapbox-gl per request, so this behavior is the difference between one origin
+  # fetch per POP per release and one per viewer per reload.
+  #
+  # SAFE TO CACHE FOR A YEAR because `_app/immutable/` is SvelteKit's
+  # content-hashed output — the filename changes whenever the bytes do. Scoped to
+  # that subtree deliberately: app.html and index.html sit one level up under
+  # /studio/, are NOT hashed, and stay on the uncached wildcard so a release
+  # actually reaches people. The origin sets the matching
+  # `max-age=31536000, immutable` (see run.gpx next.config.ts headers()); this
+  # behavior is what lets CloudFront honour it.
+  #
+  # NOT AN AUTH HOLE: the run.gpx middleware matcher covers only /studio,
+  # /studio/app and /studio/:lang/app — it deliberately excludes _app so auth
+  # checks don't run per asset. These URLs already return 200 to anonymous
+  # requests, so there is no redirect here for the edge to cache and hand to a
+  # signed-in viewer.
+  #
+  # Same conditional target and origin request policy as the wildcard: the ALB
+  # routes services by Host header, so the viewer Host must keep being forwarded
+  # even though Managed-CachingOptimized ignores headers in the cache key.
+  dynamic "ordered_cache_behavior" {
+    for_each = each.key == "gpx" ? {
+      for region_key, region_value in var.regional_origins_by_domain[each.key] :
+      region_key => region_value
+      if region_value.alb_dns_name != ""
+    } : {}
+    content {
+      path_pattern           = "/${ordered_cache_behavior.key}/studio/_app/immutable/*"
+      target_origin_id       = contains(local.impart_on_domains, each.key) ? "impart" : "alb-${ordered_cache_behavior.key}"
+      viewer_protocol_policy = "redirect-to-https"
+      allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+      cached_methods         = ["GET", "HEAD"]
+      compress               = true
+
+      cache_policy_id          = "658327ea-f89d-4fab-a63d-7e88639e58f6" # Managed-CachingOptimized
+      origin_request_policy_id = contains(local.impart_on_domains, each.key) ? local.orp_all_viewer_cf_headers : local.orp_all_viewer
+    }
+  }
+
   # Ordered cache behaviors for regional ALB routing
   # Pattern: /{region_label}/* routes to ALB for this domain
   # Only create ALB behaviors where alb_dns_name is not empty
