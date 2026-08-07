@@ -5,10 +5,8 @@ import { RunnerToken } from "@/entities/runner-token";
 import { RunUser, getUserByHash } from "@/entities/run-user";
 import { SocialPair, SocialQuota, BibPickupPass } from "@/entities/social";
 import { CtfScoreEvent } from "@/entities/ctf";
-import { getBibForPickup } from "@/entities/bib";
-import { defaultStore as ctfStore } from "@/lib/ctf-judge";
 import { SOCIAL_SCAN_POINTS } from "@/lib/scoring-engine";
-import { BIB_PICKUP_CHALLENGE } from "@/lib/bib-pickup";
+import { judgeBibPrime, type BibScanStatus } from "@/lib/bib-pickup";
 
 /**
  * Social-scan judge (runner social QR).
@@ -44,12 +42,13 @@ export type SocialUser = {
 
 /**
  * Operator-scan bib verdict. Drives BOTH the mint decision and the scanner copy,
- * from one read, so the two can never disagree.
- *   none      → no bib on file; an ordinary scan, no bib wording
- *   ready     → has a bib, not yet collected; the ONLY status that mints a pass
- *   picked_up → already collected; report it, mint nothing
+ * from one verdict, so the two can never disagree.
+ *   none  → nothing to prime; an ordinary scan, no bib wording anywhere
+ *   ready → about to prime a bought, unprimed bib; the ONLY status that mints
+ *
+ * See lib/bib-pickup.judgeBibPrime for why `ready` is this narrow.
  */
-export type BibScanStatus = "none" | "ready" | "picked_up";
+export type { BibScanStatus };
 
 export type ScanStore = {
   resolveOwnerByToken(token: string): Promise<SocialUser | null>;
@@ -142,11 +141,14 @@ export async function judgeScan(
   // ── Bib priming ───────────────────────────────────────────────────────────
   // Deliberately BEFORE the pair-day claim. SocialPair burns an unordered pair
   // for the whole PT day, so minting only on the success path would mean an
-  // operator re-scanning a bib they already scanned today mints NOTHING and
-  // that runner can never redeem. Priming must be repeatable; the pair is not.
+  // operator whose pair with this runner is already spent today mints NOTHING
+  // and that runner can never redeem. Priming must survive a spent pair.
   //
   // Gated on the BIB, not on the operator's group: operators also use attendance
-  // mode for ordinary run scanning, where "bib ready" would be nonsense.
+  // mode for ordinary run scanning, where "bib ready" would be nonsense. And a
+  // `ready` verdict now means "nobody has primed this bought bib yet", so a
+  // second scan of the same runner reads `none` and renders as the ordinary
+  // connection it is — the bib card appears for exactly the scan that primes.
   //
   // AFTER the self-check above, so an operator scanning their OWN QR never
   // primes themselves — that is the loophole this whole feature closes.
@@ -278,17 +280,7 @@ export const defaultScanStore: ScanStore = {
     }
   },
   scoreDelta: applyScoreDelta,
-  async bibStatus(userId) {
-    const bib = await getBibForPickup(userId);
-    if (!bib) return "none";
-    // Same existence read judgeBibPickup uses for first-ness, so the operator's
-    // "already picked up" and the runner's "no award" can never disagree.
-    const collected = await ctfStore.hasScoreFor!({
-      challenge: BIB_PICKUP_CHALLENGE,
-      user: userId,
-    });
-    return collected ? "picked_up" : "ready";
-  },
+  bibStatus: judgeBibPrime,
   async mintPickupPass(userId, grantedBy) {
     // put(), not create(): re-priming a bib must refresh the row, not throw.
     await BibPickupPass.put({

@@ -61,6 +61,60 @@ import { judgeSolve, defaultStore } from "@/lib/ctf-judge";
 /** Challenge slug for the grant-only pickup award. Must match the seeded row. */
 export const BIB_PICKUP_CHALLENGE = "bib-pickup";
 
+/** Existence read for a runner's pickup pass. Shared by both sides of the flow. */
+export async function hasPickupPass(userId: string): Promise<boolean> {
+  return Boolean((await BibPickupPass.get({ userId }).go()).data);
+}
+
+/**
+ * Operator-scan verdict — the PRIME side of the flow.
+ *   none  → an ordinary social scan; say nothing about bibs
+ *   ready → this scan is about to prime a bought bib nobody has primed yet
+ *
+ * `ready` is deliberately narrow, and was not always. Until 2026-08-07 it meant
+ * "has a Bib row and has never redeemed the 200", which was true of 337 of the
+ * 353 live bib rows — 274 of them placeholders nobody ever bought. Since the
+ * clients render the bib card INSTEAD of the connection card, that made "Bib
+ * ready" the answer to nearly every operator scan and hid the social award that
+ * had just happened. The verdict now flips to `none` the moment there is
+ * nothing left to prime, so the noise stops after the one scan that matters.
+ *
+ * Gate order is cheapest-and-most-selective first: no bib → not bought → already
+ * primed → already collected. The pass read short-circuits the ledger read,
+ * which is the common case for anyone primed at the table.
+ *
+ * Throws on a read failure. `judgeScan` catches — priming is additive and must
+ * never take a scan down with it.
+ */
+export type BibScanStatus = "none" | "ready";
+
+export async function judgeBibPrime(
+  userId: string,
+  deps: {
+    loadBib?: typeof getBibForPickup;
+    hasPass?: (userId: string) => Promise<boolean>;
+    hasScoreFor?: (a: { challenge: string; user: string }) => Promise<boolean>;
+  } = {}
+): Promise<BibScanStatus> {
+  const loadBib = deps.loadBib ?? getBibForPickup;
+  const hasPass = deps.hasPass ?? hasPickupPass;
+  const hasScoreFor = deps.hasScoreFor ?? ((a) => defaultStore.hasScoreFor!(a));
+
+  const bib = await loadBib(userId);
+  // A runnerCode alone is not a bib — every row gets one at create time. Only a
+  // purchase means a volunteer has something to hand over.
+  if (!bib?.purchased) return "none";
+  // Already primed. The pass is durable, so a re-scan primes nothing new and
+  // this is just an ordinary connection.
+  if (await hasPass(userId)) return "none";
+  // Same existence read judgeBibPickup uses for first-ness, so the operator's
+  // verdict and the runner's award can never disagree.
+  if (await hasScoreFor({ challenge: BIB_PICKUP_CHALLENGE, user: userId })) {
+    return "none";
+  }
+  return "ready";
+}
+
 export type BibPickupAward = {
   points: number;
   bib: BibForPickup;
@@ -85,16 +139,18 @@ export async function judgeBibPickup(
   const hasScoreFor =
     deps.hasScoreFor ??
     ((a) => defaultStore.hasScoreFor!(a));
-  const hasPass =
-    deps.hasPass ??
-    (async (u: string) =>
-      Boolean((await BibPickupPass.get({ userId: u }).go()).data));
+  const hasPass = deps.hasPass ?? hasPickupPass;
 
   try {
     const bib = await loadBib(userId);
     // No bib = nothing to hand over. Do NOT burn the once-ever award on a
     // runner who has nothing to pick up — they may get a bib later.
     if (!bib) return null;
+    // A placeholder row is not a bib either (see BibForPickup.purchased). Read
+    // here as well as on the prime side because passes minted BEFORE the
+    // purchase gate existed are durable: 2 of the 62 live passes on 2026-08-07
+    // were for rows nobody ever bought, and this is what stops them paying out.
+    if (!bib.purchased) return null;
 
     // FIRST time only. judgeSolve would happily answer solved:true on a replay
     // (see the header) — this is what actually makes the screen mean something.

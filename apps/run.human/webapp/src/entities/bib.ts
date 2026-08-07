@@ -49,6 +49,12 @@ export const Bib = new Entity(
       paidAmount: {
         type: "number",
       },
+      // Read alongside paidAmount to answer "did this person actually buy a
+      // bib". A pledge to pay at the table is orthogonal to paidAmount, so
+      // BOTH are needed — see `purchased` on BibForPickup below.
+      willPayInPerson: {
+        type: "boolean",
+      },
     },
     indexes: {
       primary: {
@@ -97,7 +103,34 @@ export type BibForPickup = {
   nameOnBib: string;
   /** paidAmount > 0 — drives BibPreview's sponsor charm. */
   hasSponsored: boolean;
+  /**
+   * Did this person actually BUY a bib — paid, or pledged to pay at the table?
+   *
+   * A `runnerCode` alone proves nothing: every Bib row gets one at create time,
+   * so 274 of the 353 live rows are placeholders for people who never bought
+   * anything. Only a purchase means there is a physical bib to hand over, which
+   * is what `judgeBibPrime` gates on. Deliberately NOT the same as
+   * `hasSponsored` — that one is the artwork's sponsor charm ($ spent), this
+   * one is "is there a bib".
+   */
+  purchased: boolean;
 };
+
+/**
+ * Did this row's owner actually BUY a bib — paid, or pledged to pay at the
+ * table? See BibForPickup.purchased for why a runnerCode is not enough.
+ *
+ * Both halves are unreachable now that run.bib's BIB_SALES_CLOSED is true: it
+ * 403s POST /api/checkout/bib AND a PATCH setting willPayInPerson=true. So a
+ * bib registered today can only ever carry a NAME, which lands here as false —
+ * a late registration can never be primed and can never collect the 200.
+ */
+export function isPurchasedBib(row: {
+  paidAmount?: number;
+  willPayInPerson?: boolean;
+}): boolean {
+  return (row.paidAmount ?? 0) > 0 || row.willPayInPerson === true;
+}
 
 /**
  * Read the caller's bib for the bib-pickup screen (first self-scan), or null
@@ -120,6 +153,7 @@ export async function getBibForPickup(
     runnerCode: row.runnerCode,
     nameOnBib: row.nameOnBib ?? "",
     hasSponsored: (row.paidAmount ?? 0) > 0,
+    purchased: isPurchasedBib(row),
   };
 }
 

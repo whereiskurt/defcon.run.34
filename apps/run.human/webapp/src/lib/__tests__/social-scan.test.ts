@@ -32,7 +32,7 @@ function makeFakeStore(users: SocialUser[]) {
     }>,
     deltas: [] as Array<[number, number]>,
     passes: [] as Array<{ userId: string; grantedBy: string }>,
-    bibs: new Map<string, "none" | "ready" | "picked_up">(),
+    bibs: new Map<string, "none" | "ready">(),
     bibReads: [] as string[],
     byToken,
     byHash,
@@ -251,9 +251,14 @@ describe("judgeScan", () => {
  *
  * The load-bearing case is "THE 409 TRAP" below. SocialPair burns an unordered
  * pair for the whole PT day, so if minting only happened on the success path,
- * an operator re-scanning a bib they already scanned today would mint NOTHING
- * and that runner could never redeem. Priming must be repeatable even though
- * the social pair is not — which is why the mint sits BEFORE the pair claim.
+ * an operator whose pair with this runner was already spent today would mint
+ * NOTHING and that runner could never redeem. Priming must survive a spent
+ * pair — which is why the mint sits BEFORE the pair claim.
+ *
+ * NOTE the division of labour: the judge mints whenever the store says `ready`
+ * and asks no further questions. WHETHER there is anything to prime is entirely
+ * lib/bib-pickup.judgeBibPrime's call, which is where the "already primed" and
+ * "never bought a bib" gates live and where they are tested.
  */
 describe("judgeScan — bib priming", () => {
   let fake: ReturnType<typeof makeFakeStore>;
@@ -300,20 +305,45 @@ describe("judgeScan — bib priming", () => {
     expect(fake.state.passes).toHaveLength(2);
   });
 
-  it("reports picked_up and mints NOTHING for a runner who already collected", async () => {
-    fake.state.bibs.set("owner", "picked_up");
+  /**
+   * Everything that is NOT "a bought bib nobody has primed yet" — an unbought
+   * placeholder row, an already-primed runner, someone who already collected —
+   * is `none` at the store (see lib/bib-pickup.judgeBibPrime), and the judge
+   * must then render it as the ordinary social scan it is. This is the case
+   * that was drowning the connection card for 337 of 353 bib rows.
+   */
+  it("mints nothing and reports no bib when there is nothing left to prime", async () => {
+    fake.state.bibs.set("owner", "none");
     const result = await prime();
 
-    expect(result).toMatchObject({ ok: true, bibStatus: "picked_up" });
+    expect(result).toMatchObject({ ok: true, ownerName: "Bunny" });
+    expect((result as { bibStatus?: string }).bibStatus).toBeUndefined();
     expect(fake.state.passes).toEqual([]);
   });
 
-  it("mints nothing and reports no bib for a runner with no bib", async () => {
+  /**
+   * KURT'S CASE (2026-08-07): a plain run account with NO bib at all, scanned
+   * off their profile QR. The bib machinery must be invisible AND the social
+   * award must land in full — this is the ordinary scan, and the vast majority
+   * of them. Asserts the awards, not just the absence of bib wording, because
+   * "no bib card" would also be true of a scan that silently did nothing.
+   */
+  it("a runner with NO bib is an ordinary scan — no bib wording, full award", async () => {
     const result = await prime();
 
-    expect(result).toMatchObject({ ok: true });
+    expect(result).toMatchObject({ ok: true, ownerName: "Bunny" });
     expect((result as { bibStatus?: string }).bibStatus).toBeUndefined();
     expect(fake.state.passes).toEqual([]);
+    // Both parties credited, both ledger rows written.
+    expect(fake.state.awards).toEqual([
+      { userId: "scanner", social: 1 },
+      { userId: "owner", social: 1 },
+    ]);
+    expect(fake.state.ledgers.map((l) => [l.challenge, l.user])).toEqual([
+      ["social-scan", "scanner"],
+      ["social-scan", "owner"],
+    ]);
+    expect(fake.state.ledgers.every((l) => l.points > 0)).toBe(true);
   });
 
   it("a NON-operator never mints, and never even reads bib status", async () => {

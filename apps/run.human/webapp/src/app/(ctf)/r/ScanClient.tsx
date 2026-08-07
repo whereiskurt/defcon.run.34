@@ -30,8 +30,8 @@ type ScanState =
   | { phase: "loading" }
   | { phase: "success"; ownerName: string; remainingToday: number }
   | { phase: "pickup"; bib: BibPickup; points: number }
-  /** Operator primed someone's bib (or found it already collected). */
-  | { phase: "primed"; ownerName: string; collected: boolean }
+  /** Operator just primed someone's bib for pickup. */
+  | { phase: "primed"; ownerName: string }
   | { phase: "error"; code: string; message: string };
 
 /**
@@ -75,14 +75,12 @@ export default function ScanClient({ mode, p, h }: Props) {
         if (res.ok && json.code === "bib_pickup") {
           setState({ phase: "pickup", bib: json.bib, points: json.points ?? 0 });
         } else if (res.ok && json.bibStatus) {
-          // Operator primed a bib. Also covers code:"bib_ready" (the social pair
-          // was already spent today) — priming worked, so this must not render
-          // as the ordinary "already connected" error.
-          setState({
-            phase: "primed",
-            ownerName: json.ownerName ?? "runner",
-            collected: json.bibStatus === "picked_up",
-          });
+          // Operator just primed a bib. Also covers code:"bib_ready" (the social
+          // pair was already spent today) — priming worked, so this must not
+          // render as the ordinary "already connected" error. The server only
+          // sends bibStatus for the ONE scan that primes; every later scan of
+          // the same runner falls through to the ordinary connection card.
+          setState({ phase: "primed", ownerName: json.ownerName ?? "runner" });
         } else if (res.ok) {
           setState({
             phase: "success",
@@ -153,16 +151,12 @@ export default function ScanClient({ mode, p, h }: Props) {
             />
           ) : state.phase === "primed" ? (
             <>
-              <p className="text-4xl leading-none">
-                {state.collected ? "✅" : "🎽"}
-              </p>
+              <p className="text-4xl leading-none">🎽</p>
               <h2 className="font-museo text-2xl font-bold text-foreground">
-                {state.collected ? "Already picked up" : "Bib ready"}
+                Bib ready
               </h2>
               <p className="text-sm text-default-500 max-w-xs">
-                {state.collected
-                  ? `${state.ownerName} already collected their bib.`
-                  : `${state.ownerName} can now scan their own QR to pick up.`}
+                {state.ownerName} can now scan their own QR to pick up.
               </p>
             </>
           ) : state.phase === "success" ? (
@@ -173,7 +167,11 @@ export default function ScanClient({ mode, p, h }: Props) {
                 {state.ownerName}!
               </h2>
               <p className="font-museo text-xl font-bold text-primary">
-                {copyOr("socialqr.success.points", "+1 point each")}
+                {/* SOCIAL_SCAN_POINTS. There is no socialqr.* key in the CMS or
+                    copy-snapshot.json, so this fallback IS the shipped copy —
+                    it said "+1 point each" for a day after scans started paying
+                    5 (ab629be8). Keep the two in step. */}
+                {copyOr("socialqr.success.points", "+5 points each")}
               </p>
               <p className="text-xs text-default-500">
                 {state.remainingToday}{" "}
