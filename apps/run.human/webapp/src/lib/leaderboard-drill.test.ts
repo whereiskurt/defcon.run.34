@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { groupSocial, buildCtfLines, maskCtfLines, injectCheckinLocations, buildClusterLines, conDayCount, sectionTotal } from "./leaderboard-drill";
+import { SOCIAL_SCAN_POINTS } from "./scoring-engine";
 
 /**
  * Task 5 — pure lib for the leaderboard drill: social-scan day rollups +
@@ -17,10 +18,16 @@ describe("groupSocial", () => {
 
     const result = groupSocial(events);
 
+    // Points are DERIVED at SOCIAL_SCAN_POINTS per scan (2026-08-06), NOT read
+    // off the row — note the fixture rows above say `points: 2` and are ignored.
+    // Every row written before that change stored 0, so reading the field would
+    // show a zeroed drill beside a score that counted the scans.
     expect(result.days).toEqual([
-      { day: "2026-07-21", count: 1, points: 2 },
-      { day: "2026-07-20", count: 2, points: 4 },
+      { day: "2026-07-21", count: 1, points: SOCIAL_SCAN_POINTS },
+      { day: "2026-07-20", count: 2, points: 2 * SOCIAL_SCAN_POINTS },
     ]);
+    // The jack-egg still reports its OWN stored points — it is a one-off award,
+    // not a scan, and never took the flat rate.
     expect(result.egg).toEqual({ points: 25, at: "2026-07-19T08:00:00Z" });
   });
 

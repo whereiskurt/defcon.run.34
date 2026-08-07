@@ -1,11 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 /**
- * LDBR-08 (SC #1 + SC #4) + Task 5: the admin-gated per-user accomplishments
- * drill, GET /api/leaderboard/[userId]/accomplishments.
+ * LDBR-08 (SC #1 + SC #4) + Task 5: the per-user accomplishments drill,
+ * GET /api/leaderboard/[userId]/accomplishments.
+ *
+ * ⚠️ OPENED 2026-08-06 (Kurt): this route was still admin-only after the
+ * 2026-08-03 board launch (#1212) relaxed the /leaderboard page and GET
+ * /api/leaderboard to every signed-in runner. That mismatch meant an ordinary
+ * runner expanding ANY row got a bare 404 the client swallowed into an empty
+ * drill — the board rendered "No runs yet." for everyone. The elevation checks
+ * (`requireAdmin` + the `revalidateAdmin` round-trip) are gone from this route;
+ * admin-ness now only decides whether COVERT flag names are unmasked. They
+ * still govern every OTHER admin route — do not copy this gate into one.
  *
  * Mocks `@/config/auth` (`auth` + `revalidateAdmin`, the latter re-exported by
- * `@/lib/admin-gate` so the real pure `requireAdmin` still runs — this also
+ * `@/lib/admin-gate` so the real pure `isMemberOf` still runs — this also
  * dodges the next-auth import chain: `@/lib/admin-gate` itself imports no
  * next-auth, only re-exports from `@/config/auth`, so mocking that module is
  * sufficient), `@/entities/accomplishment` (`getAccomplishmentsByUser`),
@@ -14,16 +23,17 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * `__resetDrillCache` in beforeEach) so the caching behavior itself is
  * exercised, not mocked away.
  *
- *   (a) non-admin -> BARE 404, empty body, and the data layer is NEVER hit
- *       (T-51-03 elevation gate + T-51-04 non-disclosure),
- *   (b) admin happy path -> 200 `{ accomplishments, social, ctf }` with the
+ *   (a) ordinary signed-in runner -> 200, and NO fresh-claims round-trip,
+ *   (b) anonymous -> BARE 404, empty body, data layer NEVER hit (T-51-04
+ *       non-disclosure survives the opening),
+ *   (c) happy path -> 200 `{ accomplishments, social, ctf, cluster }` with the
  *       row's `metadata.polyline` preserved (SC #4),
- *   (c) stale-admin (fresh-claims deny) -> 404 (T-51-04 fail-closed),
  *   (d) a second request for the same user does NOT re-hit the mocked
  *       entities (per-user drill cache, Task 3),
- *   (e) a covert-channel CTF line's name passes through UNMASKED for an
- *       admin viewer (the route is admin-gated today, so isAdmin is always
- *       true — pinning that maskCtfLines's admin branch is actually wired).
+ *   (e) covert masking is keyed to the REQUESTING viewer, never baked into the
+ *       shared cache: masked for a plain runner viewing someone else,
+ *       unmasked for the owner and for an admin — and a cache HIT must not
+ *       carry one viewer's unmask into another's response.
  */
 
 const mockAuth = vi.fn();
@@ -76,6 +86,7 @@ vi.mock("@/lib/cluster-config-store", () => ({
 
 import { GET } from "../route";
 import { __resetDrillCache } from "@/lib/leaderboard-drill-cache";
+import { SOCIAL_SCAN_POINTS } from "@/lib/scoring-engine";
 
 const ACCOMPLISHMENT_ROW = {
   userId: "runner-9",
@@ -107,6 +118,11 @@ function mockGoAdmin() {
     user: { services: ["admin"], authUserId: "sub-1", id: "viewer-1" },
   });
   mockRevalidateAdmin.mockResolvedValue(true);
+}
+
+/** An ordinary signed-in runner (no admin group) viewing SOMEONE ELSE's row. */
+function mockGoRunner(id = "viewer-1") {
+  mockAuth.mockResolvedValue({ user: { services: [], authUserId: "sub-2", id } });
 }
 
 beforeEach(() => {
@@ -170,13 +186,15 @@ beforeEach(() => {
 });
 
 describe("GET /api/leaderboard/[userId]/accomplishments", () => {
-  it("404s (bare, no body) for a non-admin and NEVER hits the data layer", async () => {
-    mockAuth.mockResolvedValue({ user: { services: [] } });
+  it("200s for an ordinary signed-in runner, with NO fresh-claims round-trip", async () => {
+    mockGoRunner();
     const res = await GET(new Request("http://x"), ctx("runner-9"));
-    expect(res.status).toBe(404);
-    expect(await res.text()).toBe("");
+    expect(res.status).toBe(200);
     expect(mockRevalidateAdmin).not.toHaveBeenCalled();
-    expect(mockGetAccomplishmentsByUser).not.toHaveBeenCalled();
+    expect(mockGetAccomplishmentsByUser).toHaveBeenCalledWith("runner-9");
+
+    const body = await res.json();
+    expect(body.accomplishments).toHaveLength(1);
   });
 
   it("404s (bare) for an anonymous caller (no session)", async () => {
@@ -187,12 +205,8 @@ describe("GET /api/leaderboard/[userId]/accomplishments", () => {
     expect(mockGetAccomplishmentsByUser).not.toHaveBeenCalled();
   });
 
-  it("404s (fresh-claims deny) for a stale admin whose revalidation fails", async () => {
-    mockAuth.mockResolvedValue({
-      user: { services: ["admin"], authUserId: "sub-1" },
-    });
-    mockRevalidateAdmin.mockResolvedValue(false);
-
+  it("404s (bare) for a session carrying no user id", async () => {
+    mockAuth.mockResolvedValue({ user: { services: [] } });
     const res = await GET(new Request("http://x"), ctx("runner-9"));
     expect(res.status).toBe(404);
     expect(await res.text()).toBe("");
@@ -205,8 +219,9 @@ describe("GET /api/leaderboard/[userId]/accomplishments", () => {
     const res = await GET(new Request("http://x"), ctx("runner-9"));
     expect(res.status).toBe(200);
 
-    // fresh-claims revalidation keyed by the OIDC sub, NOT the adapter id.
-    expect(mockRevalidateAdmin).toHaveBeenCalledWith("sub-1");
+    // No elevation round-trip left on this route (opened 2026-08-06); admin-ness
+    // is read off the session only, to decide covert unmasking.
+    expect(mockRevalidateAdmin).not.toHaveBeenCalled();
     expect(mockGetAccomplishmentsByUser).toHaveBeenCalledWith("runner-9");
     expect(mockSolvesQuery).toHaveBeenCalledWith({ user: "runner-9" });
     expect(mockEventsQuery).toHaveBeenCalledWith({ user: "runner-9" });
@@ -220,9 +235,10 @@ describe("GET /api/leaderboard/[userId]/accomplishments", () => {
       { lat: 36.2, lng: -115.2 },
     ]);
 
-    // social rollup.
+    // social rollup — points DERIVED per scan, not read off the row (the
+    // fixture stores `points: 2` and is deliberately ignored).
     expect(body.social.days).toEqual([
-      { day: "2026-07-20", count: 1, points: 2 },
+      { day: "2026-07-20", count: 1, points: SOCIAL_SCAN_POINTS },
     ]);
     expect(body.social.egg).toEqual({ points: 25, at: "2026-07-19T00:00:00Z" });
 
@@ -251,6 +267,42 @@ describe("GET /api/leaderboard/[userId]/accomplishments", () => {
     const body = await res.json();
     const covert = body.ctf.find((l: { channel?: string }) => l.channel === "covert");
     expect(covert.name).toBe("chained-otp");
+  });
+
+  it("MASKS a covert flag's name for an ordinary runner viewing someone else", async () => {
+    mockGoRunner();
+    const res = await GET(new Request("http://x"), ctx("runner-9"));
+    const body = await res.json();
+    const covert = body.ctf.find((l: { channel?: string }) => l.channel === "covert");
+    expect(covert.name).toBe("Covert flag");
+    // The QR-channel line is never masked.
+    const qr = body.ctf.find((l: { channel?: string }) => l.channel === "qr");
+    expect(qr.name).toBe("rainbow-bridge");
+  });
+
+  it("leaves a covert flag UNMASKED for the owner, even without admin", async () => {
+    mockGoRunner("runner-9");
+    const res = await GET(new Request("http://x"), ctx("runner-9"));
+    const body = await res.json();
+    const covert = body.ctf.find((l: { channel?: string }) => l.channel === "covert");
+    expect(covert.name).toBe("chained-otp");
+  });
+
+  it("a cache HIT does not leak the owner's unmask into another runner's response", async () => {
+    // Owner primes the shared per-user cache with the UNMASKED payload...
+    mockGoRunner("runner-9");
+    const owner = await (await GET(new Request("http://x"), ctx("runner-9"))).json();
+    expect(
+      owner.ctf.find((l: { channel?: string }) => l.channel === "covert").name
+    ).toBe("chained-otp");
+
+    // ...a plain runner hitting that same cache entry must still see the mask.
+    mockGoRunner("someone-else");
+    const other = await (await GET(new Request("http://x"), ctx("runner-9"))).json();
+    expect(
+      other.ctf.find((l: { channel?: string }) => l.channel === "covert").name
+    ).toBe("Covert flag");
+    expect(mockGetAccomplishmentsByUser).toHaveBeenCalledTimes(1); // cache HIT
   });
 
   it("caches per-user: a second request for the same user does not re-hit the entities", async () => {

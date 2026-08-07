@@ -3,6 +3,7 @@ import Link from "next/link";
 import { cls } from "@/components/admin/qr-ui";
 import CtfStandings from "@/components/admin/CtfStandings";
 import CtfUnsolveButton from "@/components/admin/CtfUnsolveButton";
+import RescoreAllButton from "@/components/admin/RescoreAllButton";
 import { listCtf } from "@/lib/qr-admin";
 import { scanAllRunUsers } from "@/entities/run-user";
 import {
@@ -121,6 +122,10 @@ export default async function LeaderboardPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Scores are derived but PERSISTED, so a scoring change or config
+              retune shows up only after every runner rescores. This is the one
+              clickable trigger for that. */}
+          <RescoreAllButton />
           <a href="/api/admin/ctf-leaderboard?format=csv" className={cls.btn}>
             ↓ CSV
           </a>

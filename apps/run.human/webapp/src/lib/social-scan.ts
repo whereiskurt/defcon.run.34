@@ -7,6 +7,7 @@ import { SocialPair, SocialQuota, BibPickupPass } from "@/entities/social";
 import { CtfScoreEvent } from "@/entities/ctf";
 import { getBibForPickup } from "@/entities/bib";
 import { defaultStore as ctfStore } from "@/lib/ctf-judge";
+import { SOCIAL_SCAN_POINTS } from "@/lib/scoring-engine";
 import { BIB_PICKUP_CHALLENGE } from "@/lib/bib-pickup";
 
 /**
@@ -14,13 +15,15 @@ import { BIB_PICKUP_CHALLENGE } from "@/lib/bib-pickup";
  *
  * Mutual award: scanning another runner's QR credits BOTH parties +1
  * socialScore, once per unordered pair per PT day, scanner capped at
- * DAILY_SCAN_CAP successful scans/day. socialScore is a cosmetic meter
- * (drives the whoami QR rank bands) — it awards ZERO score points. The
- * scan-day ledger rows exist only to light social streak days; they are
- * valued (or not) by lib/scoring-engine, never by this module. The
- * DC-jack egg is routed through lib/ctf-judge (see app/api/social-egg) so
- * its points, if any, come from the judge's derived scoring, not a
- * hardcoded constant here.
+ * DAILY_SCAN_CAP successful scans/day. socialScore itself is a cosmetic meter
+ * (drives the whoami QR rank bands) and is NOT the leaderboard score.
+ *
+ * The scan-day ledger rows light social streak days and — since 2026-08-06 —
+ * pay SOCIAL_SCAN_POINTS each to BOTH parties. As always they are valued by
+ * lib/scoring-engine, never by this module: the constant stamped on the row
+ * here is an audit trail, not the source of the points. The DC-jack egg is
+ * routed through lib/ctf-judge (see app/api/social-egg) so its points, if any,
+ * come from the judge's derived scoring, not a hardcoded constant here.
  *
  * Store seam mirrors lib/ctf-judge.ts: pure judge over an injectable
  * ScanStore; defaultScanStore is the ElectroDB implementation. The
@@ -187,8 +190,12 @@ export async function judgeScan(
     await Promise.all([
       store.award(scannerId, 1),
       store.award(owner.userId, 1),
-      store.ledger("social-scan", scannerId, bucket, 0),
-      store.ledger("social-scan", owner.userId, bucket, 0),
+      // AUDIT ONLY — scoring DERIVES this value (scoring-engine values every
+      // scan at SOCIAL_SCAN_POINTS regardless of what the row stores), which is
+      // what lets the pre-2026-08-06 rows that stored 0 re-value on rescore
+      // with no migration. Stamped anyway so the ledger does not read as free.
+      store.ledger("social-scan", scannerId, bucket, SOCIAL_SCAN_POINTS),
+      store.ledger("social-scan", owner.userId, bucket, SOCIAL_SCAN_POINTS),
     ]);
     const scannerOld = scanner?.socialScore ?? 0;
     const ownerOld = owner.socialScore ?? 0;

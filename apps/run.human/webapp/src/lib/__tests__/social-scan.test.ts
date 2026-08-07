@@ -6,6 +6,7 @@ import {
   type ScanStore,
   type SocialUser,
 } from "../social-scan";
+import { SOCIAL_SCAN_POINTS } from "../scoring-engine";
 
 const NOW = Date.parse("2026-08-06T18:00:00Z"); // 11:00 PDT → day 2026-08-06
 const HASH_B =
@@ -118,9 +119,12 @@ describe("judgeScan", () => {
       { userId: "owner", social: 1 },
     ]);
     const bucket = "2026-08-06#owner_scanner";
+    // Both parties get their own row, each stamped with the scan's worth
+    // (2026-08-06: was 0). The stamp is an audit trail — scoring derives the
+    // same constant, so it does not matter that older rows still read 0.
     expect(fake.state.ledgers).toEqual([
-      { challenge: "social-scan", user: "scanner", bucket, points: 0 },
-      { challenge: "social-scan", user: "owner", bucket, points: 0 },
+      { challenge: "social-scan", user: "scanner", bucket, points: SOCIAL_SCAN_POINTS },
+      { challenge: "social-scan", user: "owner", bucket, points: SOCIAL_SCAN_POINTS },
     ]);
     expect(fake.state.deltas).toEqual([
       [3, 4],

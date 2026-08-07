@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeUserScore } from "../scoring-engine";
+import { computeUserScore, SOCIAL_SCAN_POINTS } from "../scoring-engine";
 
 const cfg = (over = {}) => ({
   challenge: "x", pointMax: 100, pointFloor: 100, maxSolves: 100000,
@@ -31,7 +31,7 @@ describe("computeUserScore", () => {
     expect(r.counts).toMatchObject({ checkin: 1, gpx: 2, strava: 1 });
   });
 
-  it("social days come from social-scan buckets and are worth 0 per scan", () => {
+  it("social days come from social-scan buckets; each scan is worth SOCIAL_SCAN_POINTS", () => {
     const r = computeUserScore({
       accomplishments: [], solves: [],
       events: [
@@ -43,8 +43,52 @@ describe("computeUserScore", () => {
     });
     expect(r.days.social).toBe(2);
     expect(r.breakdown.socialStreak).toBe(50);
-    expect(r.breakdown.flagPoints).toBe(0);
+    // Kurt, 2026-08-06: scans were worth 0 each (streak-only). They now pay a
+    // flat SOCIAL_SCAN_POINTS per scan, ON TOP OF the streak — 3 scans here.
+    expect(r.breakdown.socialPoints).toBe(3 * SOCIAL_SCAN_POINTS);
+    expect(r.score).toBe(50 + 3 * SOCIAL_SCAN_POINTS);
+    expect(r.breakdown.flagPoints).toBe(0); // NOT the CTF track
     expect(r.counts.solves).toBe(0); // social-scan rows are not flag solves
+  });
+
+  it("values scans DERIVED, ignoring whatever `points` the ledger row stored", () => {
+    // Every social-scan row written before this change stored points: 0. The
+    // engine must not read that field, or "even from this morning" stays 0 —
+    // the whole point of deriving is that old rows re-value on rescore.
+    const r = computeUserScore({
+      accomplishments: [], solves: [],
+      events: [
+        { challenge: "social-scan", bucket: "2026-08-05#a#b", points: 0, scoredAt: "2026-08-05T20:00:00Z" },
+        { challenge: "social-scan", bucket: "2026-08-05#a#c", points: 99, scoredAt: "2026-08-05T21:00:00Z" },
+      ],
+      configs: new Map(),
+    });
+    expect(r.breakdown.socialPoints).toBe(2 * SOCIAL_SCAN_POINTS);
+  });
+
+  it("a scan OFF a con day still pays, but lights no streak day", () => {
+    // Mirrors the flag track: points are earned by the act, streaks by the day.
+    const r = computeUserScore({
+      accomplishments: [], solves: [],
+      events: [
+        { challenge: "social-scan", bucket: "2026-07-01#a#b", scoredAt: "2026-07-01T20:00:00Z" },
+      ],
+      configs: new Map(),
+    });
+    expect(r.days.social).toBe(0);
+    expect(r.breakdown.socialStreak).toBe(0);
+    expect(r.breakdown.socialPoints).toBe(SOCIAL_SCAN_POINTS);
+  });
+
+  it("the jack-egg row is NOT a social scan and does not pay scan points", () => {
+    const r = computeUserScore({
+      accomplishments: [], solves: [],
+      events: [
+        { challenge: "jack-egg", bucket: "once", points: 25, scoredAt: "2026-08-05T20:00:00Z" },
+      ],
+      configs: new Map(),
+    });
+    expect(r.breakdown.socialPoints).toBe(0);
   });
 
   it("flag points re-value from ordinal against CURRENT config; missing config = 0", () => {

@@ -187,6 +187,10 @@ export const RunUser = new Entity(
           socialStreak: { type: "number", default: () => 0 },
           ctfStreak: { type: "number", default: () => 0 },
           flagPoints: { type: "number", default: () => 0 },
+          // Flat per-scan social points (SOCIAL_SCAN_POINTS each). Separate
+          // from socialStreak: that pays for DAYS, this pays for SCANS. Rows
+          // written before 2026-08-06 lack it and default to 0 until rescored.
+          socialPoints: { type: "number", default: () => 0 },
           // Cluster check-in bonus — group check-ins, capped per con day.
           clusterBonus: { type: "number", default: () => 0 },
         },
@@ -454,6 +458,7 @@ export type RunUserItem = {
     socialStreak?: number;
     ctfStreak?: number;
     flagPoints?: number;
+    socialPoints?: number;
     clusterBonus?: number;
   };
   streakDays?: { run?: number; social?: number; ctf?: number };
