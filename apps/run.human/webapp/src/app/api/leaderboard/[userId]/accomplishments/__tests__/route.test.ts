@@ -261,48 +261,26 @@ describe("GET /api/leaderboard/[userId]/accomplishments", () => {
     ]);
   });
 
-  it("pins that a covert flag's name passes through UNMASKED for an admin viewer", async () => {
-    mockGoAdmin();
+  /**
+   * Covert names are PUBLIC as of 2026-08-06 (Kurt) — the generic "Covert flag"
+   * label is gone. These three pin that the same real name reaches an admin,
+   * the solver, and an unrelated runner, so a viewer branch cannot creep back
+   * in unnoticed.
+   */
+  it.each([
+    ["an admin viewer", () => mockGoAdmin()],
+    ["the owner", () => mockGoRunner("runner-9")],
+    ["an ordinary runner viewing someone else", () => mockGoRunner("someone-else")],
+  ])("shows a covert flag's REAL name to %s", async (_who, asViewer) => {
+    asViewer();
     const res = await GET(new Request("http://x"), ctx("runner-9"));
     const body = await res.json();
     const covert = body.ctf.find((l: { channel?: string }) => l.channel === "covert");
     expect(covert.name).toBe("chained-otp");
-  });
-
-  it("MASKS a covert flag's name for an ordinary runner viewing someone else", async () => {
-    mockGoRunner();
-    const res = await GET(new Request("http://x"), ctx("runner-9"));
-    const body = await res.json();
-    const covert = body.ctf.find((l: { channel?: string }) => l.channel === "covert");
-    expect(covert.name).toBe("Covert flag");
-    // The QR-channel line is never masked.
-    const qr = body.ctf.find((l: { channel?: string }) => l.channel === "qr");
-    expect(qr.name).toBe("rainbow-bridge");
-  });
-
-  it("leaves a covert flag UNMASKED for the owner, even without admin", async () => {
-    mockGoRunner("runner-9");
-    const res = await GET(new Request("http://x"), ctx("runner-9"));
-    const body = await res.json();
-    const covert = body.ctf.find((l: { channel?: string }) => l.channel === "covert");
-    expect(covert.name).toBe("chained-otp");
-  });
-
-  it("a cache HIT does not leak the owner's unmask into another runner's response", async () => {
-    // Owner primes the shared per-user cache with the UNMASKED payload...
-    mockGoRunner("runner-9");
-    const owner = await (await GET(new Request("http://x"), ctx("runner-9"))).json();
-    expect(
-      owner.ctf.find((l: { channel?: string }) => l.channel === "covert").name
-    ).toBe("chained-otp");
-
-    // ...a plain runner hitting that same cache entry must still see the mask.
-    mockGoRunner("someone-else");
-    const other = await (await GET(new Request("http://x"), ctx("runner-9"))).json();
-    expect(
-      other.ctf.find((l: { channel?: string }) => l.channel === "covert").name
-    ).toBe("Covert flag");
-    expect(mockGetAccomplishmentsByUser).toHaveBeenCalledTimes(1); // cache HIT
+    expect(body.ctf.some((l: { name: string }) => l.name === "Covert flag")).toBe(false);
+    // The channel itself SURVIVES the unmasking — RunnerDrill still badges a
+    // covert solve, it just no longer hides which challenge it was.
+    expect(covert.channel).toBe("covert");
   });
 
   it("caches per-user: a second request for the same user does not re-hit the entities", async () => {

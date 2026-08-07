@@ -1,10 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { groupSocial, buildCtfLines, maskCtfLines, injectCheckinLocations, buildClusterLines, conDayCount, sectionTotal } from "./leaderboard-drill";
+import { groupSocial, buildCtfLines, injectCheckinLocations, buildClusterLines, conDayCount, sectionTotal } from "./leaderboard-drill";
 import { SOCIAL_SCAN_POINTS } from "./scoring-engine";
 
 /**
  * Task 5 — pure lib for the leaderboard drill: social-scan day rollups +
- * named/masked CTF lines. See .superpowers/sdd/task-5-brief.md.
+ * named CTF lines. See .superpowers/sdd/task-5-brief.md.
+ *
+ * The `maskCtfLines` block is GONE on purpose (2026-08-06): covert-channel
+ * solves no longer have their name hidden from other runners, so the function
+ * it tested was deleted rather than left uncalled. Do not resurrect these tests
+ * without also restoring the mask.
  */
 
 describe("groupSocial", () => {
@@ -75,44 +80,6 @@ describe("buildCtfLines", () => {
 
   it("returns [] for no solves/events", () => {
     expect(buildCtfLines([], [], names)).toEqual([]);
-  });
-});
-
-describe("maskCtfLines", () => {
-  const covertLine = {
-    challenge: "chained-otp",
-    name: "Chained OTP",
-    points: 5,
-    channel: "covert" as const,
-    at: "2026-07-22T00:00:00Z",
-  };
-  const qrLine = {
-    challenge: "rainbow-bridge",
-    name: "Rainbow Bridge",
-    points: 10,
-    channel: "qr" as const,
-    at: "2026-07-20T00:00:00Z",
-  };
-
-  it("masks a covert line's name for a non-owner, non-admin viewer", () => {
-    const masked = maskCtfLines([covertLine, qrLine], { isOwner: false, isAdmin: false });
-    expect(masked[0].name).toBe("Covert flag");
-    expect(masked[1].name).toBe("Rainbow Bridge");
-  });
-
-  it("does not mask for the owner", () => {
-    const masked = maskCtfLines([covertLine], { isOwner: true, isAdmin: false });
-    expect(masked[0].name).toBe("Chained OTP");
-  });
-
-  it("does not mask for an admin", () => {
-    const masked = maskCtfLines([covertLine], { isOwner: false, isAdmin: true });
-    expect(masked[0].name).toBe("Chained OTP");
-  });
-
-  it("never masks a qr line", () => {
-    const masked = maskCtfLines([qrLine], { isOwner: false, isAdmin: false });
-    expect(masked[0].name).toBe("Rainbow Bridge");
   });
 });
 
