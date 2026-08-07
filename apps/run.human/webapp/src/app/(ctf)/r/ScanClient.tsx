@@ -167,7 +167,11 @@ export default function ScanClient({ mode, p, h }: Props) {
                 {state.ownerName}!
               </h2>
               <p className="font-museo text-xl font-bold text-primary">
-                {copyOr("socialqr.success.points", "+1 point each")}
+                {/* SOCIAL_SCAN_POINTS. There is no socialqr.* key in the CMS or
+                    copy-snapshot.json, so this fallback IS the shipped copy —
+                    it said "+1 point each" for a day after scans started paying
+                    5 (ab629be8). Keep the two in step. */}
+                {copyOr("socialqr.success.points", "+5 points each")}
               </p>
               <p className="text-xs text-default-500">
                 {state.remainingToday}{" "}
