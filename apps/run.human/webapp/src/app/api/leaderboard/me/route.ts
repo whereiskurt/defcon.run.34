@@ -6,7 +6,6 @@ import { getCachedScan } from "@/lib/leaderboard-cache";
 import { buildLeaderboard } from "@/lib/leaderboard-data";
 import { getCachedDrill } from "@/lib/leaderboard-drill-cache";
 import { loadDrill } from "@/lib/leaderboard-drill-load";
-import { maskCtfLines } from "@/lib/leaderboard-drill";
 
 /**
  * GET /api/leaderboard/me — the SELF-SCOPED standing behind the profile's
@@ -92,9 +91,9 @@ export async function GET() {
   }
 
   // ── Own drill ─────────────────────────────────────────────────────────────
-  // The caller IS the subject, so `isOwner` is true — they see their own covert
-  // CTF names unmasked. Routed through maskCtfLines anyway (rather than
-  // skipped) so the seam can never be silently forgotten.
+  // Always went out unmasked here (the caller IS the subject); the covert-name
+  // mask this used to route through was removed outright on 2026-08-06, so
+  // there is nothing left to skip.
   const drill = await getCachedDrill(userId, () => loadDrill(userId));
 
   return Response.json(
@@ -103,7 +102,7 @@ export async function GET() {
       total: rows.length,
       accomplishments: drill.accomplishments,
       social: drill.social,
-      ctf: maskCtfLines(drill.ctf, { isOwner: true, isAdmin: false }),
+      ctf: drill.ctf,
     },
     { headers: { "Cache-Control": "private, max-age=30" } }
   );

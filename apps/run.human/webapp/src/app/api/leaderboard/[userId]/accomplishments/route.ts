@@ -1,8 +1,6 @@
 import { auth } from "@/config/auth";
-import { ADMIN_GROUPS, isMemberOf } from "@/lib/admin-gate";
 import { getCachedDrill } from "@/lib/leaderboard-drill-cache";
 import { loadDrill } from "@/lib/leaderboard-drill-load";
-import { maskCtfLines } from "@/lib/leaderboard-drill";
 
 /**
  * GET /api/leaderboard/[userId]/accomplishments — the leaderboard's lazy
@@ -13,15 +11,13 @@ import { maskCtfLines } from "@/lib/leaderboard-drill";
  *
  * A thin shell over already-shipped code: the gate, the Phase-49
  * `getAccomplishmentsByUser` reader, and the Task-3/4/5 drill assembly. The
- * only real contract here is the 404 non-disclosure gate and the named privacy
- * seams (accomplishment privacy filter + covert-flag CTF masking).
+ * only real contract here is the 404 non-disclosure gate.
  *
- * The whole assembled payload (accomplishments + social + ctf + cluster,
- * UNMASKED) is cached per-user via `getCachedDrill` (Task 3) — the reconcile
- * route busts a user's entry when their accomplishments change. CTF masking
- * runs AFTER the cache read, keyed to the REQUESTING viewer, never baked into
- * the cached value (a cache hit must not leak one viewer's unmask into
- * another's).
+ * The whole assembled payload (accomplishments + social + ctf + cluster) is
+ * cached per-user via `getCachedDrill` (Task 3) — the reconcile route busts a
+ * user's entry when their accomplishments change. The response is now the
+ * cached value VERBATIM: there is no per-viewer transform left, so nothing can
+ * bake one viewer's view into another's cache entry.
  *
  * ── Gate: SIGNED-IN, no longer admin-only (Kurt, 2026-08-06) ───────────────
  * The 2026-08-03 launch (#1212) opened the /leaderboard page and GET
@@ -37,23 +33,22 @@ import { maskCtfLines } from "@/lib/leaderboard-drill";
  * `revalidateAdmin` fresh-claims round-trip) still govern every OTHER admin
  * route; do not copy this simpler gate into one.
  *
- * ── What admin-ness still buys ─────────────────────────────────────────────
- * Exactly one thing: COVERT flag names. `isAdmin` is now the REAL session
- * check (`isMemberOf(session, ADMIN_GROUPS)`) instead of the hardcoded `true`
- * it could safely be while the route was admin-gated — leaving that literal in
- * place while opening the gate would have unmasked every covert challenge name
- * to every signed-in runner. It is deliberately the SYNC claim check with no
- * `revalidateAdmin` round-trip: this fires on every row expansion (con-critical
- * latency), and the worst case inside the ~5-min JWT staleness window is that a
- * just-revoked admin sees covert flag NAMES they already knew.
+ * ── Admin-ness buys NOTHING here (Kurt, 2026-08-06) ────────────────────────
+ * It briefly decided whether COVERT flag names were shown: a covert solve's
+ * name was replaced by a generic "Covert flag" for anyone but the solver or an
+ * admin. Kurt cut that the same day — the board is public for the con, four
+ * distinct covert eggs all rendering as the same label read like one flag
+ * awarded repeatedly, and the flag names are meant to be seen. Every signed-in
+ * viewer now gets identical data, so there is no viewer branch left in this
+ * handler at all.
  *
  * Node runtime — the ElectroDB/AWS-SDK query pipeline needs Node crypto for
  * request signing. Force-dynamic — the gate + params are per-request. HTTP
  * `Cache-Control: private, max-age=60` (Task 5) mirrors the in-memory
  * per-user drill cache's 60s TTL; freshness beyond a stale entry is owned by
- * `bustDrillCache` (the reconcile route), not the CDN — `private` because the
- * response is viewer-scoped (covert masking depends on WHO asked) and must
- * never enter a shared/CDN cache.
+ * `bustDrillCache` (the reconcile route), not the CDN. Still `private`: the
+ * payload is one runner's activity behind a signed-in gate, and a shared/CDN
+ * cache would serve it to anonymous callers the gate is meant to refuse.
  */
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -69,22 +64,13 @@ export async function GET(
   const viewerId = session?.user?.id;
   if (!viewerId) return NOT_FOUND();
 
-  // ── Cached read → viewer-scoped CTF masking ────────────────────────────────
+  // ── Cached read ────────────────────────────────────────────────────────────
+  // Returned verbatim: there is no longer a viewer-scoped transform, so the
+  // cached value IS the response for every viewer (see the header block).
   const { userId } = await params;
   const data = await getCachedDrill(userId, () => loadDrill(userId));
 
-  // Covert flag names are unmasked ONLY for the runner who solved them or an
-  // admin. `isAdmin` must be the real check — see the header block: a hardcoded
-  // `true` here would expose every covert challenge name to the whole board.
-  const masked = {
-    ...data,
-    ctf: maskCtfLines(data.ctf, {
-      isOwner: viewerId === userId,
-      isAdmin: isMemberOf(session, ADMIN_GROUPS),
-    }),
-  };
-
-  return Response.json(masked, {
+  return Response.json(data, {
     headers: { "Cache-Control": "private, max-age=60" },
   });
 }

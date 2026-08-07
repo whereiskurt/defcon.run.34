@@ -121,20 +121,15 @@ export function buildCtfLines(
   );
 }
 
-/**
- * Mask a covert-channel line's `name` behind a generic "Covert flag" label
- * for anyone but the solve's own runner or an admin viewer. `qr`-channel
- * lines (and lines with no channel) are never masked. Non-mutating.
- */
-export function maskCtfLines(
-  lines: CtfLine[],
-  viewer: { isOwner: boolean; isAdmin: boolean }
-): CtfLine[] {
-  if (viewer.isOwner || viewer.isAdmin) return lines;
-  return lines.map((l) =>
-    l.channel === "covert" ? { ...l, name: "Covert flag" } : l
-  );
-}
+/* `maskCtfLines` REMOVED 2026-08-06 (Kurt): covert-channel solves used to have
+   their NAME replaced by a generic "Covert flag" for anyone but the solver or
+   an admin. It read as one flag awarded repeatedly (scamp's four distinct eggs
+   all collapsed to the same label) and the board is public for the con now, so
+   the names are shown to everyone. The `channel` field survives and still
+   drives the covert BADGE in RunnerDrill — how a flag was submitted is still
+   worth showing, it just no longer hides what was solved. Deleted rather than
+   left disabled: a privacy seam nothing calls is a trap for the next reader.
+   Recoverable from git history if the property is ever wanted back. */
 
 /** The narrow CheckIn-row shape `injectCheckinLocations` reads. */
 export type CheckinLocationRow = {
