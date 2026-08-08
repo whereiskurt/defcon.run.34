@@ -159,6 +159,31 @@ describe("claimPending — credits exactly once via judgeSolve (T-45-02)", () =>
     expect(rows.has("n1")).toBe(false);
   });
 
+  it("REGRESSION: a REFUSED claim keeps the nonce so the player can retry", async () => {
+    // DEF CON 34, 2026-08-08: the delete ran unconditionally, so a claim the
+    // judge refused (rate-limit gate — indistinguishable from a wrong guess)
+    // still destroyed the award link. Shake-Weight tapped his ricky link once,
+    // was refused by a stale attempt counter, and the link was gone for good.
+    // Only a SOLVE may consume the nonce; a refusal must leave it claimable.
+    const { store, rows } = makeStore();
+    const { nonce } = await createPending(CHALLENGE, GUESS, {
+      store,
+      newNonce: () => "refused",
+    });
+    const judge = vi.fn(async (): Promise<JudgeResult> => NON_SOLVE);
+
+    const result = await claimPending(nonce, "user-42", { store, judge });
+
+    expect(result).toEqual(NON_SOLVE);
+    expect(rows.has("refused")).toBe(true); // link survives the refusal
+
+    // ...and once the gate clears, the SAME link still awards.
+    const judge2 = vi.fn(async (): Promise<JudgeResult> => AWARD);
+    const retry = await claimPending(nonce, "user-42", { store, judge: judge2 });
+    expect(retry).toEqual(AWARD);
+    expect(rows.has("refused")).toBe(false); // now consumed
+  });
+
   it("missing / already-claimed nonce → NON_SOLVE no-op, judge never called", async () => {
     const { store } = makeStore();
     const judge = vi.fn(async () => AWARD);

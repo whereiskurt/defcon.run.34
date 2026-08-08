@@ -107,13 +107,37 @@ describe("CtfPending key parity", () => {
 });
 
 describe("CtfAttempt key parity", () => {
-  it("encodes the per-(challenge, user) attempt-counter Key", () => {
-    const key = CtfAttempt.get({ challenge: "sao", user: "user-123" }).params({
-      table,
-    }).Key;
+  it("encodes the per-(challenge, user, window) attempt-counter Key", () => {
+    const key = CtfAttempt.get({
+      challenge: "sao",
+      user: "user-123",
+      window: "29770253",
+    }).params({ table }).Key;
     expect(key).toEqual({
       pk: "$run#challenge_sao",
-      sk: "$ctfattempt_1#user_user-123",
+      sk: "$ctfattempt_1#user_user-123#window_29770253",
     });
+  });
+
+  it("the window is a KEY component, so a new window is a new row", () => {
+    // The whole point of the 2026-08-08 fix: distinct windows MUST NOT collide
+    // on one row, or `count` accumulates across days and permanently locks a
+    // player out of a daily repeatable flag.
+    const at = (w: string) =>
+      CtfAttempt.get({ challenge: "sao", user: "user-123", window: w }).params({
+        table,
+      }).Key.sk;
+    expect(at("29770253")).not.toBe(at("29770254"));
+  });
+
+  it("cleanup queries a user's windows by sk prefix, entity-scoped", () => {
+    // ctf-unsolve-store deletes a user's counters with this query. The prefix
+    // carries the entity+version, so it can never sweep a neighbouring entity.
+    const params = CtfAttempt.query
+      .primary({ challenge: "sao", user: "user-123" })
+      .params({ table });
+    expect(params.ExpressionAttributeValues[":sk1"]).toBe(
+      "$ctfattempt_1#user_user-123#window_"
+    );
   });
 });

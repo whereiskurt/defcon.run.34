@@ -195,6 +195,17 @@ export async function claimPending(
     guessHash: row.submittedFlagHash,
     channel: "qr",
   });
-  await store.deletePending(nonce);
+  // ONLY a solve consumes the nonce. A refusal is a GATE outcome (attempt cap,
+  // score window, already-claimed-this-bucket) that the player can legitimately
+  // clear by retrying — burning the link there hands out a dead award.
+  //
+  // ⚠️ This delete used to be unconditional. DEF CON 34, 2026-08-08: a player's
+  // single ricky tap was refused by a stale attempt counter and the award link
+  // was destroyed in the same breath, with no way to re-mint but to redo the
+  // whole bot flow. Double-credit stays impossible without the delete —
+  // judgeSolve's own conditional put is the real once-only guarantee (a
+  // re-claim replays the prior award, it never re-scores); the delete is a
+  // cheap short-circuit, not the invariant.
+  if (result.solved) await store.deletePending(nonce);
   return result;
 }

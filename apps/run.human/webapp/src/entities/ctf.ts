@@ -286,8 +286,16 @@ export const CtfPending = new Entity(
 );
 
 // ---------------------------------------------------------------------------
-// CtfAttempt — short-TTL per-(challenge, user) attempt counter (CTF-03 step 2)
+// CtfAttempt — per-(challenge, user, window) attempt counter (CTF-03 step 2)
 // ---------------------------------------------------------------------------
+// The window token lives IN the sk (see lib/ctf-attempt-window.ts), so each
+// rate-limit window is its own row that starts at count=1 by construction.
+//
+// ⚠️ It used to be one row per (challenge, user) with the reset delegated to
+// DynamoDB TTL. TTL deletion is best-effort (~48h), and every attempt pushed
+// `ttl` forward again, so `count` accumulated across DAYS and permanently
+// locked players out of daily repeatable flags (DEF CON 34, 2026-08-08).
+// TTL is now garbage collection only — correctness never depends on it.
 
 export const CtfAttempt = new Entity(
   {
@@ -299,14 +307,16 @@ export const CtfAttempt = new Entity(
     attributes: {
       challenge: { type: "string", required: true },
       user: { type: "string", required: true },
+      // Rate-limit window token; makes the row self-resetting (see attemptWindow).
+      window: { type: "string", required: true },
       count: { type: "number", default: () => 0 }, // atomic-ADD attempt counter
       expiresAt: { type: "number" },
-      ttl: { type: "number" }, // DynamoDB TTL epoch seconds (= rateLimitWindow)
+      ttl: { type: "number" }, // DynamoDB TTL epoch seconds (garbage collection)
     },
     indexes: {
       primary: {
         pk: { field: "pk", composite: ["challenge"] },
-        sk: { field: "sk", composite: ["user"] },
+        sk: { field: "sk", composite: ["user", "window"] },
       },
     },
   },
