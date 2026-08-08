@@ -63,13 +63,22 @@ async function solverCounts(challenges: string[]): Promise<Record<string, number
 async function deleteAttempts(userId: string, challenges: string[]): Promise<number> {
   let removed = 0;
   for (const challenge of challenges) {
-    // Single round trip: delete is idempotent, and `all_old` tells us whether a
-    // row actually existed (so removedAttempts stays an honest count) without a
-    // separate get.
-    const res = await CtfAttempt.delete({ challenge, user: userId }).go({
-      response: "all_old",
-    });
-    if (res.data) removed++;
+    // A user now holds ONE row per rate-limit window (the window token is part
+    // of the sk), so this is a query-then-delete rather than a point delete.
+    // The query is entity-scoped by ElectroDB — the sk prefix it matches carries
+    // `$ctfattempt_1#user_<id>#window_`, so it can never reach another entity's
+    // row that merely shares a key prefix.
+    const rows = await CtfAttempt.query
+      .primary({ challenge, user: userId })
+      .go({ pages: "all" });
+    for (const row of rows.data) {
+      await CtfAttempt.delete({
+        challenge,
+        user: userId,
+        window: row.window,
+      }).go();
+      removed++;
+    }
   }
   return removed;
 }

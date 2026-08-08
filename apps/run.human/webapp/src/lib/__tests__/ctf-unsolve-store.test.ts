@@ -60,6 +60,14 @@ vi.mock("@/entities/ctf", () => ({
     }),
   },
   CtfAttempt: {
+    // A user holds one row per rate-limit WINDOW, so cleanup is query-then-delete.
+    query: {
+      primary: vi.fn((k: { challenge: string; user: string }) => ({
+        go: vi.fn().mockResolvedValue({
+          data: [{ challenge: k.challenge, user: k.user, window: "w1" }],
+        }),
+      })),
+    },
     delete: vi.fn((k: unknown) => {
       h.attemptDelete(k);
       return { go: vi.fn().mockResolvedValue({ data: null }) };

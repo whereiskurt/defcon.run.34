@@ -8,6 +8,10 @@ import {
 } from "./ctf-scoring";
 import { verifyAnswer, verifyAnswerHash, hashAnswer } from "./ctf-hash";
 import { isRepeatable, scoreBucket } from "./ctf-flag-types";
+import {
+  attemptWindow,
+  DEFAULT_ATTEMPT_WINDOW_SECONDS,
+} from "./ctf-attempt-window";
 import { verifyTotp } from "./ctf-otp";
 import { otpCodeHash, otpClaimTtlSeconds } from "./ctf-otp-claim";
 import { isWithinScoreWindow, type ScoreWindow } from "./ctf-score-window";
@@ -793,10 +797,20 @@ export const defaultStore: CtfStore = {
 
   async overAttemptLimit({ challenge, user, window, max, now }) {
     if (!Number.isFinite(max)) return false; // no cap configured → never over
-    // Atomic increment of the short-TTL per-(challenge,user) counter. TTL is set
-    // on write so DynamoDB reaps stale windows; a fresh window starts at 1.
-    const ttl = Math.floor(now / 1000) + (window || 0);
-    const res = await CtfAttempt.upsert({ challenge, user })
+    // Atomic increment of the per-(challenge,user,WINDOW) counter. The window
+    // token is part of the key, so crossing a window boundary lands on a brand
+    // new row that starts at 1 — the reset is structural, not a TTL side effect.
+    //
+    // ⚠️ This previously keyed on (challenge,user) only and leaned on DynamoDB
+    // TTL to reset `count`. TTL is best-effort (~48h) and every attempt pushed
+    // `ttl` forward again, so counts accumulated across DAYS and silently
+    // locked players out of daily repeatable flags. See ctf-attempt-window.ts.
+    const ttl = Math.floor(now / 1000) + (window || DEFAULT_ATTEMPT_WINDOW_SECONDS);
+    const res = await CtfAttempt.upsert({
+      challenge,
+      user,
+      window: attemptWindow(now, window),
+    })
       .add({ count: 1 })
       .set({ ttl, expiresAt: ttl })
       .go({ response: "all_new" });
