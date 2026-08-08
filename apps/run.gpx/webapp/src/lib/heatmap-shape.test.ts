@@ -2,8 +2,11 @@ import { describe, it, expect } from "vitest";
 import {
   buildRunShape,
   trkptTimes,
+  reconcileHeatmap,
+  willRenderOnMap,
   MAX_SHAPE_POINTS,
   VEGAS_BOX,
+  type RunShape,
 } from "@/lib/heatmap-shape";
 
 /**
@@ -178,5 +181,94 @@ describe("trkptTimes", () => {
       <trkpt lat="36.12" lon="-115.18"><time>2026-08-06T13:00:10Z</time></trkpt>`;
     const times = trkptTimes(gpx);
     expect(times.every(Number.isFinite)).toBe(true);
+  });
+});
+
+/**
+ * The observed production case (2026-08-08): the roster listed 78 con-day runs
+ * while the artifact published 59. All 19 of the difference were treadmill or
+ * distance-only imports whose stored GPX carries an empty `<trkseg>`, so
+ * `trkptCoords` returned nothing and the builder skipped them. These tests pin
+ * that arithmetic so the header can never silently stop explaining the gap.
+ */
+describe("willRenderOnMap", () => {
+  it("keeps an ordinary run", () => {
+    expect(willRenderOnMap(buildRunShape(vegasRun()))).toBe(true);
+  });
+
+  it("drops a trackless import — the empty <trkseg> treadmill case", () => {
+    expect(willRenderOnMap(buildRunShape([]))).toBe(false);
+  });
+
+  it("drops a single-point track, matching the builder's `< 2` skip", () => {
+    expect(willRenderOnMap(buildRunShape([[-115.172, 36.114]]))).toBe(false);
+  });
+
+  it("drops a track that never moves (WR-06)", () => {
+    const stuck: [number, number][] = Array.from({ length: 50 }, () => [
+      -115.172, 36.114,
+    ]);
+    expect(willRenderOnMap(buildRunShape(stuck))).toBe(false);
+  });
+});
+
+describe("reconcileHeatmap", () => {
+  const drawable = buildRunShape(vegasRun());
+  const trackless = buildRunShape([]);
+
+  function roster(n: number, hidden: string[] = []) {
+    return Array.from({ length: n }, (_, i) => ({
+      fileId: `f${i}`,
+      hidden: hidden.includes(`f${i}`),
+    }));
+  }
+
+  it("reproduces the 78 / 19 / 59 production case", () => {
+    const runs = roster(78);
+    const shapes: Record<string, RunShape> = {};
+    runs.forEach((r, i) => {
+      shapes[r.fileId] = i < 19 ? trackless : drawable;
+    });
+
+    expect(reconcileHeatmap(runs, shapes, new Set())).toEqual({
+      total: 78,
+      hidden: 0,
+      trackless: 19,
+      unreadable: 0,
+      expectedOnMap: 59,
+    });
+  });
+
+  it("counts a hidden run once, even when it is also trackless", () => {
+    const runs = roster(3, ["f0"]);
+    const shapes: Record<string, RunShape> = {
+      f0: trackless,
+      f1: trackless,
+      f2: drawable,
+    };
+
+    const got = reconcileHeatmap(runs, shapes, new Set());
+    expect(got.hidden).toBe(1);
+    expect(got.trackless).toBe(1);
+    // 3 - 1 hidden - 1 trackless. Double-counting f0 would give 0.
+    expect(got.expectedOnMap).toBe(1);
+  });
+
+  it("withholds a prediction when a run could not be read from S3", () => {
+    const runs = roster(2);
+    const got = reconcileHeatmap(runs, { f1: drawable }, new Set(["f0"]));
+    expect(got.unreadable).toBe(1);
+    expect(got.expectedOnMap).toBeNull();
+  });
+
+  it("treats a still-loading shape as neither trackless nor unreadable", () => {
+    const got = reconcileHeatmap(roster(2), {}, new Set());
+    expect(got).toEqual({
+      total: 2,
+      hidden: 0,
+      trackless: 0,
+      unreadable: 0,
+      expectedOnMap: 2,
+    });
   });
 });
