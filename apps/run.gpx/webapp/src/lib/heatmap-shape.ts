@@ -290,3 +290,86 @@ export const SIGNAL_META: Record<
     title: "Sustained speed above 30 km/h — vehicle pace, not a run.",
   },
 };
+
+/**
+ * Will this run become a feature in the published artifact, or will the builder
+ * drop it for having nothing to draw?
+ *
+ * MIRRORS TWO DROPS IN THE BUILD PATH, and exists so the moderation page can
+ * account for the gap between "con-day runs" and the artifact's `runCount`
+ * instead of showing two unexplained numbers side by side:
+ *
+ *   - `heatmap-build.ts` skips a row whose GPX yields fewer than 2 trackpoints
+ *     (`coords.length < 2`). `points` here is that same `trkptCoords()` count.
+ *   - `assembleHeatmapArtifact` drops a track whose coordinates are all
+ *     identical (WR-06) — no extent, nothing rendered.
+ *
+ * APPROXIMATE AT THE MARGIN, deliberately. WR-06 compares coordinates AFTER
+ * rounding to `COORD_PRECISION` (~1.1 m), whereas `spanMeters` is the raw
+ * bounding-box diagonal rounded to a whole metre. A run whose entire extent is
+ * under a metre therefore counts as trackless here and might survive there.
+ * That run draws a dot either way; the header is an explanation, not a ledger,
+ * and `Regenerate` remains the authority on what actually published.
+ */
+export function willRenderOnMap(shape: RunShape): boolean {
+  return shape.points >= 2 && shape.spanMeters > 0;
+}
+
+/** The moderation header's accounting, from roster + shapes. */
+export type HeatmapReconciliation = {
+  /** Roster rows — every active, con-day-tagged, non-GLOBAL run. */
+  total: number;
+  /** Pulled by an admin. Excluded from the artifact by `isSelected`. */
+  hidden: number;
+  /** Visible, but no drawable geometry — treadmill and distance-only imports. */
+  trackless: number;
+  /** Geometry could not be read from S3, so the outcome is unknown. */
+  unreadable: number;
+  /** What the next Regenerate should publish. Null while any run is unreadable. */
+  expectedOnMap: number | null;
+};
+
+/**
+ * Reconcile the roster against what the builder will actually publish.
+ *
+ * `shapes` is keyed on `fileId`; a run missing from BOTH `shapes` and `failed`
+ * is still loading, so it counts toward `total` and nothing else — the caller
+ * must not render the result until the shape request has settled.
+ *
+ * `expectedOnMap` is null whenever `unreadable > 0`: a run this page could not
+ * read is a run whose fate in the build is genuinely unknown, and a confident
+ * wrong number on a moderation page is worse than an absent one.
+ */
+export function reconcileHeatmap(
+  runs: readonly { fileId: string; hidden: boolean }[],
+  shapes: Readonly<Record<string, RunShape>>,
+  failed: ReadonlySet<string>
+): HeatmapReconciliation {
+  let hidden = 0;
+  let trackless = 0;
+  let unreadable = 0;
+
+  for (const run of runs) {
+    // Hidden wins: a pulled run is out of the artifact whatever its geometry,
+    // so counting it in both buckets would double-subtract below.
+    if (run.hidden) {
+      hidden++;
+      continue;
+    }
+    if (failed.has(run.fileId)) {
+      unreadable++;
+      continue;
+    }
+    const shape = shapes[run.fileId];
+    if (shape && !willRenderOnMap(shape)) trackless++;
+  }
+
+  return {
+    total: runs.length,
+    hidden,
+    trackless,
+    unreadable,
+    expectedOnMap:
+      unreadable > 0 ? null : runs.length - hidden - trackless,
+  };
+}

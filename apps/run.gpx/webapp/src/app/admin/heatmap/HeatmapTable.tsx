@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { adminApiUrl } from "@/lib/admin-api-base";
-import type { RunShape } from "@/lib/heatmap-shape";
+import { reconcileHeatmap, type RunShape } from "@/lib/heatmap-shape";
 import RunRow from "./RunRow";
 import ShapeThumb from "./ShapeThumb";
 import type { HeatmapRun, ShapeMap } from "./types";
@@ -153,10 +153,18 @@ export default function HeatmapTable() {
 
   if (loading) return <p>Loading…</p>;
 
-  const hiddenCount = runs.filter((r) => r.hidden).length;
   const flaggedCount = runs.filter(
     (r) => (shapes[r.fileId]?.signals.length ?? 0) > 0
   ).length;
+
+  // Roster count vs published count, with the difference named. Only meaningful
+  // once the shapes request has settled — see reconcileHeatmap.
+  const tally = reconcileHeatmap(runs, shapes, failedShapes);
+  const artifactIsStale =
+    !shapesLoading &&
+    tally.expectedOnMap !== null &&
+    artifactRunCount !== null &&
+    artifactRunCount !== tally.expectedOnMap;
 
   return (
     <>
@@ -175,21 +183,36 @@ export default function HeatmapTable() {
       >
         <div style={{ flex: 1, minWidth: 260, fontSize: "0.9rem" }}>
           <div>
-            <strong>{runs.length}</strong> con-day runs · <strong>{hiddenCount}</strong>{" "}
+            <strong>{tally.total}</strong> con-day runs · <strong>{tally.hidden}</strong>{" "}
             hidden
             {!shapesLoading && (
               <>
                 {" "}
+                ·{" "}
+                <span title="Treadmill and distance-only imports — the stored GPX has no trackpoints, so there is no line to draw. They still count for distance and the leaderboard.">
+                  <strong>{tally.trackless}</strong> trackless
+                </span>{" "}
                 · <strong>{flaggedCount}</strong> flagged
               </>
             )}
           </div>
+          {!shapesLoading && tally.expectedOnMap !== null && (
+            <div style={{ color: "#666" }}>
+              → <strong>{tally.expectedOnMap}</strong> should draw on the map
+            </div>
+          )}
           <div style={{ color: "#666" }}>
             Published artifact:{" "}
             {generatedAt
               ? `${artifactRunCount ?? "?"} runs, built ${new Date(generatedAt).toLocaleString()}`
               : "never built"}
           </div>
+          {artifactIsStale && (
+            <div style={{ color: "#8a6100" }}>
+              Artifact is {artifactRunCount} — {tally.expectedOnMap} expected. It
+              rebuilds hourly; Regenerate publishes now.
+            </div>
+          )}
           {shapesLoading && (
             <div style={{ color: "#666" }}>Reading run geometry…</div>
           )}
