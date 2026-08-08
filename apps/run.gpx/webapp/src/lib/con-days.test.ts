@@ -151,15 +151,24 @@ describe("autoConDayFromStrava", () => {
     expect(autoConDayFromStrava("2026-08-08T00:15:00Z")).toBe("2026-08-08");
   });
 
-  it.each(["2026-08-06", "2026-08-07", "2026-08-08", "2026-08-09"])(
-    "auto-tags %s",
-    (d) => expect(autoConDayFromStrava(`${d}T12:00:00Z`)).toBe(d)
+  it.each([
+    "2026-08-05",
+    "2026-08-06",
+    "2026-08-07",
+    "2026-08-08",
+    "2026-08-09",
+    "2026-08-10",
+  ])("auto-tags %s", (d) =>
+    expect(autoConDayFromStrava(`${d}T12:00:00Z`)).toBe(d)
   );
 
-  it.each(["2026-08-05", "2026-08-10"])(
-    "does NOT auto-tag %s - a con day, but outside the auto-tag set (Kurt, 2026-08-07)",
-    (d) => expect(autoConDayFromStrava(`${d}T12:00:00Z`)).toBeNull()
-  );
+  it("auto-tags Aug 5 and Aug 10, the two days that used to fall through", () => {
+    // Kurt, 2026-08-08. Aug 5 stranded 12 activities across 11 runners before
+    // this was widened; Aug 10 was the same hole, still in the future. A day
+    // that is in CON_DAYS but not AUTO_CON_DAYS drops real runs silently.
+    expect(autoConDayFromStrava("2026-08-05T06:31:00Z", "Run")).toBe("2026-08-05");
+    expect(autoConDayFromStrava("2026-08-10T06:31:00Z", "Run")).toBe("2026-08-10");
+  });
 
   it("returns null outside the con entirely", () => {
     expect(autoConDayFromStrava("2026-07-21T12:00:00Z")).toBeNull();
@@ -178,6 +187,18 @@ describe("autoConDayFromStrava", () => {
     // lists ever drift, auto-tagged runs would be written and then silently
     // ignored by the heat map - written but invisible.
     for (const d of AUTO_CON_DAYS) expect(isConDay(d)).toBe(true);
+  });
+
+  it("auto-tags EVERY con day - no day may fall through silently", () => {
+    // The converse of the test above, and the one that was missing. A day in
+    // CON_DAYS but not AUTO_CON_DAYS accepts runs and tags none of them: they
+    // sync, store, and count for nothing, with no signal to the runner. That
+    // cost 12 activities on Aug 5 (Kurt, 2026-08-08).
+    //
+    // If you are re-narrowing the policy on purpose, change this test in the
+    // same commit and say which day and why. It must not be the incidental
+    // casualty of an edit to the list.
+    expect([...AUTO_CON_DAYS].sort()).toEqual(CON_DAYS.map((d) => d.date).sort());
   });
 });
 
@@ -220,7 +241,9 @@ describe("autoConDayFromStrava - sport filter (Kurt, 2026-08-07)", () => {
 
   it("does not tag a ride even on an auto-tag day, nor a run off one", () => {
     expect(autoConDayFromStrava("2026-08-08T09:00:00Z", "Ride")).toBeNull();
-    expect(autoConDayFromStrava("2026-08-05T09:00:00Z", "Run")).toBeNull();
+    // Aug 5 IS an auto-tag day since 2026-08-08, so the "run off one" case now
+    // has to reach outside the con entirely to be off one.
+    expect(autoConDayFromStrava("2026-08-04T09:00:00Z", "Run")).toBeNull();
   });
 
   it("EXCLUDED_SPORTS is the single list both the sync and the backfill read", () => {

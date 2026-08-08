@@ -109,23 +109,38 @@ export function guessConDayFromGpx(gpx: string): string | null {
 }
 
 /**
- * Con days on which a SYNCED Strava activity is tagged automatically
- * (Kurt, 2026-08-07). Deliberately NARROWER than CON_DAYS: Aug 5 and Aug 10 are
- * real con days but are not auto-tagged, so a run on either still needs a
- * manual pick. Kept as its own list rather than a date range so changing the
- * policy is a one-line edit with no arithmetic to get wrong.
+ * Con days on which a SYNCED Strava activity is tagged automatically.
  *
- * WHY AUTO-TAG AT ALL: `conDay` is the single gate on both real consumers —
+ * NOW THE WHOLE CON WINDOW — identical to `CON_DAYS` (Kurt, 2026-08-08). It was
+ * originally Aug 6–9 (Kurt, 2026-08-07), deliberately narrower, on the reasoning
+ * that Aug 5 and Aug 10 could take a manual pick.
+ *
+ * WHY THAT CHANGED. Almost nobody makes the manual pick. By the morning of
+ * Aug 8, twelve Wednesday activities across eleven runners — seven Runs, four
+ * Walks, one HIIT — had synced, been stored, and were counting for NOTHING,
+ * because `conDay` is the single gate on both real consumers:
  * `heatmap-build.ts:isSelected()` requires it, and a run only reaches the
- * leaderboard through the tagged path. The unattended batch worker left it
- * undefined, so 240 of 293 synced files were inert: stored, listed, and
- * counting for nothing.
+ * leaderboard through the tagged path. Nothing told those runners; the runs
+ * simply were not there. Monday Aug 10 was the identical hole with two days
+ * left to fall into it.
+ *
+ * A DAY IN `CON_DAYS` BUT NOT HERE IS A TRAP, not a policy. It silently drops
+ * real runs, and the only signal is an admin noticing a count that does not
+ * add up. Cycling is still excluded (see `EXCLUDED_SPORTS`) — that filter is
+ * about the ACTIVITY, which is a judgement the sweep can actually make, rather
+ * than about the DAY, which it cannot.
+ *
+ * Kept as its own list rather than aliased to `CON_DAYS` so re-narrowing stays
+ * a one-line edit — but the test below pins the two lists together, so dropping
+ * a day from here now takes a deliberate test change.
  */
 export const AUTO_CON_DAYS: readonly string[] = [
+  "2026-08-05",
   "2026-08-06",
   "2026-08-07",
   "2026-08-08",
   "2026-08-09",
+  "2026-08-10",
 ];
 
 /**

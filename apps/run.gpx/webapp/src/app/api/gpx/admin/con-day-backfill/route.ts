@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/config/auth";
 import { isGpxAdmin } from "@/lib/gpx-admin";
+import { AUTO_CON_DAYS, CON_TZ_OFFSET_HOURS } from "@/lib/con-days";
 import { backfillConDayTags } from "@/lib/strava-sync";
 
 /**
@@ -19,10 +20,16 @@ import { backfillConDayTags } from "@/lib/strava-sync";
  * pass makes the same Strava calls and reports the identical tally, so the
  * numbers can be checked before anything is touched.
  *
- * `since` (epoch-ms, default Aug 6 con-local) bounds the scan. An activity that
- * HAPPENED on an auto-tag day cannot have been imported before it, so earlier
- * rows are excluded with no API call — on the 2026-08-07 backlog that ruled out
- * 188 of 240 rows for free.
+ * `since` (epoch-ms, default the FIRST auto-tag day, con-local) bounds the scan.
+ * An activity that HAPPENED on an auto-tag day cannot have been imported before
+ * it, so earlier rows are excluded with no API call — on the 2026-08-07 backlog
+ * that ruled out 188 of 240 rows for free.
+ *
+ * IT IS DERIVED FROM `AUTO_CON_DAYS`, NOT TYPED IN. It was hard-coded to Aug 6
+ * while that list started at Aug 6; widening the list to the whole con window
+ * (Kurt, 2026-08-08) without moving this would have left the newly-taggable
+ * Aug 5 rows permanently outside the scan — the backfill would report a clean
+ * zero while the runs it exists to recover sat just past the bound.
  *
  * Idempotent: only rows with no `conDay` are considered, so re-running after a
  * write finds nothing left to do.
@@ -34,8 +41,13 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-/** Aug 6 2026 00:00 con-local (PDT, UTC-7) — the first auto-tag day. */
-const DEFAULT_SINCE = Date.parse("2026-08-06T07:00:00Z");
+/**
+ * Midnight con-local (PDT, UTC-7) on the first auto-tag day. Derived so the
+ * bound can never lag the list — see the `since` note in the header.
+ */
+const DEFAULT_SINCE = Date.parse(
+  `${[...AUTO_CON_DAYS].sort()[0]}T${String(-CON_TZ_OFFSET_HOURS).padStart(2, "0")}:00:00Z`
+);
 
 export async function POST(request: Request) {
   const session = await auth();
