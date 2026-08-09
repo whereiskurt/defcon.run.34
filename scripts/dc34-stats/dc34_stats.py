@@ -57,6 +57,7 @@ import zoneinfo
 PT = zoneinfo.ZoneInfo("America/Los_Angeles")
 REGION = "us-east-1"
 PROFILE = "dc34-application"
+KV_PROFILE = "klanker-application"   # kv reads a DIFFERENT account
 
 # The six DC34 con days, Wed-Mon. DC33's aligned window is the same six
 # weekdays a year earlier -- align by WEEKDAY, never by date: DC33 ran Thu 7 to
@@ -74,6 +75,17 @@ GPX_BUCKET = "uploads-dc34-run-gpx-use1-80a6b349"
 DC33_BUCKET = "defcon.run.33.backup"
 DC33_PREFIX = "AWSDynamoDB/01755225714347-c2695bcb/data/"
 KV_DIR = os.path.expanduser("~/working/klanker-voice/kv")
+
+# Where each payphone DID physically is. Not derivable from the logs -- kv
+# reports the dialed number only. The two "unknown"/"concierge" buckets are
+# passed through verbatim and MUST stay distinct: they mean different things
+# (no dialed_did line ever emitted vs. resolution ran and returned none).
+DID_LOCATIONS = {
+    "7254043234": "ReBAR",
+    "7254043283": "LV Welcome sign",
+    "7254048283": "The Rio",
+    "8559164636": "Double Down",
+}
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -197,10 +209,10 @@ def fetch(out):
     print(f"    ghost buckets {len(ghosts)}")
 
     print("  running kv telephony ...", flush=True)
-    calls = fetch_calls(now)
+    calls, calls_error = fetch_calls(now)
     if calls is None:
-        print("    ! calls unavailable -- pages will say so "
-              "(fix: aws sso login --profile klanker-application)")
+        print(f"    ! calls unavailable: {calls_error}")
+        print(f"      (if that is an SSO error: aws sso login --profile {KV_PROFILE})")
     else:
         print(f"    calls {len(calls)}")
 
@@ -208,6 +220,7 @@ def fetch(out):
         "fetchedAt": now.isoformat(),
         "gpx": gpx, "human": human, "dc33": dc33,
         "artifacts": artifacts, "ghosts": ghosts, "calls": calls,
+        "callsError": calls_error,
     }
     with open(os.path.join(raw, "all.json"), "w") as fh:
         json.dump(blob, fh)
@@ -221,18 +234,28 @@ def _con_offset_ms():
 
 
 def fetch_calls(now):
-    """kv telephony calls. Optional: a different AWS account, own SSO session."""
+    """kv telephony calls. Optional: a different AWS account, own SSO session.
+
+    MUST override AWS_PROFILE. sh() defaults it to dc34-application for every
+    other source, and kv honours AWS_PROFILE over its own default -- inheriting
+    it points kv at the wrong account, where the log group does not exist. That
+    failed exactly like an expired SSO token and cost a debugging round.
+
+    Returns (calls, error). NEVER swallow the reason: a silent None here hid a
+    bug in this script and blamed the operator's login for it.
+    """
     binary = os.path.join(KV_DIR, "bin", "kv")
+    kv_env = {"AWS_PROFILE": KV_PROFILE, "AWS_REGION": REGION}
     try:
         # The shipped binary goes stale and silently lacks `telephony calls`.
-        sh(["go", "build", "-o", "bin/kv", "./cmd/..."], cwd=KV_DIR, timeout=300)
+        sh(["go", "build", "-o", "bin/kv", "./cmd/..."], cwd=KV_DIR, env=kv_env, timeout=300)
         hours = (now - datetime.datetime.combine(DC34_START, datetime.time(), PT))
         since = f"{int(hours.total_seconds() // 3600) + 1}h"
         p = sh([binary, "telephony", "calls", "--since", since,
-                "--view", "calls", "--json"], cwd=KV_DIR, timeout=300)
-        return json.loads(p.stdout)["calls"]
-    except Exception:                                              # noqa: BLE001
-        return None
+                "--view", "calls", "--json"], cwd=KV_DIR, env=kv_env, timeout=300)
+        return json.loads(p.stdout)["calls"], None
+    except Exception as exc:                                       # noqa: BLE001
+        return None, str(exc).strip().splitlines()[-1][:200] if str(exc).strip() else repr(exc)
 
 
 # ------------------------------------------------------------------- compute
@@ -412,6 +435,7 @@ def compute(blob):
         "asOf": fetched.strftime("%a %-d %b %H:%M PT"),
         "conOver": fetched.date() > DC34_DAYS[-1],
         "dc34": dc34, "dc33": prev, "ghosts": g, "phones": ph,
+        "callsError": blob.get("callsError"),
         "artifacts": blob.get("artifacts") or {},
     }
 
@@ -461,6 +485,13 @@ def delta(now, then, invert_ok=True):
         cls = "dn"
     return (f'<span class="{cls}">{arrow} {abs(pct)}%</span> '
             f'<span class="was">&middot; {_n(then)} at DC33</span>')
+
+
+def _did(d):
+    """725-404-3234 out of 7254043234; pass non-numeric buckets through."""
+    if len(d) == 10 and d.isdigit():
+        return f"{d[:3]}-{d[3:6]}-{d[6:]}"
+    return d
 
 
 def _n(v):
@@ -695,11 +726,13 @@ def render_operator(s):
 
     if p:
         rows = "".join(
-            f'<tr><td>{did}</td><td class="num">{e["calls"]}</td><td class="num">{e["callers"]}</td>'
+            f'<tr><td>{_did(did)}</td><td>{DID_LOCATIONS.get(did, "&mdash;")}</td>'
+            f'<td class="num">{e["calls"]}</td><td class="num">{e["callers"]}</td>'
             f'<td class="num">{e["solved"]}</td><td class="num">{e["timeout"]}</td></tr>'
             for did, e in p["perDid"].items())
         body.append('<section><h2>Payphones &mdash; Per Number</h2><div class="scroll"><table>'
-            '<thead><tr><th>Number</th><th class="num">Calls</th><th class="num">Callers</th>'
+            '<thead><tr><th>Number</th><th>Where</th><th class="num">Calls</th>'
+            '<th class="num">Callers</th>'
             '<th class="num">Solved</th><th class="num">Timed out</th></tr></thead>'
             f'<tbody>{rows}</tbody></table></div>'
             + note(f'{p["total"]} calls, {p["callers"]} callers, {_n(p["minutes"])} minutes of talk. '
@@ -799,7 +832,7 @@ def main():
     print(f"\n{d['km']} km / {d['runs']} runs / {d['runners']} runners / {d['hours']} h "
           f"(as of {stats['asOf']})")
     if stats["phones"] is None:
-        print("NOTE: call data missing -- aws sso login --profile klanker-application")
+        print(f"NOTE: call data missing -- {blob.get('callsError')}")
 
 
 if __name__ == "__main__":
