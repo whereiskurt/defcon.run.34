@@ -135,24 +135,21 @@ overruns, never as the primary path.
 - **Trusting the model to echo an exact value.** Even when the code is plainly in the
   input, the model may drop or paraphrase it. Keep a deterministic extractor over the
   raw input as the source of truth for anything that must be exact.
-- **Guardrails inline on the model call.** Inlined guards have to be re-implemented
-  for every backend and every code path. A sidecar guards all of them once — but only
-  if nothing bypasses it, so route the deterministic reveal around the *model* while
-  still logging it.
+- **Guardrails inline on the model call** have to be re-implemented for every backend.
+  A sidecar guards all of them once — route the deterministic reveal around the *model*
+  while still logging it.
 - **A style contract with no fallback.** The model will sometimes ignore "one message
-  per line" and emit a paragraph. Without the downstream splitter as a net, that turn
-  is a wall of text.
+  per line" and emit a paragraph. Without the downstream splitter as a net, that turn is
+  a wall of text.
 
 ## When not to use it
 
 - If the deterministic path resolves nearly everything, the model fallback may not be
   worth its cost and complexity — measure the miss rate first.
-- If nothing in the loop is sensitive, the secret-isolation machinery is overhead;
-  skip it.
-- If the output has no natural structure (a single scalar, a yes/no), there is nothing
-  for the model to segment — take the blob.
-- If volume is genuinely tiny and bounded, a hard per-run cap may be simpler than a
-  persisted daily ledger.
+- If nothing in the loop is sensitive, the secret-isolation machinery is overhead.
+- If the output has no natural structure (a scalar, a yes/no), there's nothing to
+  segment — take the blob.
+- If volume is tiny and bounded, a hard per-run cap may beat a persisted daily ledger.
 
 ## As built (defcon.run 34)
 
