@@ -72,7 +72,7 @@ The live replica is `strapi/` (Litestream `.ltx` generations):
 ### D. Secrets
 
 ```bash
-aws s3 cp s3://defcon.run.34.backup/ssm/<stamp>.secrets.sops.json - | sops --decrypt --input-type json --output-type json /dev/stdin
+aws s3 cp s3://defcon.run.34.backup/ssm/<stamp>.secrets.sops.json - | sops --config /dev/null --decrypt --input-type json --output-type json /dev/stdin
 ```
 
 Decryption needs the `alias/sops` KMS key in account 427284555693 — it is

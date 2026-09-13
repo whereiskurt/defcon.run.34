@@ -49,6 +49,8 @@ if aws1 s3api head-bucket --bucket "$BUCKET" 2>/dev/null; then echo "exists"; el
   run aws1 s3api put-bucket-versioning --bucket "$BUCKET" --versioning-configuration Status=Enabled
   run aws1 s3api put-bucket-encryption --bucket "$BUCKET" --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
   run aws1 s3api put-public-access-block --bucket "$BUCKET" --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+  # a just-created bucket can 404 on list for a few seconds; wait for it to settle
+  (( DRY )) || until aws1 s3api list-objects-v2 --bucket "$BUCKET" --max-keys 1 >/dev/null 2>&1; do sleep 3; done
 fi
 
 say "2. DynamoDB: save schema + kick off point-in-time exports"
@@ -73,10 +75,10 @@ done
 say "4. SSM: dump parameters (decrypted) and sops-encrypt with $KMS_ARN"
 for p in "${SSM_PATHS[@]}"; do
   aws1 ssm get-parameters-by-path --path "$p" --recursive --with-decryption --query 'Parameters[].{Name:Name,Type:Type,Value:Value}' --output json
-done | jq -s 'add | sort_by(.Name)' > "$WORK/ssm.json"
-echo "$(jq length "$WORK/ssm.json") parameters"
+done | jq -s '{parameters: (add | sort_by(.Name))}' > "$WORK/ssm.json"
+echo "$(jq '.parameters | length' "$WORK/ssm.json") parameters"
 if (( ! DRY )); then
-  sops --encrypt --kms "$KMS_ARN" --input-type json --output-type json "$WORK/ssm.json" > "$WORK/ssm.enc.json"
+  sops --config /dev/null --encrypt --kms "$KMS_ARN" --input-type json --output-type json "$WORK/ssm.json" > "$WORK/ssm.enc.json"
   aws1 s3 cp "$WORK/ssm.enc.json" "s3://$BUCKET/ssm/$STAMP.secrets.sops.json" --quiet
 fi
 
@@ -95,7 +97,8 @@ for t in "${TABLES[@]}"; do
   printf '%-20s exported=%-6s describe-table≈%s\n' "$t" "$(jq -r .items <<<"$d")" "$approx"
 done
 for b in "${SRC_BUCKETS[@]}"; do
-  n="$(aws1 s3api list-objects-v2 --bucket "$BUCKET" --prefix "s3/$b/" --query 'length(Contents || `[]`)' --output text)"
+  # --query runs per page (1000 keys), so sum the lines
+  n="$(aws1 s3api list-objects-v2 --bucket "$BUCKET" --prefix "s3/$b/" --query 'length(Contents || `[]`)' --output text | paste -sd+ - | bc)"
   jq --arg b "$b" --argjson n "$n" '.buckets[$b] = $n' "$manifest" > "$manifest.tmp" && mv "$manifest.tmp" "$manifest"
 done
 aws1 s3 cp "$manifest" "s3://$BUCKET/snapshots/$STAMP/MANIFEST.json" --quiet
