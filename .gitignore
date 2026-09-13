@@ -59,3 +59,5 @@ lambda_*.zip
 apps/configui/backups/
 excalidraw.log
 .superpowers/
+# dc34-stats report output (scripts/dc34-stats)
+/out/
