@@ -5,9 +5,9 @@ and the live account. Read the whole thing before the first `destroy`.
 
 ## 0. Gate: the snapshot is verified
 
-- [ ] `scripts/dc34-backup/snapshot.sh` ran; `s3://defcon.run.34.backup/LATEST` points at a run whose
+- [x] `scripts/dc34-backup/snapshot.sh` ran (2026-09-13, run `20260913T220136Z`); `s3://defcon.run.34.backup/LATEST` points at a run whose
       `MANIFEST.json` shows every table `COMPLETED` with sane item counts and every source bucket synced.
-- [ ] `restore_local.py run-human-electro` loads cleanly — proves the export is readable, not just present.
+- [x] `restore_local.py run-human-electro` loads cleanly (3565/3565, 4 GSIs) — proves the export is readable, not just present.
 - [ ] Both open PRs merged, `main` clean, no worktree holds uncommitted infra changes.
 
 ## 1. Do-not-touch list (same AWS account, not part of this destroy)
@@ -26,7 +26,9 @@ Never run anything account-wide (`aws s3 rb` loops, `aws dynamodb delete-table` 
 
 ## 2. Known blockers, in the order you will hit them
 
-1. **`admin-reports` — `prevent_destroy = true`** on the adopted `/ecs/*` log groups
+1. ✅ **DONE 2026-09-13** — `state rm`'d `app["auth"|"gpx"|"human"]`; `terragrunt plan -destroy` on the unit is
+   clean (`0 to add, 0 to change, 25 to destroy`, no re-import). Kept for the record:
+   **`admin-reports` — `prevent_destroy = true`** on the adopted `/ecs/*` log groups
    (`modules/admin-reports/v1.0.0/retention.tf`). `destroy` hard-fails here. Before destroying that unit:
    ```bash
    cd infra/terraform/live/site/region/us-east-1/admin-reports
@@ -62,7 +64,11 @@ terragrunt destroy --all
 terragrunt plan --all -destroy
 ```
 
-Run it from a machine with `env.local.sh` present (profile `dc34-application`) — the same
+Run it from a machine with `env.local.sh` present. Local terragrunt needs **three** things or it fails
+confusingly: `export SGUID=80a6b349; source env.sh` (sets `TG_BUCKET_USE1`/`TG_TABLE_USE1`), `source env.local.sh`,
+and `export AWS_PROFILE=dc34-application` (sops decrypt in `site.hcl`; the backend uses `dc34-terraform` itself).
+If a dependency's `.terragrunt-cache` is stale ("Backend initialization required"), add
+`--dependency-fetch-output-from-state` to read outputs from S3 instead — the same
 worktree landmine as releases. This is the one time a local apply is the right tool: there is
 no CI workflow for destroy and there shouldn't be.
 
