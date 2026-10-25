@@ -12,6 +12,11 @@ scripts/dc34-backup/snapshot.sh --dry-run   # show the plan
 scripts/dc34-backup/snapshot.sh             # ~5-10 min, mostly waiting on DDB exports
 ```
 
+Latest run: **`20261025T213115Z`** — 6 tables (exported counts match live exactly),
+1987 objects synced, 193 SSM parameters. Verified by decrypting the SSM dump back and
+round-tripping `run-gpx-electro` (1807/1807) into local DynamoDB. Re-run it on the day
+you tear down; it is idempotent and only syncs deltas.
+
 | Backed up | Where in the bucket | How |
 |---|---|---|
 | 6 DDB tables (`run-{auth,human,gpx,quota}-*`) | `ddb/<table>/AWSDynamoDB/<exportId>/` + `schema.json` + `LATEST` | native point-in-time export, `DYNAMODB_JSON` |
